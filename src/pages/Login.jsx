@@ -6,6 +6,10 @@ import { useNavigate } from 'react-router-dom';
 
 function Login() {
   const [activeTab, setActiveTab] = useState('employee');
+  const [employeeId, setEmployeeId] = useState('');
+  const [employeePassword, setEmployeePassword] = useState('');
+  const [adminId, setAdminId] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
   const navigate = useNavigate();
   return (
     <>
@@ -52,10 +56,22 @@ function Login() {
                                 <div className="row register-form justify-content-center">
                                     <div className="col-md-6 text-center">
                                         <div className="form-group m-3">
-                                            <input type="text" className="form-control" placeholder="ID Number *" value="" />
+                                            <input 
+                                              type="text" 
+                                              className="form-control" 
+                                              placeholder="ID Number *" 
+                                              value={employeeId}
+                                              onChange={(e) => setEmployeeId(e.target.value)}
+                                            />
                                         </div>
                                         <div className="form-group m-3">
-                                            <input type="password" className="form-control" placeholder="Password *" value="" />
+                                            <input 
+                                              type="password" 
+                                              className="form-control" 
+                                              placeholder="Password *" 
+                                              value={employeePassword}
+                                              onChange={(e) => setEmployeePassword(e.target.value)}
+                                            />
                                         </div>
                                         <Link to="/forgot-password" className="forgot-password">Forgot Password?</Link>
                                         <button 
@@ -77,10 +93,22 @@ function Login() {
                                 <div className="row register-form justify-content-center">
                                     <div className="col-md-6 text-center">
                                         <div className="form-group m-3">
-                                            <input type="text" className="form-control" placeholder="ID Number Admin *" value="" />
+                                            <input 
+                                              type="text" 
+                                              className="form-control" 
+                                              placeholder="ID Number Admin *" 
+                                              value={adminId}
+                                              onChange={(e) => setAdminId(e.target.value)}
+                                            />
                                         </div>
                                         <div className="form-group m-3">
-                                            <input type="password" className="form-control" placeholder="Password *" value="" />
+                                            <input 
+                                              type="password" 
+                                              className="form-control" 
+                                              placeholder="Password *" 
+                                              value={adminPassword}
+                                              onChange={(e) => setAdminPassword(e.target.value)}
+                                            />
                                         </div>
                                         <Link to="/forgot-password" className="forgot-password">Forgot Password?</Link>
                                         <button 
