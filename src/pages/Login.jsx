@@ -58,10 +58,16 @@ function Login() {
                                         <div className="form-group m-3">
                                             <input 
                                               type="text" 
+                                              inputMode="numeric"
                                               className="form-control" 
                                               placeholder="ID Number *" 
                                               value={employeeId}
-                                              onChange={(e) => setEmployeeId(e.target.value)}
+                                              onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  if (val === '' || (Number(val) <= 72)) {
+                                                    setEmployeeId(val);
+                                                  }
+                                              }}
                                             />
                                         </div>
                                         <div className="form-group m-3">
@@ -95,10 +101,16 @@ function Login() {
                                         <div className="form-group m-3">
                                             <input 
                                               type="text" 
+                                              inputMode="numeric"
                                               className="form-control" 
                                               placeholder="ID Number Admin *" 
                                               value={adminId}
-                                              onChange={(e) => setAdminId(e.target.value)}
+                                              onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  if (val === '' || (Number(val) <= 72)) {
+                                                    setAdminId(val);
+                                                  }
+                                              }}
                                             />
                                         </div>
                                         <div className="form-group m-3">
