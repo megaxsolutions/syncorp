@@ -1,9 +1,30 @@
 import { Link } from 'react-router-dom';
+import { useNavigate} from 'react-router-dom';
 import '../App.css';
 import logo from '../assets/logo.png';
-import { useState } from 'react';
+import React,{useState,useEffect,useContext} from 'react';
+import axios from 'axios';
 function Login() {
-  
+  const [credentials, setCredentials] = useState({
+    idnumber: '',
+    password: '',
+});
+const handleChange = (e) => {
+  const { name, value } = e.target;
+  setCredentials({
+      ...credentials,
+      [name]: value,
+  });
+};
+const navigate = useNavigate();
+const [alertText, setAlertText] = useState('');
+const [error, setError] = useState(false);
+const [isEmail,setisEmail]=useState(false);
+const [isPassword,setisPassword]=useState(false);
+const [searching, setSearching]=useState(false);
+const [myToken, setToken] = useState('');
+const [myTokenID, setTokenID] = useState('');
+
   return (
     <>
     <div>
@@ -29,10 +50,10 @@ function Login() {
                                 <div class="row register-form">
                                     <div class="col-md-12">
                                         <div class="form-group">
-                                            <input type="text" class="form-control" placeholder="ID Number" value="" />
+                                            <input type="text" onChange={handleChange} name="idnumber" class="form-control" placeholder="ID Number" />
                                         </div>
                                         <div class="form-group mt-2">
-                                            <input type="password" class="form-control" placeholder="password" value="" />
+                                            <input type="password" onChange={handleChange} class="form-control" name="password" placeholder="password" />
                                         </div>
                                         <div class="form-group">
                                             <input type="submit" class="btnRegister"  value="Login"/>
