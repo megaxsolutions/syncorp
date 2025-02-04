@@ -2,15 +2,21 @@ import React from "react";
 import logo from "../assets/logo.png";
 
 const Navbar = () => {
+  const handleToggleSidebar = () => {
+    document.body.classList.toggle("toggle-sidebar");
+  };
+
   return (
     <header id="header" className="header fixed-top d-flex align-items-center">
-
     <div className="d-flex align-items-center justify-content-between">
       <a href="index.html" className="logo d-flex align-items-center">
-        <img src={logo} alt="" />
-
+        <img src={logo} alt="Logo" />
       </a>
-      <i className="bi bi-list toggle-sidebar-btn"></i>
+      {/* Click event toggles a body class to show/hide sidebar */}
+      <i
+        className="bi bi-list toggle-sidebar-btn"
+        onClick={handleToggleSidebar}
+      ></i>
     </div>
 
 

@@ -21,9 +21,9 @@ setCredentials({
 };
 const navigate = useNavigate();
 const handleAdminLogin = () => {
-// Set token in local storage
+
 localStorage.setItem("token", "token");
-// Redirect to the dashboard
+
 navigate("/dashboard");
 };
 const [alertText, setAlertText] = useState('');
