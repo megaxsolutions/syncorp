@@ -9,6 +9,10 @@ import AddEmployee from './pages/AddEmployee';
 import Site from './pages/Site';
 import Department from './pages/Department';
 import Cluster from './pages/Cluster';
+import Position from './pages/Position';
+import EmployeeLevel from './pages/EmployeeLevel';
+import Calendar from './pages/Calendar';
+import CutOff from './pages/CutOff';
 
 function App() {
   return (
@@ -22,6 +26,10 @@ function App() {
         <Route path="/settings/site" element={<Site />} />
         <Route path="/settings/department" element={<Department />} />
         <Route path="/settings/cluster" element={<Cluster />} />
+        <Route path="/settings/position" element={<Position />} />
+        <Route path="/settings/employee-level" element={<EmployeeLevel />} />
+        <Route path="/settings/holiday-calendar" element={<Calendar />} />
+        <Route path="/settings/cut-off" element={<CutOff />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

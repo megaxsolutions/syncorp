@@ -75,6 +75,7 @@ return (
             <nav aria-label="breadcrumb">
                 <ol className="breadcrumb">
                     <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
+                    <li className="breadcrumb-item"><a href="/settings">Settings</a></li>
                     <li className="breadcrumb-item active" aria-current="page">Add Site</li>
                 </ol>
             </nav>

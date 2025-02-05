@@ -104,6 +104,7 @@ const Cluster = () => {
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb">
               <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
+              <li className="breadcrumb-item"><a href="/settings">Settings</a></li>
               <li className="breadcrumb-item active">Add Cluster</li>
             </ol>
           </nav>
