@@ -6,24 +6,41 @@ import config from "../config";
 
 const AddEmployee = () => {
 const [employee, setEmployee] = useState({
-fname: "",
-mname: "",
-lname: "",
-bdate: "",
-date_hired: "",
-department: "",
-cluster: "",
-site: "",
-status: "",
-sss: "",
-pagibig: "",
-philhealth: "",
-tin: "",
-basicPay: "",
-address: "",
-emergencyPerson: "",
-emergencyContactNumber: "",
+    photo: "",
+    fname: "",
+    mname: "",
+    lname: "",
+    bdate: "",
+    date_hired: "",
+    position: "",
+    department: "",
+    cluster: "",
+    site: "",
+    emp_level: "",
+    status: "",
+    basicPay: "",
+    sss: "",
+    pagibig: "",
+    philhealth: "",
+    tin: "",
+    healthcare: "",
+    address: "",
+    emergencyPerson: "",
+    emergencyContactNumber: "",
 });
+
+//Fot Image Preview
+const [preview, setPreview] = useState(null);
+
+const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPreview(URL.createObjectURL(file));
+      setEmployee((prev) => ({ ...prev, photo: file }));
+    }
+  };
+
+// End of Image Preview
 
 const handleChange = (e) => {
 const { name, value } = e.target;
@@ -36,9 +53,9 @@ setEmployee((prev) => ({
 const handleSubmit = async (e) => {
 e.preventDefault();
 try {
-// Using JSONPlaceholder's posts endpoint for testing.
+// For Testing here
 const response = await axios.post(
-`${config.API_BASE_URL}/posts`,
+`${config.API_BASE_URL}/add_employees`,
 employee
 );
 console.log("Employee saved:", response.data);
@@ -74,14 +91,35 @@ return (
                             <div className="col-12">
                                 <div className="card mb-4">
                                     <div className="card-header">
-                                        <h6>Profile</h6>
+                                        <h5>Profile</h5>
                                     </div>
                                     <div className="card-body">
                                         <div className="row g-3">
-                                            <div className="col-md-4">
-                                                <label htmlFor="fname" className="form-label">
-                                                    First Name
+                                        <div className="col-12 text-start mb-3 d-flex align-items-center">
+                                            <div className="position-relative photo-preview">
+                                                {preview ? (
+                                                <img
+                                                    src={preview}
+                                                    alt="Preview"
+                                                    style={{
+                                                        width: "150px",
+                                                        height: "150px",
+                                                        objectFit: "cover",
+                                                    }}
+                                                />
+                                                ) : (
+                                                    <label htmlFor="photo" className="mb-0 pointer-label">
+                                                        Choose File
+                                                    </label>
+                                                )}
+                                                <input type="file" name="photo" id="photo" onChange={handleFileChange} className="file-input"/>
+                                            </div>
+                                                <label className="form-label ms-3 mb-0 pointer-label">
+                                                    Upload a Photo
                                                 </label>
+                                            </div>
+                                            <div className="col-md-4">
+                                                <label htmlFor="fname" className="form-label">First Name</label>
                                                 <input type="text" name="fname" className="form-control"
                                                     id="fname" value={employee.fname} onChange={handleChange} />
                                             </div>
@@ -113,6 +151,18 @@ return (
                                                 <input type="date" name="date_hired" className="form-control"
                                                     id="date_hired" value={employee.date_hired}
                                                     onChange={handleChange} />
+                                            </div>
+                                            <div className="col-md-4">
+                                                <label htmlFor="position" className="form-label">
+                                                    Position
+                                                </label>
+                                                <select name="position" id="position" className="form-select"
+                                                    value={employee.position} onChange={handleChange}>
+                                                    <option value="">Choose...</option>
+                                                    <option value="test">Test</option>
+                                                    <option value="test1">Test1</option>
+                                                    <option value="test2">Test2</option>
+                                                </select>
                                             </div>
                                             <div className="col-md-4">
                                                 <label htmlFor="department" className="form-label">
@@ -151,8 +201,21 @@ return (
                                                 </select>
                                             </div>
                                             <div className="col-md-4">
+                                                <label htmlFor="emp_level" className="form-label">
+                                                    Employee Level
+                                                </label>
+                                                <select name="emp_level" id="emp_level" className="form-select"
+                                                    value={employee.emp_level} onChange={handleChange}>
+                                                    <option value="">Choose Level...</option>
+                                                    <option value="regular">Regular</option>
+                                                    <option value="contractual">Contractual</option>
+                                                    <option value="intern">Intern</option>
+                                                    <option value="project_based">Project Based</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-md-4">
                                                 <label htmlFor="status" className="form-label">
-                                                    Status
+                                                    Account Status
                                                 </label>
                                                 <select name="status" id="status" className="form-select"
                                                     value={employee.status} onChange={handleChange}>
@@ -161,6 +224,13 @@ return (
                                                     <option value="Inactive">Inactive</option>
                                                     <option value="Terminated">Terminated</option>
                                                 </select>
+                                            </div>
+                                            <div className="col-md-4">
+                                                <label htmlFor="basicPay" className="form-label">
+                                                    Basic Pay
+                                                </label>
+                                                <input type="number" name="basicPay" className="form-control"
+                                                    id="basicPay" value={employee.basicPay} onChange={handleChange} />
                                             </div>
                                         </div>
                                     </div>
@@ -171,10 +241,18 @@ return (
                             <div className="col-12">
                                 <div className="card mb-4">
                                     <div className="card-header">
-                                        <h6>Government Mandatory</h6>
+                                        <h5>Government Mandatory</h5>
                                     </div>
                                     <div className="card-body">
                                         <div className="row g-3">
+                                            <div className="col-md-4">
+                                                <label htmlFor="healthcare" className="form-label">
+                                                    Healthcare
+                                                </label>
+                                                <input type="text" name="healthcare" className="form-control"
+                                                    id="healthcare" value={employee.healthcare}
+                                                    onChange={handleChange} />
+                                            </div>
                                             <div className="col-md-4">
                                                 <label htmlFor="sss" className="form-label">
                                                     SSS
@@ -204,13 +282,6 @@ return (
                                                 <input type="text" name="tin" className="form-control"
                                                     id="tin" value={employee.tin} onChange={handleChange} />
                                             </div>
-                                            <div className="col-md-4">
-                                                <label htmlFor="basicPay" className="form-label">
-                                                    Basic Pay
-                                                </label>
-                                                <input type="number" name="basicPay" className="form-control"
-                                                    id="basicPay" value={employee.basicPay} onChange={handleChange} />
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -220,7 +291,7 @@ return (
                             <div className="col-12">
                                 <div className="card mb-4">
                                     <div className="card-header">
-                                        <h6>Contacts</h6>
+                                        <h5>Contacts</h5>
                                     </div>
                                     <div className="card-body">
                                         <div className="row g-3">

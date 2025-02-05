@@ -4,14 +4,15 @@ import '../App.css';
 import logo from '../assets/logo.png';
 import React,{useState,useEffect,useContext} from 'react';
 import axios from 'axios';
+import config from '../config'; 
+
 function Login() {
-
-
 
 const [credentials, setCredentials] = useState({
 idnumber: '',
 password: '',
 });
+const [adminCredentials, setAdminCredentials] = useState({ adminId: '', password: '' });
 const handleChange = (e) => {
 const { name, value } = e.target;
 setCredentials({
@@ -19,12 +20,24 @@ setCredentials({
 [name]: value,
 });
 };
+const handleAdminChange = (e) => {
+    const { name, value } = e.target;
+    setAdminCredentials({...adminCredentials, [name]: value});
+};
 const navigate = useNavigate();
-const handleAdminLogin = () => {
-
-localStorage.setItem("token", "token");
-
-navigate("/dashboard");
+const handleAdminLogin = async () => {
+    try {
+        const response = await axios.post(`${config.API_BASE_URL}/posts`, adminCredentials);
+        
+        const token = response.data.token ? response.data.token : `token`;
+        localStorage.setItem("token", token); 
+        console.log("Token set in localStorage:", localStorage.getItem("token"));
+        navigate("/dashboard");
+    } catch (error) {
+        console.error(error);
+        setError(true);
+        setAlertText("Invalid credentials");
+    }
 };
 const [alertText, setAlertText] = useState('');
 const [error, setError] = useState(false);
@@ -82,18 +95,18 @@ return (
                             <div className="row register-form">
                                 <div className="col-md-12">
                                     <div className="form-group">
-                                        <input type="text" class="form-control" placeholder="ID Number"
-                                            value="" />
+                                        <input type="text" className="form-control" placeholder="Admin ID Number"
+                                               name="adminId" onChange={handleAdminChange} value={adminCredentials.adminId} />
                                     </div>
-                                    <div class="form-group mt-2">
-                                        <input type="password" class="form-control" placeholder="password"
-                                            value="" />
+                                    <div className="form-group mt-2">
+                                        <input type="password" className="form-control" placeholder="password"
+                                               name="password" onChange={handleAdminChange} value={adminCredentials.password} />
                                     </div>
                                     <div className="form-group">
                                         <input type="submit" className="btnRegister" value="Login"
-                                            onClick={handleAdminLogin} />
+                                               onClick={handleAdminLogin} />
                                     </div>
-
+                                    {error && <p style={{color: "red"}}>{alertText}</p>}
                                 </div>
                             </div>
                         </div>

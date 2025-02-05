@@ -6,7 +6,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.min.js";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-// Register the components
 Chart.register(
   CategoryScale,
   LinearScale,
@@ -20,7 +19,7 @@ Chart.register(
   LineController,
   ArcElement,
   DoughnutController,
-  PieController // needed for "pie" chart type
+  PieController 
 );
 
 const Dashboard = () => {

@@ -1,12 +1,14 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, BrowserRouter } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import About from './pages/About';
 import NotFound from './pages/NotFound';
 import ViewEmployee from './pages/ViewEmployee';
 import Dashboard from './pages/Dashboard';
 import AddEmployee from './pages/AddEmployee';
-
+import Site from './pages/Site';
+import Department from './pages/Department';
+import Cluster from './pages/Cluster';
 
 function App() {
   return (
@@ -15,11 +17,14 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/about" element={<About />} />
-        <Route path="*" element={<NotFound />} /> {/* Catch-all for 404 */}
         <Route path="/add-employee" element={<AddEmployee />} />
         <Route path="/view-employee" element={<ViewEmployee />} />
+        <Route path="/settings/site" element={<Site />} />
+        <Route path="/settings/department" element={<Department />} />
+        <Route path="/settings/cluster" element={<Cluster />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
-      </>
+    </>
   );
 }
 
