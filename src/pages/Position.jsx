@@ -72,7 +72,7 @@ const Position = () => {
     <>
       <Navbar />
       <Sidebar />
-      <div id="main" className="container mt-6">
+      <div id="main" className="main">
         {/* Breadcrumb header */}
         <div className="pagetitle mb-4">
           <h1>Position</h1>

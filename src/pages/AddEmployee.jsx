@@ -3,6 +3,7 @@ import axios from "axios";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import config from "../config";
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const AddEmployee = () => {
 const [employee, setEmployee] = useState({
@@ -67,13 +68,9 @@ console.error("Error saving employee:", error);
 return (
 <>
     <Navbar />
-    <div className="container-fluid">
-        <div className="row mt-5 pt-5">
-            <div className="col-md-2">
-                <Sidebar />
-            </div>
-            <div className="col-md-9">
-                <main className="main">
+    <Sidebar />
+    
+                <main className="main" id="main">
                     <div className="pagetitle">
                         <h1>Add Employee</h1>
                         <nav>
@@ -334,9 +331,7 @@ return (
                         </form>
                     </section>
                 </main>
-            </div>
-        </div>
-    </div>
+            
 </>
 );
 };

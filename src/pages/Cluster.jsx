@@ -98,7 +98,7 @@ const Cluster = () => {
     <>
       <Navbar />
       <Sidebar />
-      <div id="main" className="container mt-6">
+      <div id="main" className="main">
         <div className="pagetitle mb-4">
           <h1>Cluster</h1>
           <nav aria-label="breadcrumb">

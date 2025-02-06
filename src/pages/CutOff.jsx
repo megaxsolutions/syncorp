@@ -60,7 +60,7 @@ return (
 <>
     <Navbar />
     <Sidebar />
-    <main id="main" className="container-fluid mt-6">
+    <main id="main" className="main">
         <div className="pagetitle mb-3">
             <h1>Cut Off Page</h1>
         </div>
