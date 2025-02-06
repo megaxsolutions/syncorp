@@ -141,15 +141,15 @@ return (
                                                 <label htmlFor="bdate" className="form-label">
                                                     Birth Date
                                                 </label>
-                                                <input type="date" name="bdate" className="form-control"
-                                                    id="bdate" value={employee.bdate} onChange={handleChange} />
+                                                <input type="date" name="birthdate" className="form-control"
+                                                    id="bdate" value={employee.birthdate} onChange={handleChange} />
                                             </div>
                                             <div className="col-md-6">
                                                 <label htmlFor="date_hired" className="form-label">
                                                     Date Hired
                                                 </label>
-                                                <input type="date" name="date_hired" className="form-control"
-                                                    id="date_hired" value={employee.date_hired}
+                                                <input type="date" name="date_added" className="form-control"
+                                                    id="date_hired" value={employee.date_added}
                                                     onChange={handleChange} />
                                             </div>
                                             <div className="col-md-4">
@@ -168,8 +168,8 @@ return (
                                                 <label htmlFor="department" className="form-label">
                                                     Department
                                                 </label>
-                                                <select name="department" id="department" className="form-select"
-                                                    value={employee.department} onChange={handleChange}>
+                                                <select name="department_id" id="department" className="form-select"
+                                                    value={employee.department_id} onChange={handleChange}>
                                                     <option value="">Choose...</option>
                                                     <option value="HR">HR</option>
                                                     <option value="Development">Development</option>
@@ -180,8 +180,8 @@ return (
                                                 <label htmlFor="cluster" className="form-label">
                                                     Cluster
                                                 </label>
-                                                <select name="cluster" id="cluster" className="form-select"
-                                                    value={employee.cluster} onChange={handleChange}>
+                                                <select name="cluster_id" id="cluster" className="form-select"
+                                                    value={employee.cluster_id} onChange={handleChange}>
                                                     <option value="">Choose...</option>
                                                     <option value="A">A</option>
                                                     <option value="B">B</option>
@@ -192,8 +192,8 @@ return (
                                                 <label htmlFor="site" className="form-label">
                                                     Site
                                                 </label>
-                                                <select name="site" id="site" className="form-select"
-                                                    value={employee.site} onChange={handleChange}>
+                                                <select name="site_id" id="site" className="form-select"
+                                                    value={employee.site_id} onChange={handleChange}>
                                                     <option value="">Choose Site...</option>
                                                     <option value="Site1">Site 1</option>
                                                     <option value="Site2">Site 2</option>
@@ -204,8 +204,8 @@ return (
                                                 <label htmlFor="emp_level" className="form-label">
                                                     Employee Level
                                                 </label>
-                                                <select name="emp_level" id="emp_level" className="form-select"
-                                                    value={employee.emp_level} onChange={handleChange}>
+                                                <select name="employee_level" id="emp_level" className="form-select"
+                                                    value={employee.employee_level} onChange={handleChange}>
                                                     <option value="">Choose Level...</option>
                                                     <option value="regular">Regular</option>
                                                     <option value="contractual">Contractual</option>
@@ -217,8 +217,8 @@ return (
                                                 <label htmlFor="status" className="form-label">
                                                     Account Status
                                                 </label>
-                                                <select name="status" id="status" className="form-select"
-                                                    value={employee.status} onChange={handleChange}>
+                                                <select name="employee_status" id="status" className="form-select"
+                                                    value={employee.employee_status} onChange={handleChange}>
                                                     <option value="">Choose...</option>
                                                     <option value="Active">Active</option>
                                                     <option value="Inactive">Inactive</option>
@@ -229,8 +229,8 @@ return (
                                                 <label htmlFor="basicPay" className="form-label">
                                                     Basic Pay
                                                 </label>
-                                                <input type="number" name="basicPay" className="form-control"
-                                                    id="basicPay" value={employee.basicPay} onChange={handleChange} />
+                                                <input type="number" name="basic_pay" className="form-control"
+                                                    id="basicPay" value={employee.basic_pay} onChange={handleChange} />
                                             </div>
                                         </div>
                                     </div>
