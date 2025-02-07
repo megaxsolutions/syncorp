@@ -4,7 +4,6 @@ import logo from '../assets/logo.png';
 import React, { useState } from 'react';
 import axios from 'axios';
 import config from '../config';
-import { v4 as uuidv4 } from 'uuid'; 
 
 function Login() {
   const navigate = useNavigate();
@@ -70,23 +69,15 @@ function Login() {
         adminCredentials
       );
       console.log("Admin login response:", response.data);
-    
-      if (response.data.success) {
-        
-        const generatedToken = uuidv4().replace(/-/g, "");
-        
-        const tokenResponse = await axios.post(
-          `${config.API_BASE_URL}/tokens`,
-          { token: generatedToken, user: adminCredentials.emp_ID }
-        );
-        
-        if (tokenResponse.data.success) {
-          localStorage.setItem("token", generatedToken);
-          console.log("Token set in localStorage:", generatedToken);
-          navigate("/dashboard");
-        } else {
-          throw new Error("Could not store token in database");
+  
+      if (response.data.data) {
+        localStorage.setItem("token", response.data.data);
+        if (response.data.emp_id) {
+          localStorage.setItem("X-EMP-ID", response.data.emp_id);
         }
+  
+        console.log("Admin token set in localStorage:", response.data.data);
+        navigate("/dashboard");
       } else {
         throw new Error("Invalid credentials");
       }
