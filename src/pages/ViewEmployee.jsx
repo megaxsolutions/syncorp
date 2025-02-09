@@ -104,13 +104,13 @@ function ViewEmployee() {
     
                 <main className="main" id="main">
                     <div className="pagetitle">
-                        <h1>Add Employee</h1>
+                        <h1>View Employee</h1>
                         <nav>
                             <ol className="breadcrumb">
                                 <li className="breadcrumb-item">
                                     <a href="/dashboard">Home</a>
                                 </li>
-                                <li className="breadcrumb-item active">Add Employee</li>
+                                <li className="breadcrumb-item active">View Employee</li>
                             </ol>
                         </nav>
                     </div>
