@@ -223,6 +223,7 @@
   padding: 0;
   margin: 0;
   list-style: none;
+  text-decoration: none;
 }
 
 .sidebar-nav .nav-item {
@@ -244,9 +245,14 @@
   font-weight: 600;
   color: #4154f1;
   transition: 0.3;
-  background: #f6f9ff;
+  background: none; /* Remove default background */
   padding: 10px 15px;
   border-radius: 4px;
+}
+
+.sidebar-nav .nav-link,
+.sidebar-nav .nav-link ul span {
+    text-decoration: none !important;
 }
 
 .sidebar-nav .nav-link i {
@@ -312,7 +318,9 @@
   background: #d3d8e0; /* changed dark bg on hover for dropdown items */
 }
 
-
+.sidebar-nav .nav-link.active {
+  background: #f6f9ff; /* Only apply background when active */
+}
 
 .dashboard .filter {
   position: absolute;
@@ -791,3 +799,33 @@ label {
     margin-right: 10px;
 }
 
+.profile-circle {
+  width: 100px;
+  height: 100px;
+}
+
+.datetime-row {
+  gap: 0.5rem;
+}
+
+.timein-btn {
+  width: 90px;
+}
+
+.full-width-btn {
+  width: 100%;
+}
+
+.margin-top-10 {
+  margin-top: 10px;
+}
+
+.date-time-text {
+  font-weight: 600;
+  color: #012970;
+  padding-right: 0.5rem;
+}
+
+.icon-highlight {
+  color: #0062cc;
+}

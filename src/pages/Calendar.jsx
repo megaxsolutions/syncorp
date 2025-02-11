@@ -8,13 +8,11 @@ const Calendar = () => {
   const [currentMonth, setCurrentMonth] = useState(todayDate.getMonth());
   const [currentYear, setCurrentYear] = useState(todayDate.getFullYear());
   
-  // Store all holidays as array: each { id, date, name }
   const [holidays, setHolidays] = useState([]);
   
-  // Modal states for managing day holidays
   const [selectedDate, setSelectedDate] = useState(null);
   const [newHolidayName, setNewHolidayName] = useState("");
-  // For editing an existing holiday in the modal
+
   const [editingHolidayId, setEditingHolidayId] = useState(null);
   const [editHolidayName, setEditHolidayName] = useState("");
   

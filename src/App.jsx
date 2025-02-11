@@ -13,12 +13,23 @@ import Position from './pages/Position';
 import EmployeeLevel from './pages/EmployeeLevel';
 import Calendar from './pages/Calendar';
 import CutOff from './pages/CutOff';
+import AdminUser from './pages/AdminUser';
+import Attendance from './pages/Attendance';
+import DTR from './pages/DTR';
+import Bulletin from './pages/Bulletin';
+import EmployeeDashboard from './pages/Employee Page/Dashboard';
+import EmployeeAttendance from './pages/Employee Page/Attendance';
+import EmployeePayslip from './pages/Employee Page/Payslip';
+import LeaveRequest from './pages/Employee Page/LeaveRequest';
+import ProtectedLayout from './ProtectedLayout';
+
 
 function App() {
-  return (
-    <>
-      <Routes>
+return (
+<>
+    <Routes>
         <Route path="/" element={<Login />} />
+        <Route element={<ProtectedLayout />} >
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/about" element={<About />} />
         <Route path="/add-employee" element={<AddEmployee />} />
@@ -30,10 +41,20 @@ function App() {
         <Route path="/settings/employee-level" element={<EmployeeLevel />} />
         <Route path="/settings/holiday-calendar" element={<Calendar />} />
         <Route path="/settings/cut-off" element={<CutOff />} />
+        <Route path="/settings/admin-user" element={<AdminUser />} />
+        <Route path="/attendance" element={<Attendance />} />
+        <Route path="/dtr" element={<DTR />} />
+        <Route path="/settings/bulletin" element={<Bulletin />} />
+        <Route path="/employee_dashboard" element={<EmployeeDashboard />} />
+        <Route path="/employee_attendance" element={<EmployeeAttendance />} />
+        <Route path="/employee_payslip" element={<EmployeePayslip />} />
+        <Route path="/employee_leave_request" element={<LeaveRequest />} />
         <Route path="*" element={<NotFound />} />
-      </Routes>
-    </>
-  );
+        </Route>
+
+    </Routes>
+</>
+);
 }
 
 export default App;

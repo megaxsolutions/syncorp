@@ -103,8 +103,7 @@ const Dashboard = () => {
         ]
       }
     });
-
-    // Cleanup chart on component unmount to prevent memory leaks
+    
     return () => {
       if (lineChart) {
         lineChart.destroy();

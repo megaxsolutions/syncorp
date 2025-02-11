@@ -10,7 +10,7 @@ function Login() {
 
   
   const [credentials, setCredentials] = useState({
-    idnumber: '',
+    emp_ID: '',
     password: '',
   });
 
@@ -28,7 +28,7 @@ function Login() {
     const { name, value } = e.target;
     setCredentials((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: value, // Trim the input value
     }));
   };
 
@@ -44,14 +44,20 @@ function Login() {
  
   const handleEmployeeLogin = async () => {
     try {
-      
-      const response = await axios.post(`${config.API_BASE_URL}/users/login`, credentials);
-
-      if (response.data.success) {
-        const generatedToken = uuidv4();
-        localStorage.setItem("token", generatedToken);
-        console.log("Employee token set in localStorage:", generatedToken);
-        navigate("/dashboard");
+      const response = await axios.post(
+        `${config.API_BASE_URL}/employees/login_employee`,
+        credentials
+      );
+      console.log("Employee login response:", response.data);
+  
+      if (response.data.data) {
+        localStorage.setItem("token", response.data.data);
+        if (response.data.emp_id) {
+          localStorage.setItem("X-EMP-ID", response.data.emp_id);
+        }
+  
+        console.log("Employee token set in localStorage:", response.data.data);
+        navigate("/employee_dashboard");
       } else {
         throw new Error("Invalid credentials");
       }
@@ -141,7 +147,7 @@ function Login() {
                         <input
                           type="text"
                           onChange={handleChange}
-                          name="idnumber"
+                          name="emp_ID"
                           className="form-control"
                           placeholder="ID Number"
                         />

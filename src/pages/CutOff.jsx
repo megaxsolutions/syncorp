@@ -61,9 +61,18 @@ return (
     <Navbar />
     <Sidebar />
     <main id="main" className="main">
-        <div className="pagetitle mb-3">
-            <h1>Cut Off Page</h1>
+        {/* Breadcrumbs */}
+        <div className="pagetitle mb-4">
+          <h1>Cut Off</h1>
+          <nav aria-label="breadcrumb">
+            <ol className="breadcrumb">
+              <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
+              <li className="breadcrumb-item"><a href="/settings">Settings</a></li>
+              <li className="breadcrumb-item active" aria-current="page">Cut Off</li>
+            </ol>
+          </nav>
         </div>
+
         <div className="row">
             {/* Left side: Add Cut Off */}
             <div className="col-md-4">
