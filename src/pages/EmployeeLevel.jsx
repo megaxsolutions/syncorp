@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import config from "../config";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 
 const EmployeeLevel = () => {
   const [levelName, setLevelName] = useState("");
-  const [levels, setLevels] = useState([
-    { id: 1, name: "Level 1" },
-    { id: 2, name: "Level 2" },
-    { id: 3, name: "Level 3" }
-  ]);
+  const [levels, setLevels] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  
   // New state variables for modals
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -23,15 +24,78 @@ const EmployeeLevel = () => {
   const currentLevels = levels.slice(indexOfFirstLevel, indexOfLastLevel);
   const totalPages = Math.ceil(levels.length / levelsPerPage);
 
-  const addLevel = () => {
-    if (!levelName.trim()) return;
-    setLevels([...levels, { id: Date.now(), name: levelName }]);
-    setLevelName("");
+  // Fetch employee levels on component mount
+  useEffect(() => {
+    fetchLevels();
+  }, []);
+
+  const fetchLevels = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+          }
+        }
+      );
+
+      const parsedData = typeof response.data === "string" 
+        ? JSON.parse(response.data) 
+        : response.data;
+
+      const levelsData = parsedData.employee_levels || parsedData.data?.employee_levels || [];
+      setLevels(Array.isArray(levelsData) ? levelsData : []);
+    } catch (error) {
+      console.error("Error fetching levels:", error);
+      setError("Failed to fetch employee levels");
+    }
   };
+
+  const addLevel = async () => {
+    if (!levelName.trim()) {
+      setError("Please enter an employee level name");
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        `${config.API_BASE_URL}/employee_levels/add_employee_level`,
+        { e_level: levelName },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+          }
+        }
+      );
+
+      if (response.data.success) {
+        setLevelName("");
+        fetchLevels(); // Refresh the levels list
+        setSuccess("Employee level added successfully!");
+      }
+    } catch (error) {
+      console.error("Add Level Error:", error);
+      setError("Failed to add employee level");
+    }
+  };
+
+  // Add cleanup effect for notifications
+  useEffect(() => {
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError("");
+        setSuccess("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, success]);
 
   const openEditModal = (level) => {
     setCurrentLevel(level);
-    setEditLevelName(level.name);
+    setEditLevelName(level.e_level || level.name); // Handle both e_level and name properties
     setShowEditModal(true);
   };
 
@@ -40,13 +104,33 @@ const EmployeeLevel = () => {
     setCurrentLevel(null);
   };
 
-  const confirmEdit = () => {
-    if (editLevelName.trim() && currentLevel) {
-      setLevels(
-        levels.map(lv => lv.id === currentLevel.id ? { ...lv, name: editLevelName } : lv)
-      );
+  const confirmEdit = async () => {
+    if (!editLevelName.trim() || !currentLevel) {
+      setError("Please enter an employee level name");
+      return;
     }
-    closeEditModal();
+
+    try {
+      const response = await axios.put(
+        `${config.API_BASE_URL}/employee_levels/update_employee_level/${currentLevel.id}`,
+        { e_level: editLevelName },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+          }
+        }
+      );
+
+      if (response.data.success) {
+        fetchLevels(); // Refresh the levels list
+        setSuccess("Employee level updated successfully!");
+        closeEditModal();
+      }
+    } catch (error) {
+      console.error("Edit Level Error:", error);
+      setError("Failed to update employee level");
+    }
   };
 
   const openDeleteModal = (level) => {
@@ -59,11 +143,29 @@ const EmployeeLevel = () => {
     setCurrentLevel(null);
   };
 
-  const confirmDelete = () => {
-    if (currentLevel) {
-      setLevels(levels.filter(lv => lv.id !== currentLevel.id));
+  const confirmDelete = async () => {
+    if (!currentLevel) return;
+
+    try {
+      const response = await axios.delete(
+        `${config.API_BASE_URL}/employee_levels/delete_employee_level/${currentLevel.id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+          }
+        }
+      );
+
+      if (response.data.success) {
+        fetchLevels(); // Refresh the levels list
+        setSuccess("Employee level deleted successfully!");
+        closeDeleteModal();
+      }
+    } catch (error) {
+      console.error("Delete Level Error:", error);
+      setError("Failed to delete employee level");
     }
-    closeDeleteModal();
   };
 
   return (
@@ -82,6 +184,21 @@ const EmployeeLevel = () => {
             </ol>
           </nav>
         </div>
+
+        {/* Add error and success alerts */}
+        {error && (
+          <div className="alert alert-danger alert-dismissible fade show" role="alert">
+            {error}
+            <button type="button" className="btn-close" onClick={() => setError("")}></button>
+          </div>
+        )}
+        {success && (
+          <div className="alert alert-success alert-dismissible fade show" role="alert">
+            {success}
+            <button type="button" className="btn-close" onClick={() => setSuccess("")}></button>
+          </div>
+        )}
+
         <div className="row">
           {/* Left column: Add Employee Level Card */}
           <div className="col-md-6 mb-4">
@@ -119,7 +236,7 @@ const EmployeeLevel = () => {
                     <ul className="list-group">
                       {currentLevels.map((level) => (
                         <li key={level.id} className="list-group-item d-flex justify-content-between align-items-center">
-                          {level.name}
+                          {level.e_level || level.name}
                           <div>
                             <button onClick={() => openEditModal(level)} className="btn btn-warning btn-sm me-2">
                               <i className="bi bi-pencil"></i>
@@ -201,7 +318,7 @@ const EmployeeLevel = () => {
                 <button type="button" className="btn-close" onClick={closeDeleteModal}></button>
               </div>
               <div className="modal-body">
-                <p>Are you sure you want to delete the employee level "{currentLevel?.name}"?</p>
+                <p>Are you sure you want to delete the employee level "{currentLevel?.e_level || currentLevel?.name}"?</p>
               </div>
               <div className="modal-footer">
                 <button className="btn btn-secondary" onClick={closeDeleteModal}>Cancel</button>

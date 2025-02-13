@@ -1,53 +1,134 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
-
-// Sample data for dropdowns
-const sitesList = [
-  { id: 1, name: "Site A" },
-  { id: 2, name: "Site B" },
-  { id: 3, name: "Site C" }
-];
-
-const departmentsList = [
-  { id: 1, name: "Dept A", siteId: 1 },
-  { id: 2, name: "Dept B", siteId: 1 },
-  { id: 3, name: "Dept C", siteId: 2 }
-];
+import axios from "axios";
+import config from "../config";
 
 const Cluster = () => {
-  const [selectedSite, setSelectedSite] = useState(sitesList[0].id);
+  const [sites, setSites] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [selectedSite, setSelectedSite] = useState("");
   const [selectedDept, setSelectedDept] = useState("");
   const [clusterName, setClusterName] = useState("");
   const [clusters, setClusters] = useState([]);
   const [filteredDepartments, setFilteredDepartments] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [currentCluster, setCurrentCluster] = useState(null);
   const [editClusterName, setEditClusterName] = useState("");
-  const [editSite, setEditSite] = useState(sitesList[0].id);
+  const [editSite, setEditSite] = useState("");
   const [editDept, setEditDept] = useState("");
 
-  // Update departments when site changes
+  // Fetch sites and departments
   useEffect(() => {
-    const depts = departmentsList.filter(dept => dept.siteId === Number(selectedSite));
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+            }
+          }
+        );
+    
+        const parsedData = typeof response.data === "string" 
+          ? JSON.parse(response.data) 
+          : response.data;
+    
+        const sitesData = parsedData.sites || parsedData.data?.sites || [];
+        const departmentsData = parsedData.departments || parsedData.data?.departments || [];
+        const clustersData = parsedData.clusters || parsedData.data?.clusters || parsedData.data || [];
+    
+        const updatedClusters = clustersData.map((c) => {
+          // Update property names to match the database
+          const siteID = c.siteID || c.site_id;
+          const departmentID = c.departmentID || c.department_id;
+          
+          // Find corresponding site and department
+          const site = sitesData.find((s) => s.id === siteID);
+          const department = departmentsData.find((d) => d.id === departmentID);
+          
+          return {
+            id: c.id,
+            name: c.cluster_name || c.name || c.clusterName || "Unnamed Cluster",
+            site: site || { id: siteID, siteName: "Site not found" },
+            department: department || { id: departmentID, departmentName: "Department not found" },
+            siteID: siteID,
+            departmentID: departmentID
+          };
+        });
+    
+        setSites(sitesData);
+        setDepartments(departmentsData);
+        setClusters(updatedClusters);
+      } catch (error) {
+        console.error("Fetch data error:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const depts = departments.filter(dept => dept.siteID === Number(selectedSite));
     setFilteredDepartments(depts);
     setSelectedDept(depts[0]?.id || "");
-  }, [selectedSite]);
+  }, [selectedSite, departments]);
 
-  const addCluster = () => {
-    if (!clusterName.trim() || !selectedDept) return;
-    const site = sitesList.find(s => s.id === Number(selectedSite));
-    const department = departmentsList.find(d => d.id === Number(selectedDept));
-    setClusters([...clusters, { 
-      id: Date.now(),
-      name: clusterName,
-      site,
-      department
-    }]);
-    setClusterName("");
+  const addCluster = async () => {
+    if (!clusterName.trim() || !selectedDept) {
+      if (!selectedDept) {
+        setError("Cannot add cluster without selecting a department");
+      }
+      if (!clusterName.trim()) {
+        setError("Please enter a cluster name");
+      }
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        `${config.API_BASE_URL}/clusters/add_cluster`,
+        {
+          clustert_name: clusterName,     // Changed from cluster_name to clustert_name
+          departmentID: selectedDept,      // Changed from department_id to departmentID
+          site_id: selectedSite
+        },
+      
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+          }
+        }
+      );
+
+      if (response.data.success) {
+        const site = sites.find(s => s.id === Number(selectedSite));
+        const department = departments.find(d => d.id === Number(selectedDept));
+        console.log("API Response:", response.data);
+
+        const newCluster = {
+          id: response.data.id,
+          name: clusterName,
+          site,
+          department
+        };
+
+        setClusters([...clusters, newCluster]);
+        setClusterName("");
+        setSuccess("Cluster added successfully!");
+      }
+    } catch (error) {
+      console.error("Add Cluster Error:", error);
+      setError("Failed to add cluster. Please try again.");
+    }
   };
 
   const openEditModal = (cluster) => {
@@ -58,18 +139,75 @@ const Cluster = () => {
     setShowEditModal(true);
   };
 
-  const confirmEdit = () => {
-    if (editClusterName.trim() && currentCluster) {
-      const site = sitesList.find(s => s.id === Number(editSite));
-      const department = departmentsList.find(d => d.id === Number(editDept));
-      setClusters(
-        clusters.map(c => c.id === currentCluster.id 
-          ? { ...c, name: editClusterName, site, department }
-          : c
-        )
-      );
+  const confirmEdit = async () => {
+    if (!editClusterName.trim() || !currentCluster || !editSite || !editDept) {
+      setError("Please fill in all fields");
+      return;
     }
-    closeEditModal();
+  
+    try {
+      const response = await axios.put(
+        `${config.API_BASE_URL}/clusters/update_cluster/${currentCluster.id}`,
+        {
+          clustert_name: editClusterName, // Changed to match backend parameter name
+          departmentID: Number(editDept),
+          site_id: Number(editSite)    // Changed to match backend parameter name
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+          }
+        }
+      );
+  
+      if (response.data.success) {
+        // Fetch fresh data after successful update
+        const refreshResponse = await axios.get(
+          `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+            }
+          }
+        );
+
+        const parsedData = typeof refreshResponse.data === "string" 
+          ? JSON.parse(refreshResponse.data) 
+          : refreshResponse.data;
+
+        const sitesData = parsedData.sites || parsedData.data?.sites || [];
+        const departmentsData = parsedData.departments || parsedData.data?.departments || [];
+        const clustersData = parsedData.clusters || parsedData.data?.clusters || parsedData.data || [];
+
+        const updatedClusters = clustersData.map((c) => {
+          const siteID = c.siteID || c.site_id;
+          const departmentID = c.departmentID || c.department_id;
+          
+          const site = sitesData.find((s) => s.id === siteID);
+          const department = departmentsData.find((d) => d.id === departmentID);
+          
+          return {
+            id: c.id,
+            name: c.cluster_name || c.name || c.clusterName || "Unnamed Cluster",
+            site: site || { id: siteID, siteName: "Site not found" },
+            department: department || { id: departmentID, departmentName: "Department not found" },
+            siteID: siteID,
+            departmentID: departmentID
+          };
+        });
+
+        setClusters(updatedClusters);
+        setSuccess("Cluster updated successfully!");
+        closeEditModal();
+      } else {
+        setError("Failed to update cluster");
+      }
+    } catch (error) {
+      console.error("Edit Cluster Error:", error);
+      setError("Error updating cluster");
+    }
   };
 
   const closeEditModal = () => {
@@ -87,18 +225,58 @@ const Cluster = () => {
     setCurrentCluster(null);
   };
 
-  const confirmDelete = () => {
-    if (currentCluster) {
-      setClusters(clusters.filter(c => c.id !== currentCluster.id));
+  const confirmDelete = async () => {
+    if (!currentCluster) return;
+    try {
+      const response = await axios.delete(
+        `${config.API_BASE_URL}/clusters/delete_cluster/${currentCluster.id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+          }
+        }
+      );
+      if (response.data.success) {
+        setClusters(clusters.filter(c => c.id !== currentCluster.id));
+        setSuccess("Cluster deleted successfully!");
+      } else {
+        setError("Failed to delete cluster.");
+      }
+    } catch (error) {
+      console.error("Delete Cluster Error:", error);
+      setError("Error deleting cluster.");
     }
     closeDeleteModal();
   };
+
+  useEffect(() => {
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError("");
+        setSuccess("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, success]);
 
   return (
     <>
       <Navbar />
       <Sidebar />
       <div id="main" className="main">
+        {error && (
+          <div className="alert alert-danger alert-dismissible fade show" role="alert">
+            {error}
+            <button type="button" className="btn-close" onClick={() => setError("")}></button>
+          </div>
+        )}
+        {success && (
+          <div className="alert alert-success alert-dismissible fade show" role="alert">
+            {success}
+            <button type="button" className="btn-close" onClick={() => setSuccess("")}></button>
+          </div>
+        )}
         <div className="pagetitle mb-4">
           <h1>Cluster</h1>
           <nav aria-label="breadcrumb">
@@ -126,8 +304,9 @@ const Cluster = () => {
                     value={selectedSite}
                     onChange={(e) => setSelectedSite(e.target.value)}
                   >
-                    {sitesList.map((site) => (
-                      <option key={site.id} value={site.id}>{site.name}</option>
+                    <option value="">Select Site</option>
+                    {sites.map((site) => (
+                      <option key={site.id} value={site.id}>{site.siteName}</option>
                     ))}
                   </select>
                 </div>
@@ -139,10 +318,16 @@ const Cluster = () => {
                     className="form-select"
                     value={selectedDept}
                     onChange={(e) => setSelectedDept(e.target.value)}
+                    disabled={filteredDepartments.length === 0}
                   >
-                    {filteredDepartments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
+                    <option value="">Select Department</option>
+                    {filteredDepartments.length === 0 ? (
+                      <option value="">No department found</option>
+                    ) : (
+                      filteredDepartments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>{dept.departmentName}</option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -154,9 +339,15 @@ const Cluster = () => {
                     placeholder="Enter cluster name"
                     value={clusterName}
                     onChange={(e) => setClusterName(e.target.value)}
+                    disabled={filteredDepartments.length === 0}
                   />
-                  <button onClick={addCluster} className="btn btn-primary">
-                    <i className="bi bi-plus-circle me-2"></i>Add Cluster
+                  <button 
+                    onClick={addCluster} 
+                    className="btn btn-primary"
+                    disabled={filteredDepartments.length === 0}
+                  >
+                    <i className="bi bi-plus-circle me-2"></i>
+                    {filteredDepartments.length === 0 ? "No Departments Available" : "Add Cluster"}
                   </button>
                 </div>
               </div>
@@ -186,8 +377,8 @@ const Cluster = () => {
                       {clusters.map((cluster) => (
                         <tr key={cluster.id}>
                           <td>{cluster.name}</td>
-                          <td>{cluster.department.name}</td>
-                          <td>{cluster.site.name}</td>
+                          <td>{cluster.department?.departmentName}</td>
+                          <td>{cluster.site?.siteName}</td>
                           <td>
                             <button onClick={() => openEditModal(cluster)} className="btn btn-warning btn-sm me-2">
                               <i className="bi bi-pencil"></i>
@@ -224,8 +415,9 @@ const Cluster = () => {
                     value={editSite}
                     onChange={(e) => setEditSite(e.target.value)}
                   >
-                    {sitesList.map((site) => (
-                      <option key={site.id} value={site.id}>{site.name}</option>
+                    <option value="">Select Site</option>
+                    {sites.map((site) => (
+                      <option key={site.id} value={site.id}>{site.siteName}</option>
                     ))}
                   </select>
                 </div>
@@ -235,12 +427,18 @@ const Cluster = () => {
                     className="form-select"
                     value={editDept}
                     onChange={(e) => setEditDept(e.target.value)}
+                    disabled={departments.filter(dept => dept.siteID === Number(editSite)).length === 0}
                   >
-                    {departmentsList
-                      .filter(dept => dept.siteId === Number(editSite))
-                      .map((dept) => (
-                        <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
+                    <option value="">Select Department</option>
+                    {departments.filter(dept => dept.siteID === Number(editSite)).length === 0 ? (
+                      <option value="">No departments found</option>
+                    ) : (
+                      departments
+                        .filter(dept => dept.siteID === Number(editSite))
+                        .map((dept) => (
+                          <option key={dept.id} value={dept.id}>{dept.departmentName}</option>
+                        ))
+                    )}
                   </select>
                 </div>
                 <div className="mb-3">
@@ -260,7 +458,7 @@ const Cluster = () => {
             </div>
           </div>
         </div>
-      )};
+      )}
 
       {/* Delete Modal */}
       {showDeleteModal && (

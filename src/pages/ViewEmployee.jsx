@@ -1,36 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import config from "../config"; 
 
 function ViewEmployee() {
-  const [employees, setEmployees] = useState([
-    {
-      id: 1,
-      photo: "",
-      fname: "Juan",
-      mname: "Dela",
-      lname: "Cruz",
-      bdate: "1990-01-01",
-      date_hired: "2023-01-01",
-      position: "Developer",
-      department: "Development",
-      cluster: "A",
-      site: "Site1",
-      emp_level: "regular",
-      status: "Active",
-      basicPay: "50000",
-      sss: "12-3456789-0",
-      pagibig: "1234-5678-9012",
-      philhealth: "1234-5678-9012",
-      tin: "123-456-789",
-      healthcare: "HMO123",
-      address: "123 Main St",
-      emergencyPerson: "Jane",
-      emergencyContactNumber: "09091234567",
-    },
-  ]);
+  const [employees, setEmployees] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const response = await axios.get(
+          `${config.API_BASE_URL}/employees/get_all_employee`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+            }
+          }
+        );
+        setEmployees(response.data.data);
+        console.log("Employees fetched:", response.data.data);
+      } catch (error) {
+        console.error("Error fetching employees:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEmployees();
+  }, []);
 
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false); 
@@ -92,7 +92,7 @@ function ViewEmployee() {
   };
 
   const filteredEmployees = employees.filter((emp) =>
-    `${emp.fname} ${emp.mname} ${emp.lname}`
+    `${emp.fName} ${emp.mName} ${emp.lName}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
@@ -129,49 +129,64 @@ function ViewEmployee() {
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                   />
                                 </div>
-                                <table className="table table-striped table-hover table-bordered align-middle">
-                                  <thead className="table-primary">
-                                    <tr>
-                                      <th>ID</th>
-                                      <th>Full Name</th>
-                                      <th>Department</th>
-                                      <th>Site</th>
-                                      <th>Cluster</th>
-                                      <th>Birth Date</th>
-                                      <th>Salary</th>
-                                      <th>Action</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {filteredEmployees.map((emp) => (
-                                      <tr key={emp.id}>
-                                        <td>{emp.id}</td>
-                                        <td>
-                                          {emp.fname} {emp.mname} {emp.lname}
-                                        </td>
-                                        <td>{emp.department}</td>
-                                        <td>{emp.site}</td>
-                                        <td>{emp.cluster}</td>
-                                        <td>{emp.bdate}</td>
-                                        <td>{emp.basicPay}</td>
-                                        <td>
-                                          <button
-                                            className="btn btn-warning btn-sm me-2"
-                                            onClick={() => handleEditClick(emp)}
-                                          >
-                                            Edit
-                                          </button>
-                                          <button
-                                            className="btn btn-primary btn-sm"
-                                            onClick={() => handleViewDetailsClick(emp)}
-                                          >
-                                            View Details
-                                          </button>
-                                        </td>
+                                
+                                {isLoading ? (
+                                  <div className="text-center">
+                                    <div className="spinner-border text-primary" role="status">
+                                      <span className="visually-hidden">Loading...</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <table className="table table-striped table-hover table-bordered align-middle">
+                                    <thead className="table-primary">
+                                      <tr>
+                                        <th>Employee ID</th>
+                                        <th>Full Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Department ID</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
                                       </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                                    </thead>
+                                    <tbody>
+                                      {filteredEmployees.map((emp) => (
+                                        <tr key={emp.emp_ID}>
+                                          <td>{emp.emp_ID}</td>
+                                          <td>
+                                            {emp.fName} {emp.mName} {emp.lName}
+                                          </td>
+                                          <td>{emp.email}</td>
+                                          <td>{emp.phone}</td>
+                                          <td>{emp.departmentID}</td>
+                                          <td>
+                                            <span className={`badge ${
+                                              emp.employee_status === 'Active' ? 'bg-success' : 
+                                              emp.employee_status === 'Inactive' ? 'bg-warning' : 
+                                              'bg-danger'
+                                            }`}>
+                                              {emp.employee_status}
+                                            </span>
+                                          </td>
+                                          <td>
+                                            <button
+                                              className="btn btn-warning btn-sm me-2"
+                                              onClick={() => handleEditClick(emp)}
+                                            >
+                                              <i className="bi bi-pencil"></i> Edit
+                                            </button>
+                                            <button
+                                              className="btn btn-primary btn-sm"
+                                              onClick={() => handleViewDetailsClick(emp)}
+                                            >
+                                              <i className="bi bi-eye"></i> View
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
               
                                 {/* Edit Modal */}
                                 {showModal && (
@@ -533,19 +548,19 @@ function ViewEmployee() {
                           </div>
                           <div className="col-md-4">
                             <label className="form-label fw-bold">First Name</label>
-                            <p className="mb-0 disabled-info">{selectedEmployee.fname}</p>
+                            <p className="mb-0 disabled-info">{selectedEmployee.fName}</p>
                           </div>
                           <div className="col-md-4">
                             <label className="form-label fw-bold">Middle Name</label>
-                            <p className="mb-0 disabled-info">{selectedEmployee.mname}</p>
+                            <p className="mb-0 disabled-info">{selectedEmployee.mName}</p>
                           </div>
                           <div className="col-md-4">
                             <label className="form-label fw-bold">Last Name</label>
-                            <p className="mb-0 disabled-info">{selectedEmployee.lname}</p>
+                            <p className="mb-0 disabled-info">{selectedEmployee.lName}</p>
                           </div>
                           <div className="col-md-6">
                             <label className="form-label fw-bold">Birth Date</label>
-                            <p className="mb-0 disabled-info">{selectedEmployee.bdate}</p>
+                            <p className="mb-0 disabled-info">{selectedEmployee.bDate}</p>
                           </div>
                           <div className="col-md-6">
                             <label className="form-label fw-bold">Date Hired</label>
@@ -557,7 +572,7 @@ function ViewEmployee() {
                           </div>
                           <div className="col-md-4">
                             <label className="form-label fw-bold">Department</label>
-                            <p className="mb-0 disabled-info">{selectedEmployee.department}</p>
+                            <p className="mb-0 disabled-info">{selectedEmployee.departmentName}</p>
                           </div>
                           <div className="col-md-4">
                             <label className="form-label fw-bold">Cluster</label>

@@ -69,3 +69,6 @@ button:focus-visible {
   }
 }
 
+ul li {
+  list-style-type: none;
+}
