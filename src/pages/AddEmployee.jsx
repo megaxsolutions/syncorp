@@ -104,7 +104,7 @@ const AddEmployee = () => {
     formData.append("healthcare", employee.healthcare || "");
 
     if (employee.file_uploaded) {
-      formData.append("file_upload", employee.file_uploaded);
+      formData.append("file", employee.file_uploaded);
     }
 
     try {
@@ -128,9 +128,9 @@ const AddEmployee = () => {
 
       if (response.data.success) {
         setSuccess("Employee added successfully!");
-        // Reset form
+
         setEmployee({
-          file_uploaded: "", // Changed from photo
+          file_uploaded: "",
           fname: "",
           mname: "",
           lname: "",
@@ -249,7 +249,11 @@ const AddEmployee = () => {
               ></button>
             </div>
           )}
-          <form className="row g-3" onSubmit={handleSubmit}>
+          <form
+            className="row g-3"
+            onSubmit={handleSubmit}
+            encType="multipart/form-data"
+          >
             {/* Profile Section */}
             <div className="col-12">
               <div className="card mb-4">

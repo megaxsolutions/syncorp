@@ -3,24 +3,34 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import axios from "axios";
 import config from "../config";
-import moment from 'moment-timezone';
+import moment from "moment-timezone";
 
 const Calendar = () => {
   const todayDate = new Date();
   const todayStr = todayDate.toISOString().split("T")[0];
   const [currentMonth, setCurrentMonth] = useState(todayDate.getMonth());
   const [currentYear, setCurrentYear] = useState(todayDate.getFullYear());
-  
+
   const [holidays, setHolidays] = useState([]);
-  
+
   const [selectedDate, setSelectedDate] = useState(null);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const monthNames = [
-    "January", "February", "March", "April", "May", "June", 
-    "July", "August", "September", "October", "November", "December"
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
 
   /* getDaysInMonth implementation */
@@ -64,47 +74,80 @@ const Calendar = () => {
 
   // Modal visibility state
   const [showModal, setShowModal] = useState(false);
-  
+
   const closeModal = () => {
     setShowModal(false);
     setSelectedDate(null);
   };
 
-  // Add a new holiday for the selected date.
+  // Add new state variables
+  const [holidayName, setHolidayName] = useState("");
+  const [holidayType, setHolidayType] = useState("SH"); // Default to Special Holiday
+
+  // Fix the addNewHoliday function
   const addNewHoliday = async () => {
-    if (!selectedDate) {
-      setError("Please select a date");
+    if (!selectedDate || !holidayName || !holidayType) {
+      setError("Please fill in all fields");
       return;
     }
 
     try {
-      // Format the date using moment-timezone for Manila timezone
-      const formattedDate = moment(selectedDate)
-        .tz("Asia/Manila")
-        .format('YYYY-MM-DD');
+      // Format date to match MySQL date format exactly
+      const formattedDate = moment(selectedDate).format("YYYY-MM-DD");
+
+      const requestBody = {
+        date: formattedDate,
+        holiday_name: holidayName.trim(),
+        holiday_type: holidayType,
+      };
+
+      // Debug logs with more detail
+      console.log(
+        "Making request to:",
+        `${config.API_BASE_URL}/holidays/add_holiday`
+      );
+      console.log("Headers:", {
+        "X-JWT-TOKEN":
+          localStorage.getItem("X-JWT-TOKEN")?.substring(0, 10) + "...",
+        "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+        "Content-Type": "application/json",
+      });
+      console.log("Request payload:", JSON.stringify(requestBody, null, 2));
 
       const response = await axios.post(
-        `${config.API_BASE_URL}/holidays/add_holiday`, // Changed to match backend endpoint
-        { 
-          date: formattedDate
-        },
+        `${config.API_BASE_URL}/holidays/add_holiday`,
+        requestBody,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            "Content-Type": "application/json"
-          }
+            "Content-Type": "application/json",
+          },
         }
       );
 
+      console.log("Server response:", response.data);
+
       if (response.data.success) {
-        setSuccess("Holiday added successfully!");
+        setSuccess("Holiday successfully added");
+        setHolidayName("");
+        setHolidayType("SH");
         fetchHolidays();
         closeModal();
       }
     } catch (error) {
-      console.error("Add Holiday Error:", error.response?.data || error.message);
-      setError(error.response?.data?.error || "Failed to add holiday. Please try again.");
+      // Detailed error logging
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        request: error.config,
+        headers: error.config?.headers,
+      });
+
+      const errorMessage =
+        error.response?.data?.error ||
+        "Failed to add holiday. Please try again.";
+      setError(errorMessage);
     }
   };
 
@@ -116,19 +159,20 @@ const Calendar = () => {
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-          }
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
         }
       );
 
-      const parsedData = typeof response.data === "string" 
-        ? JSON.parse(response.data) 
-        : response.data;
+      const parsedData =
+        typeof response.data === "string"
+          ? JSON.parse(response.data)
+          : response.data;
 
       // Map the holidays data to include formatted dates
-      const holidaysData = (parsedData.holidays || []).map(holiday => ({
+      const holidaysData = (parsedData.holidays || []).map((holiday) => ({
         ...holiday,
-        date: moment(holiday.date).format('YYYY-MM-DD')
+        date: moment(holiday.date).format("YYYY-MM-DD"),
       }));
 
       setHolidays(holidaysData);
@@ -138,12 +182,10 @@ const Calendar = () => {
     }
   };
 
-  // Add useEffect to fetch holidays on component mount
   useEffect(() => {
     fetchHolidays();
   }, []);
 
-  // Add cleanup effect for notifications
   useEffect(() => {
     if (error || success) {
       const timer = setTimeout(() => {
@@ -154,9 +196,11 @@ const Calendar = () => {
     }
   }, [error, success]);
 
-  // Get all holidays for a given day.
+  // Fix the getHolidaysForDay function (fix typo 'hol' and 'ol')
   const getHolidaysForDay = (dayStr) => {
-    return holidays.filter(ol => moment(hol.date).format('YYYY-MM-DD') === dayStr);
+    return holidays.filter(
+      (holiday) => moment(holiday.date).format("YYYY-MM-DD") === dayStr
+    );
   };
 
   const renderCalendarCells = () => {
@@ -172,15 +216,23 @@ const Calendar = () => {
       const baseStyle = {
         cursor: "pointer",
         padding: "15px",
-        textAlign: "center"
+        textAlign: "center",
       };
       // If any holiday exists, make background a darker shade.
-      const holidayStyle = dayHolidays.length > 0 ? { backgroundColor: "#8B0000", color: "#fff" } : {};
-      const todayStyle = isToday ? { border: "2px solid #000", fontWeight: "bold" } : {};
+      const holidayStyle =
+        dayHolidays.length > 0
+          ? { backgroundColor: "#8B0000", color: "#fff" }
+          : {};
+      const todayStyle = isToday
+        ? { border: "2px solid #000", fontWeight: "bold" }
+        : {};
 
       cells.push(
-        <td key={dayStr} style={{ ...baseStyle, ...holidayStyle, ...todayStyle }}
-            onClick={() => onDateClick(day)}>
+        <td
+          key={dayStr}
+          style={{ ...baseStyle, ...holidayStyle, ...todayStyle }}
+          onClick={() => onDateClick(day)}
+        >
           <div>{day.getDate()}</div>
           {isToday && <small>Today</small>}
           {dayHolidays.length > 0 && (
@@ -211,21 +263,47 @@ const Calendar = () => {
           <h1>Holiday Calendar</h1>
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb">
-              <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
-              <li className="breadcrumb-item"><a href="/settings">Settings</a></li>
-              <li className="breadcrumb-item active" aria-current="page">Holiday Calendar</li>
+              <li className="breadcrumb-item">
+                <a href="/dashboard">Home</a>
+              </li>
+              <li className="breadcrumb-item">
+                <a href="/settings">Settings</a>
+              </li>
+              <li className="breadcrumb-item active" aria-current="page">
+                Holiday Calendar
+              </li>
             </ol>
           </nav>
         </div>
-        
+
         {/* Center the calendar */}
-        <div className="d-flex justify-content-center" style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <div className="card calendar-card w-100" style={{ minHeight: "600px" }}>
+        <div
+          className="d-flex justify-content-center"
+          style={{ maxWidth: "900px", margin: "0 auto" }}
+        >
+          <div
+            className="card calendar-card w-100"
+            style={{ minHeight: "600px" }}
+          >
             <div className="card-header text-center">
               <div className="d-flex justify-content-between align-items-center">
-                <a onClick={prevMonth} className="text-secondary" style={{ cursor: "pointer" }}>&laquo;</a>
-                <h4>{monthNames[currentMonth]} {currentYear}</h4>
-                <a onClick={nextMonth} className="text-secondary" style={{ cursor: "pointer" }}>&raquo;</a>
+                <a
+                  onClick={prevMonth}
+                  className="text-secondary"
+                  style={{ cursor: "pointer" }}
+                >
+                  &laquo;
+                </a>
+                <h4>
+                  {monthNames[currentMonth]} {currentYear}
+                </h4>
+                <a
+                  onClick={nextMonth}
+                  className="text-secondary"
+                  style={{ cursor: "pointer" }}
+                >
+                  &raquo;
+                </a>
               </div>
             </div>
             <div className="card-body p-0">
@@ -241,24 +319,36 @@ const Calendar = () => {
                     <th className="text-center">Sat</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {renderCalendarCells()}
-                </tbody>
+                <tbody>{renderCalendarCells()}</tbody>
               </table>
             </div>
           </div>
         </div>
         <div className="mb-3">
           {error && (
-            <div className="alert alert-danger alert-dismissible fade show" role="alert">
+            <div
+              className="alert alert-danger alert-dismissible fade show"
+              role="alert"
+            >
               {error}
-              <button type="button" className="btn-close" onClick={() => setError("")}></button>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setError("")}
+              ></button>
             </div>
           )}
           {success && (
-            <div className="alert alert-success alert-dismissible fade show" role="alert">
+            <div
+              className="alert alert-success alert-dismissible fade show"
+              role="alert"
+            >
               {success}
-              <button type="button" className="btn-close" onClick={() => setSuccess("")}></button>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setSuccess("")}
+              ></button>
             </div>
           )}
         </div>
@@ -266,17 +356,60 @@ const Calendar = () => {
 
       {/* Holiday Management Modal */}
       {showModal && (
-        <div className="modal d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
+        <div
+          className="modal d-block"
+          tabIndex="-1"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+        >
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Add Holiday for {selectedDate}</h5>
-                <button type="button" className="btn-close" onClick={closeModal}></button>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={closeModal}
+                ></button>
               </div>
               <div className="modal-body">
-                <p>Do you want to mark this date as a holiday?</p>
-                <button className="btn btn-success me-2" onClick={addNewHoliday}>Yes, Add Holiday</button>
-                <button className="btn btn-secondary" onClick={closeModal}>Cancel</button>
+                <div className="mb-3">
+                  <label htmlFor="holidayName" className="form-label">
+                    Holiday Name
+                  </label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    id="holidayName"
+                    value={holidayName}
+                    onChange={(e) => setHolidayName(e.target.value)}
+                    placeholder="Enter holiday name"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label htmlFor="holidayType" className="form-label">
+                    Holiday Type
+                  </label>
+                  <select
+                    className="form-select"
+                    id="holidayType"
+                    value={holidayType}
+                    onChange={(e) => setHolidayType(e.target.value)}
+                  >
+                    <option value="SH">Special Holiday</option>
+                    <option value="RH">Regular Holiday</option>
+                  </select>
+                </div>
+                <div className="mt-4">
+                  <button
+                    className="btn btn-success me-2"
+                    onClick={addNewHoliday}
+                  >
+                    Save Holiday
+                  </button>
+                  <button className="btn btn-secondary" onClick={closeModal}>
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
