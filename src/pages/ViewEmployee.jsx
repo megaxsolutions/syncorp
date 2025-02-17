@@ -4,6 +4,33 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import config from "../config";
 
+// Add this helper function at the top of your component
+const formatDateForInput = (dateString) => {
+  if (!dateString) return "";
+  // First try parsing as is
+  let date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    // If invalid, try parsing with manual split (for DD-MM-YYYY format)
+    const parts = dateString.split("-");
+    if (parts.length === 3) {
+      // Assume parts are in YYYY-MM-DD format
+      date = new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+  }
+  if (isNaN(date.getTime())) return "";
+
+  // Format as YYYY-MM-DD
+  return date.toISOString().split("T")[0];
+};
+
+// Add a function to format dates for display
+const formatDateForDisplay = (dateString) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  return date.toISOString().split("T")[0];
+};
+
 function ViewEmployee() {
   const [employees, setEmployees] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,6 +61,13 @@ function ViewEmployee() {
 
     // Convert Map values back to array
     return Array.from(uniqueEmployees.values());
+  };
+
+  // Update the getImageUrl function
+  const getImageUrl = (photo) => {
+    if (!photo) return null;
+    if (photo.startsWith("http")) return photo;
+    return `${config.API_BASE_URL}/uploads/${photo}`; // Adjust the path according to your backend storage
   };
 
   useEffect(() => {
@@ -125,7 +159,7 @@ function ViewEmployee() {
 
   const handleEditClick = (emp) => {
     setSelectedEmployee(emp);
-    setPreview(emp.photo);
+    setPreview(emp.file_uploaded);
     setShowModal(true);
   };
 
@@ -144,64 +178,135 @@ function ViewEmployee() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setSelectedEmployee((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setPreview(URL.createObjectURL(file));
-      setSelectedEmployee((prev) => ({ ...prev, photo: file }));
+    // Handle special cases for select inputs that need numeric values
+    if (
+      [
+        "departmentID",
+        "clusterID",
+        "siteID",
+        "positionID",
+        "employee_level",
+      ].includes(name)
+    ) {
+      setSelectedEmployee((prev) => ({
+        ...prev,
+        [name]: value === "" ? "" : Number(value),
+      }));
+    } else {
+      setSelectedEmployee((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
     }
   };
 
+  // Update the handleFileChange function
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5242880) {
+        // 5MB limit
+        alert("File is too large. Maximum size is 5MB");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result);
+        setSelectedEmployee((prev) => ({
+          ...prev,
+          photo: file, // Changed from file_uploaded to photo
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Update the handleUpdate function
   const handleUpdate = async () => {
     try {
-      // Construct the payload to match backend fields
-      const payload = {
-        birthdate: selectedEmployee.bdate || "",
-        fname: selectedEmployee.fname || "",
-        mname: selectedEmployee.mname || "",
-        lname: selectedEmployee.lname || "",
-        date_hired: selectedEmployee.date_hired || "",
-        department_id: selectedEmployee.departmentID || "",
-        cluster_id: selectedEmployee.clusterID || "",
-        site_id: selectedEmployee.siteID || "",
-        email: selectedEmployee.email || "",
-        phone: selectedEmployee.phone || "",
-        address: selectedEmployee.address || "",
-        emergency_contact_person:
-          selectedEmployee.emergency_contact_person || "",
-        emergency_contact_number:
-          selectedEmployee.emergency_contact_number || "",
-        sss: selectedEmployee.sss || "",
-        pagibig: selectedEmployee.pagibig || "",
-        philhealth: selectedEmployee.philhealth || "",
-        tin: selectedEmployee.tin || "",
-        basic_pay: selectedEmployee.basic_pay || "",
-        employee_status: selectedEmployee.status || "",
-        positionID: selectedEmployee.position || "",
-        employee_level: selectedEmployee.emp_level || "",
-        healthcare: selectedEmployee.healthcare || "",
+      const formData = new FormData();
+
+      // Map the form data to match backend field names
+      const mappedData = {
+        birthdate: formatDateForInput(selectedEmployee.bDate), // Format date
+        fname: selectedEmployee.fName,
+        mname: selectedEmployee.mName,
+        lname: selectedEmployee.lName,
+        date_hired: formatDateForInput(selectedEmployee.date_hired), // Format date
+        department_id: selectedEmployee.departmentID,
+        cluster_id: selectedEmployee.clusterID,
+        site_id: selectedEmployee.siteID,
+        email: selectedEmployee.email,
+        phone: selectedEmployee.phone,
+        address: selectedEmployee.address,
+        emergency_contact_person: selectedEmployee.emergency_contact_person,
+        emergency_contact_number: selectedEmployee.emergency_contact_number,
+        sss: selectedEmployee.sss,
+        pagibig: selectedEmployee.pagibig,
+        philhealth: selectedEmployee.philhealth,
+        tin: selectedEmployee.tin,
+        basic_pay: selectedEmployee.basic_pay,
+        employee_status: selectedEmployee.employee_status,
+        positionID: selectedEmployee.positionID,
+        employee_level: selectedEmployee.employee_level,
+        healthcare: selectedEmployee.healthcare,
       };
 
-      const response = await axios.put(
-        `${config.API_BASE_URL}/update_employee/${selectedEmployee.emp_ID}`,
-        payload
-      );
-      console.log("Employee updated:", response.data);
+      // Append all mapped data to formData
+      Object.entries(mappedData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value);
+        }
+      });
 
-      // Update local state if needed
-      const updatedList = employees.map((emp) =>
-        emp.emp_ID === selectedEmployee.emp_ID ? { ...emp, ...payload } : emp
+      if (selectedEmployee.photo instanceof File) {
+        formData.append("file_uploaded", selectedEmployee.photo); // Change to file_uploaded
+      }
+
+      const response = await axios.put(
+        `${config.API_BASE_URL}/employees/update_employee/${selectedEmployee.emp_ID}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
       );
-      setEmployees(updatedList);
-      setShowModal(false);
+
+      if (response.data.success) {
+        // Fetch the updated employee data
+        const updatedEmployeeResponse = await axios.get(
+          `${config.API_BASE_URL}/employees/get_all_employee`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+          }
+        );
+
+        const updatedEmployeeData = updatedEmployeeResponse.data.data.find(
+          (emp) => emp.emp_ID === selectedEmployee.emp_ID
+        );
+
+        // Update local state with the fresh data
+        const updatedEmployees = employees.map((emp) =>
+          emp.emp_ID === selectedEmployee.emp_ID ? updatedEmployeeData : emp
+        );
+
+        setEmployees(updatedEmployees);
+        setSelectedEmployee(updatedEmployeeData);
+        setPreview(null); // Reset preview
+        setShowModal(false);
+        alert(response.data.success);
+      }
     } catch (error) {
       console.error("Error updating employee:", error);
+      alert(error.response?.data?.error || "Failed to update employee");
     }
   };
 
@@ -213,17 +318,14 @@ function ViewEmployee() {
     return searchString.includes(searchTerm.toLowerCase());
   });
 
-  // Add useEffect to update hasSearchResults when filteredEmployees changes
   useEffect(() => {
     setHasSearchResults(filteredEmployees.length > 0);
   }, [filteredEmployees]);
 
-  // Add this with your other useEffects
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  // Add these functions before the return statement
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredEmployees.slice(
@@ -396,6 +498,7 @@ function ViewEmployee() {
                             <h5>Profile</h5>
                             <hr />
                             <div className="row g-3">
+                              {/* Update the edit modal photo preview section */}
                               <div className="col-12 text-start mb-3 d-flex align-items-center">
                                 <div className="position-relative photo-preview">
                                   {preview ? (
@@ -408,6 +511,21 @@ function ViewEmployee() {
                                         objectFit: "cover",
                                       }}
                                     />
+                                  ) : selectedEmployee.photo ? (
+                                    <img
+                                      src={`${config.API_BASE_URL}/uploads/${selectedEmployee.photo}`}
+                                      alt="Employee"
+                                      style={{
+                                        width: "150px",
+                                        height: "150px",
+                                        objectFit: "cover",
+                                      }}
+                                      onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src =
+                                          "https://via.placeholder.com/150?text=No+Photo";
+                                      }}
+                                    />
                                   ) : (
                                     <label
                                       htmlFor="photo"
@@ -418,10 +536,11 @@ function ViewEmployee() {
                                   )}
                                   <input
                                     type="file"
-                                    name="photo"
+                                    name="file_uploaded"
                                     id="photo"
                                     onChange={handleFileChange}
                                     className="file-input"
+                                    accept="image/*"
                                   />
                                 </div>
                                 <label className="form-label ms-3 mb-0 pointer-label">
@@ -433,7 +552,7 @@ function ViewEmployee() {
                                 <input
                                   type="text"
                                   className="form-control"
-                                  name="fName" // Changed from fname to fName to match backend
+                                  name="fName"
                                   value={selectedEmployee.fName || ""}
                                   onChange={handleChange}
                                 />
@@ -445,7 +564,7 @@ function ViewEmployee() {
                                 <input
                                   type="text"
                                   className="form-control"
-                                  name="mname"
+                                  name="mName"
                                   value={selectedEmployee.mName || ""}
                                   onChange={handleChange}
                                 />
@@ -455,7 +574,7 @@ function ViewEmployee() {
                                 <input
                                   type="text"
                                   className="form-control"
-                                  name="lname"
+                                  name="lName"
                                   value={selectedEmployee.lName || ""}
                                   onChange={handleChange}
                                 />
@@ -465,8 +584,12 @@ function ViewEmployee() {
                                 <input
                                   type="date"
                                   className="form-control"
-                                  name="bdate"
-                                  value={selectedEmployee.bDate || ""}
+                                  name="bDate"
+                                  value={
+                                    formatDateForInput(
+                                      selectedEmployee.bDate
+                                    ) || ""
+                                  }
                                   onChange={handleChange}
                                 />
                               </div>
@@ -476,7 +599,11 @@ function ViewEmployee() {
                                   type="date"
                                   className="form-control"
                                   name="date_hired"
-                                  value={selectedEmployee.date_hired || ""}
+                                  value={
+                                    formatDateForInput(
+                                      selectedEmployee.date_hired
+                                    ) || ""
+                                  }
                                   onChange={handleChange}
                                 />
                               </div>
@@ -732,28 +859,43 @@ function ViewEmployee() {
                           <div className="modal-body">
                             <h5 className="mb-3 border-bottom pb-2">Profile</h5>
                             <div className="row g-3 mb-4">
-                              <div className="col-12 text-center">
+                              {/* Update the view modal photo section */}
+                              <div className="col-12 text-center mb-4">
                                 <div
-                                  className="position-relative d-inline-block rounded overflow-hidden"
-                                  style={{ width: "150px", height: "150px" }}
+                                  className="position-relative d-inline-block overflow-hidden"
+                                  style={{
+                                    width: "200px", // Increased from 150px
+                                    height: "200px", // Increased from 150px
+                                    borderRadius: "50%", // Makes it circular
+                                  }}
                                 >
                                   {selectedEmployee.photo ? (
                                     <img
-                                      src={selectedEmployee.photo}
+                                      src={getImageUrl(selectedEmployee.photo)}
                                       alt="Employee Photo"
                                       style={{
                                         width: "100%",
                                         height: "100%",
                                         objectFit: "cover",
+                                        borderRadius: "50%", // Makes image circular
+                                        border: "3px solid #fff", // Optional: adds a white border
+                                        boxShadow: "0 0 10px rgba(0,0,0,0.1)", // Optional: adds subtle shadow
                                       }}
-                                      className="rounded"
+                                      onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src =
+                                          "https://via.placeholder.com/200?text=No+Photo";
+                                      }}
                                     />
                                   ) : (
                                     <div
                                       className="d-flex align-items-center justify-content-center bg-light"
                                       style={{
-                                        width: "150px",
-                                        height: "150px",
+                                        width: "200px", // Increased from 150px
+                                        height: "200px", // Increased from 150px
+                                        borderRadius: "50%", // Makes it circular
+                                        border: "3px solid #fff", // Optional: adds a white border
+                                        boxShadow: "0 0 10px rgba(0,0,0,0.1)", // Optional: adds subtle shadow
                                       }}
                                     >
                                       <span className="text-muted">
@@ -792,7 +934,7 @@ function ViewEmployee() {
                                   Birth Date
                                 </label>
                                 <p className="mb-0 disabled-info">
-                                  {selectedEmployee.bDate}
+                                  {formatDateForDisplay(selectedEmployee.bDate)}
                                 </p>
                               </div>
                               <div className="col-md-6">
@@ -800,7 +942,9 @@ function ViewEmployee() {
                                   Date Hired
                                 </label>
                                 <p className="mb-0 disabled-info">
-                                  {selectedEmployee.date_hired}
+                                  {formatDateForDisplay(
+                                    selectedEmployee.date_hired
+                                  )}
                                 </p>
                               </div>
                               <div className="col-md-4">
@@ -852,7 +996,7 @@ function ViewEmployee() {
                                   Account Status
                                 </label>
                                 <p className="mb-0 disabled-info">
-                                  {selectedEmployee.status}
+                                  {selectedEmployee.employee_status}
                                 </p>
                               </div>
                             </div>

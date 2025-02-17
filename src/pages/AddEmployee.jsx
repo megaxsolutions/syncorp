@@ -3,7 +3,6 @@ import axios from "axios";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import config from "../config";
-import "bootstrap/dist/css/bootstrap.min.css";
 
 const AddEmployee = () => {
   const [employee, setEmployee] = useState({
@@ -56,8 +55,6 @@ const AddEmployee = () => {
     }
   };
 
-  // End of Image Preview
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setEmployee((prev) => ({
@@ -104,7 +101,7 @@ const AddEmployee = () => {
     formData.append("healthcare", employee.healthcare || "");
 
     if (employee.file_uploaded) {
-      formData.append("file", employee.file_uploaded);
+      formData.append("file_uploaded", employee.file_uploaded);
     }
 
     try {
@@ -128,9 +125,9 @@ const AddEmployee = () => {
 
       if (response.data.success) {
         setSuccess("Employee added successfully!");
-
+        // Reset form
         setEmployee({
-          file_uploaded: "",
+          file_uploaded: "", // Changed from photo
           fname: "",
           mname: "",
           lname: "",
@@ -249,11 +246,7 @@ const AddEmployee = () => {
               ></button>
             </div>
           )}
-          <form
-            className="row g-3"
-            onSubmit={handleSubmit}
-            encType="multipart/form-data"
-          >
+          <form className="row g-3" onSubmit={handleSubmit}>
             {/* Profile Section */}
             <div className="col-12">
               <div className="card mb-4">
@@ -276,7 +269,7 @@ const AddEmployee = () => {
                           />
                         ) : (
                           <label
-                            htmlFor="file_uploaded" // Match the input id
+                            htmlFor="file_upload"
                             className="mb-0 pointer-label"
                           >
                             Choose File
@@ -305,7 +298,6 @@ const AddEmployee = () => {
                         id="fname"
                         value={employee.fname}
                         onChange={handleChange}
-                        autoComplete="given-name"
                       />
                     </div>
                     <div className="col-md-4">
@@ -319,10 +311,9 @@ const AddEmployee = () => {
                         id="mname"
                         value={employee.mname}
                         onChange={handleChange}
-                        autoComplete="additional-name"
                       />
                     </div>
-                    <div className="col-md-4">
+                    <div class="col-md-4">
                       <label htmlFor="lname" className="form-label">
                         Last Name
                       </label>
@@ -333,33 +324,30 @@ const AddEmployee = () => {
                         id="lname"
                         value={employee.lname}
                         onChange={handleChange}
-                        autoComplete="family-name"
                       />
                     </div>
                     <div className="col-md-6">
-                      <label htmlFor="birthdate" className="form-label">
-                        {" "}
+                      <label htmlFor="bdate" className="form-label">
                         Birth Date
                       </label>
                       <input
                         type="date"
                         name="birthdate"
                         className="form-control"
-                        id="birthdate" // Change from "bdate"
+                        id="bdate"
                         value={employee.birthdate}
                         onChange={handleChange}
                       />
                     </div>
                     <div className="col-md-6">
-                      <label htmlFor="date_added" className="form-label">
-                        {" "}
+                      <label htmlFor="date_hired" className="form-label">
                         Date Hired
                       </label>
                       <input
                         type="date"
                         name="date_added"
                         className="form-control"
-                        id="date_added" // Change from "date_hired"
+                        id="date_hired"
                         value={employee.date_added}
                         onChange={handleChange}
                       />
@@ -376,7 +364,6 @@ const AddEmployee = () => {
                         value={employee.email}
                         onChange={handleChange}
                         placeholder="example@email.com"
-                        autoComplete="email"
                       />
                     </div>
                     <div className="col-md-6">
@@ -391,7 +378,6 @@ const AddEmployee = () => {
                         value={employee.phone}
                         onChange={handleChange}
                         placeholder="09XX-XXX-XXXX"
-                        autoComplete="tel"
                       />
                     </div>
                     <div className="col-md-4">
@@ -471,13 +457,12 @@ const AddEmployee = () => {
                       </select>
                     </div>
                     <div className="col-md-4">
-                      <label htmlFor="employee_level" className="form-label">
-                        {" "}
+                      <label htmlFor="emp_level" className="form-label">
                         Employee Level
                       </label>
                       <select
                         name="employee_level"
-                        id="employee_level" // Change from "emp_level"
+                        id="emp_level"
                         className="form-select"
                         value={employee.employee_level}
                         onChange={handleChange}
@@ -508,15 +493,14 @@ const AddEmployee = () => {
                       </select>
                     </div>
                     <div className="col-md-4">
-                      <label htmlFor="basic_pay" className="form-label">
-                        {" "}
+                      <label htmlFor="basicPay" className="form-label">
                         Basic Pay
                       </label>
                       <input
                         type="number"
                         name="basic_pay"
                         className="form-control"
-                        id="basic_pay" // Change from "basicPay"
+                        id="basicPay"
                         value={employee.basic_pay}
                         onChange={handleChange}
                       />
@@ -558,7 +542,6 @@ const AddEmployee = () => {
                         id="sss"
                         value={employee.sss}
                         onChange={handleChange}
-                        autoComplete="off"
                       />
                     </div>
                     <div className="col-md-4">
@@ -598,7 +581,6 @@ const AddEmployee = () => {
                         id="tin"
                         value={employee.tin}
                         onChange={handleChange}
-                        autoComplete="off"
                       />
                     </div>
                   </div>
@@ -625,7 +607,6 @@ const AddEmployee = () => {
                         id="address"
                         value={employee.address}
                         onChange={handleChange}
-                        autoComplete="street-address"
                       />
                     </div>
                     <div className="col-md-4">
