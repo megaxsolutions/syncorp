@@ -339,7 +339,7 @@ const AddEmployee = () => {
                     <div className="col-md-6">
                       <label htmlFor="birthdate" className="form-label">
                         {" "}
-                        // Change from "bdate" Birth Date
+                        Birth Date
                       </label>
                       <input
                         type="date"
@@ -353,7 +353,7 @@ const AddEmployee = () => {
                     <div className="col-md-6">
                       <label htmlFor="date_added" className="form-label">
                         {" "}
-                        // Change from "date_hired" Date Hired
+                        Date Hired
                       </label>
                       <input
                         type="date"
