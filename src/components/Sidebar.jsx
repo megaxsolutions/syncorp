@@ -144,6 +144,17 @@ const Sidebar = () => {
             </li>
             <li className="mt-2">
               <Link
+                to="/settings/admin-level"
+                className={`nav-link ${
+                  location.pathname === "/settings/admin-level" ? "active" : ""
+                }`}
+              >
+                <i className="bi bi-shield-lock"></i>
+                <span>Admin Level</span>
+              </Link>
+            </li>
+            <li className="mt-2">
+              <Link
                 to="/settings/holiday-calendar"
                 className={`nav-link ${
                   location.pathname === "/settings/holiday-calendar"

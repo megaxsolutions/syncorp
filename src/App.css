@@ -839,3 +839,16 @@ label {
 ul li {
   list-style-type: none;
 }
+
+/* Admin Level Table Styles */
+.admin-level-table {
+  max-width: 400px; /* Reduced from 500px for a more compact look */
+}
+
+.admin-level-table th:first-child {
+  width: 70%;
+}
+
+.admin-level-table th:last-child {
+  width: 30%;
+}
