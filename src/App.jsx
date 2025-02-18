@@ -21,6 +21,7 @@ import EmployeeDashboard from "./pages/Employee Page/Dashboard";
 import EmployeeAttendance from "./pages/Employee Page/Attendance";
 import EmployeePayslip from "./pages/Employee Page/Payslip";
 import LeaveRequest from "./pages/Employee Page/LeaveRequest";
+import OvertimeRequest from "./pages/Employee Page/OvertimeRequest";
 import AdminLevel from "./pages/AdminLevel";
 import ProtectedLayout from "./ProtectedLayout";
 
@@ -48,6 +49,7 @@ function App() {
           <Route path="/employee_dashboard" element={<EmployeeDashboard />} />
           <Route path="/employee_attendance" element={<EmployeeAttendance />} />
           <Route path="/employee_payslip" element={<EmployeePayslip />} />
+          <Route path="/employee_overtime_request" element={<OvertimeRequest />} />
           <Route path="/employee_leave_request" element={<LeaveRequest />} />
           <Route path="/settings/admin-level" element={<AdminLevel />} />
           <Route path="*" element={<NotFound />} />

@@ -3,7 +3,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import EmployeeNavbar from "../../components/EmployeeNavbar";
 import EmployeeSidebar from "../../components/EmployeeSidebar";
 
-const LeaveRequest = () => {
+const OvertimeRequest = () => {
   const [selectedDate, setSelectedDate] = useState("");
   const [hours, setHours] = useState("");
   const [otType, setOtType] = useState("");
@@ -20,13 +20,13 @@ const LeaveRequest = () => {
       <main id="main" className="main">
         <div className="container-fluid" id="pagetitle">
           <div className="pagetitle">
-            <h1>Leave Request</h1>
+            <h1>Overtime Request</h1>
             <nav>
               <ol className="breadcrumb">
                 <li className="breadcrumb-item">
                   <a href="/employee_dashboard">Home</a>
                 </li>
-                <li className="breadcrumb-item active">Leave Request</li>
+                <li className="breadcrumb-item active">Overtime Request</li>
               </ol>
             </nav>
           </div>
@@ -34,7 +34,7 @@ const LeaveRequest = () => {
             <div className="col-md-6">
               <div className="card shadow-sm">
                 <div className="card-body">
-                  <h5 className="card-title">Leave History</h5>
+                  <h5 className="card-title">Overtime History</h5>
                   <div className="table-responsive">
                     <table className="table table-striped table-bordered">
                       <thead>
@@ -62,7 +62,7 @@ const LeaveRequest = () => {
             <div className="col-md-6">
               <div className="card shadow-sm">
                 <div className="card-body">
-                  <h5 className="card-title">Request Leave</h5>
+                  <h5 className="card-title">Request Overtime</h5>
                   <div className="mb-3">
                     <label htmlFor="date" className="form-label">
                       Date
@@ -120,4 +120,4 @@ const LeaveRequest = () => {
   );
 };
 
-export default LeaveRequest;
+export default OvertimeRequest;
