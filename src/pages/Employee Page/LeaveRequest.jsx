@@ -24,7 +24,7 @@ const LeaveRequest = () => {
         `${config.API_BASE_URL}/leave_requests/get_all_leave_request/${empId}`,
         {
           headers: {
-            "X-JWT-TOKEN": localStorage.getItem("token"),
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": empId
           }
         }
@@ -198,7 +198,7 @@ const LeaveRequest = () => {
                   {leaveType === "SL" && (
                     <div className="mb-3">
                       <label htmlFor="uploadFile" className="form-label">
-                        Upload File for SL
+                        Upload Image for SL
                       </label>
                       <input
                         type="file"

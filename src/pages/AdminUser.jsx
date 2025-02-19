@@ -4,6 +4,7 @@ import config from "../config";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import moment from "moment";
+import Swal from "sweetalert2";
 
 const AdminUser = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,10 +25,6 @@ const AdminUser = () => {
   // Admin users from backend
   const [adminUsers, setAdminUsers] = useState([]);
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  // Add this state at the top with other state declarations
   const [editFormData, setEditFormData] = useState({
     birthdate: "",
     fname: "",
@@ -84,7 +81,7 @@ const AdminUser = () => {
         }
       } catch (error) {
         console.error("Error fetching employees:", error);
-        setError("Failed to load employees");
+        Swal.fire({ icon: "error", title: "Error", text: "Failed to load employees" });
       }
     };
 
@@ -109,7 +106,7 @@ const AdminUser = () => {
         }
       } catch (error) {
         console.error("Error fetching admin levels:", error);
-        setError("Failed to load admin levels");
+        Swal.fire({ icon: "error", title: "Error", text: "Failed to load admin levels" });
       }
     };
 
@@ -121,7 +118,6 @@ const AdminUser = () => {
     fetchAdmins();
   }, []);
 
-  // Add this function after your useEffect hooks and before handleEdit
   const fetchAdmins = async () => {
     try {
       const response = await axios.get(
@@ -143,7 +139,7 @@ const AdminUser = () => {
       }
     } catch (error) {
       console.error("Error fetching admins:", error);
-      setError("Failed to load admin users");
+      Swal.fire({ icon: "error", title: "Error", text: "Failed to load admin users" });
     }
   };
 
@@ -203,14 +199,11 @@ const AdminUser = () => {
     e.preventDefault();
     
     if (!formData.emp_id || !formData.password || !formData.user_level) {
-      setError("Please fill in all fields");
+      Swal.fire({ icon: "error", title: "Error", text: "Please fill in all fields" });
       return;
     }
   
     try {
-      setError("");
-      setSuccess("");
-  
       // Create the request body matching the backend expectations
       const requestBody = {
         emp_id: formData.emp_id,
@@ -231,28 +224,30 @@ const AdminUser = () => {
       );
   
       if (response.data.success) {
-        setSuccess("Account successfully created.");
+        Swal.fire({ icon: "success", title: "Success", text: "Account successfully created." });
         setFormData({ emp_id: "", password: "", user_level: "" });
         fetchAdmins();
       }
     } catch (error) {
       console.error("Create admin error:", error);
       if (error.response) {
+        let errorMsg = "An error occurred";
         switch (error.response.status) {
           case 404:
-            setError("Employee not found.");
+            errorMsg = "Employee not found.";
             break;
           case 409:
-            setError("Admin already exists.");
+            errorMsg = "Admin already exists.";
             break;
           case 500:
-            setError("Failed to create admin entry. Please try again.");
+            errorMsg = "Failed to create admin entry. Please try again.";
             break;
           default:
-            setError(error.response.data.error || "An error occurred");
+            errorMsg = error.response.data.error || errorMsg;
         }
+        Swal.fire({ icon: "error", title: "Error", text: errorMsg });
       } else {
-        setError("Network error. Please check your connection.");
+        Swal.fire({ icon: "error", title: "Error", text: "Network error. Please check your connection." });
       }
     }
   };
@@ -281,17 +276,14 @@ const AdminUser = () => {
       );
 
       if (response.data.success) {
-        setSuccess("Admin successfully updated.");
+        Swal.fire({ icon: "success", title: "Success", text: "Admin successfully updated." });
         handleModalClose();
         fetchAdmins();
       }
     } catch (error) {
       console.error("Update admin error:", error);
-      if (error.response?.data?.error) {
-        setError(error.response.data.error);
-      } else {
-        setError("Failed to update admin");
-      }
+      const errorMsg = error.response?.data?.error || "Failed to update admin";
+      Swal.fire({ icon: "error", title: "Error", text: errorMsg });
     }
   };
 
@@ -373,16 +365,6 @@ const AdminUser = () => {
         </div>
 
         <div className="container-fluid mt-4">
-          {error && (
-            <div className="alert alert-danger" role="alert">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="alert alert-success" role="alert">
-              {success}
-            </div>
-          )}
           <div className="row">
             <div className="col-md-4">
               <div className="card shadow-sm mb-3">

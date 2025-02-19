@@ -3,17 +3,13 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import axios from "axios";
 import config from "../config";
+import Swal from "sweetalert2";
 
 const Department = () => {
   const [sites, setSites] = useState([]); // New state for sites
   const [selectedSite, setSelectedSite] = useState("");
   const [deptName, setDeptName] = useState("");
   const [departments, setDepartments] = useState([]);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [currentDept, setCurrentDept] = useState(null);
-  const [editDeptName, setEditDeptName] = useState("");
-  const [editDeptSite, setEditDeptSite] = useState("");
 
   // Fetch sites from database
   useEffect(() => {
@@ -24,11 +20,14 @@ const Department = () => {
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-            }
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
           }
         );
-        const parsedData = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+        const parsedData =
+          typeof response.data === "string"
+            ? JSON.parse(response.data)
+            : response.data;
         const sitesData = parsedData.sites || parsedData.data?.sites || [];
         setSites(sitesData);
         if (sitesData.length > 0) {
@@ -41,7 +40,6 @@ const Department = () => {
     fetchSites();
   }, []);
 
-
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
@@ -50,28 +48,20 @@ const Department = () => {
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-            }
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
           }
         );
-        
-        // Debug log to see raw response
         console.log("Raw response:", response.data);
-
-        // Parse the response if it's a string
-        const parsedData = typeof response.data === "string" 
-          ? JSON.parse(response.data) 
-          : response.data;
-        
-        // Debug log for parsed data
-        console.log("Parsed data:", parsedData);
-
-        // Try different paths to get departments array
-        const departmentsData = parsedData.departments || 
-                              parsedData.data?.departments || 
-                              parsedData.data || 
-                              [];
-
+        const parsedData =
+          typeof response.data === "string"
+            ? JSON.parse(response.data)
+            : response.data;
+        const departmentsData =
+          parsedData.departments ||
+          parsedData.data?.departments ||
+          parsedData.data ||
+          [];
         console.log("Final departments data:", departmentsData);
         setDepartments(departmentsData);
       } catch (error) {
@@ -81,193 +71,222 @@ const Department = () => {
     fetchDepartments();
   }, []);
 
-  // Update site selection dropdown
+  // Dropdown component for sites
   const SiteDropdown = () => (
-    <select 
-      id="siteSelect" 
-      className="form-select" 
-      value={selectedSite} 
+    <select
+      id="siteSelect"
+      className="form-select"
+      value={selectedSite}
       onChange={(e) => setSelectedSite(e.target.value)}
     >
       {sites.map((site) => (
-        <option key={site.id} value={site.id}>{site.siteName}</option>
+        <option key={site.id} value={site.id}>
+          {site.siteName}
+        </option>
       ))}
     </select>
   );
 
-  // Update Edit Modal site dropdown
-  const EditSiteDropdown = () => (
-    <select 
-      id="editSiteSelect" 
-      className="form-select" 
-      value={editDeptSite} 
-      onChange={(e) => setEditDeptSite(e.target.value)}
-    >
-      {sites.map((site) => (
-        <option key={site.id} value={site.id}>{site.siteName}</option>
-      ))}
-    </select>
-  );
-
-  // Update addDepartment function to refetch departments after successful addition
+  // Add Department and refetch list after successful addition
   const addDepartment = async () => {
-    if (!deptName.trim()) return;
-    
+    if (!deptName.trim()) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Department name cannot be empty.",
+      });
+      return;
+    }
     try {
       const response = await axios.post(
         `${config.API_BASE_URL}/departments/add_department`,
         {
           department_name: deptName,
-          site_id: selectedSite
+          site_id: selectedSite,
         },
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-          }
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
         }
       );
-  
-      if (response.data.success) {
 
-        // Refetch departments with same parsing logic
+      if (response.data.success) {
+        // Refetch departments
         const deptResponse = await axios.get(
           `${config.API_BASE_URL}/main/get_all_dropdown_data`,
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-            }
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
           }
         );
-        
-        const parsedData = typeof deptResponse.data === "string" 
-          ? JSON.parse(deptResponse.data) 
-          : deptResponse.data;
 
-        const departmentsData = parsedData.departments || 
-                              parsedData.data?.departments || 
-                              parsedData.data || 
-                              [];
+        const parsedData =
+          typeof deptResponse.data === "string"
+            ? JSON.parse(deptResponse.data)
+            : deptResponse.data;
 
+        const departmentsData =
+          parsedData.departments ||
+          parsedData.data?.departments ||
+          parsedData.data ||
+          [];
         setDepartments(departmentsData);
         setDeptName("");
+        Swal.fire({
+          icon: "success",
+          title: "Added",
+          text: "Department added successfully.",
+        });
       }
     } catch (error) {
       console.error("Add Department Error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to add department.",
+      });
     }
   };
-  
+
+  // Edit department using SweetAlert2 prompt
   const openEditModal = (dept) => {
-    setCurrentDept(dept);
-    setEditDeptName(dept.departmentName);
-    setEditDeptSite(dept.siteID);
-    setShowEditModal(true);
-  };
-  
-  const closeEditModal = () => {
-    setShowEditModal(false);
-    setCurrentDept(null);
-  };
-  
-  const confirmEdit = async () => {
-    if (editDeptName.trim() && currentDept) {
-      try {
-        const response = await axios.put(
-          `${config.API_BASE_URL}/departments/update_department/${currentDept.id}`,
-          {
-            department_name: editDeptName,
-            site_id: editDeptSite
-          },
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-            }
-          }
-        );
-  
-        if (response.data.success) {
-          // Refresh departments list
-          const deptResponse = await axios.get(
-            `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+    Swal.fire({
+      title: "Edit Department",
+      input: "text",
+      inputLabel: "Department Name",
+      inputValue: dept.departmentName,
+      showCancelButton: true,
+      preConfirm: (newName) => {
+        if (!newName.trim()) {
+          Swal.showValidationMessage("Department name cannot be empty");
+        }
+        return newName;
+      },
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const response = await axios.put(
+            `${config.API_BASE_URL}/departments/update_department/${dept.id}`,
+            {
+              department_name: result.value,
+              site_id: dept.siteID, // retain current site selection
+            },
             {
               headers: {
                 "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-                "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-              }
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
             }
           );
-          
-          const parsedData = typeof deptResponse.data === "string" 
-            ? JSON.parse(deptResponse.data) 
-            : deptResponse.data;
-  
-          const departmentsData = parsedData.departments || 
-                                parsedData.data?.departments || 
-                                parsedData.data || 
-                                [];
-  
-          setDepartments(departmentsData);
+
+          if (response.data.success) {
+            // Refetch departments list after update
+            const deptResponse = await axios.get(
+              `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+              {
+                headers: {
+                  "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                  "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+                },
+              }
+            );
+
+            const parsedData =
+              typeof deptResponse.data === "string"
+                ? JSON.parse(deptResponse.data)
+                : deptResponse.data;
+
+            const departmentsData =
+              parsedData.departments ||
+              parsedData.data?.departments ||
+              parsedData.data ||
+              [];
+
+            setDepartments(departmentsData);
+            Swal.fire({
+              icon: "success",
+              title: "Updated",
+              text: "Department updated successfully.",
+            });
+          }
+        } catch (error) {
+          console.error("Update Department Error:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to update department.",
+          });
         }
-      } catch (error) {
-        console.error("Update Department Error:", error);
       }
-    }
-    closeEditModal();
+    });
   };
-  
+
+  // Delete department using SweetAlert2 confirmation
   const openDeleteModal = (dept) => {
-    setCurrentDept(dept);
-    setShowDeleteModal(true);
-  };
-  
-  const closeDeleteModal = () => {
-    setShowDeleteModal(false);
-    setCurrentDept(null);
-  };
-  
-  const confirmDelete = async () => {
-    if (currentDept) {
-      try {
-        const response = await axios.delete(
-          `${config.API_BASE_URL}/departments/delete_department/${currentDept.id}`,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-            }
-          }
-        );
-  
-        if (response.data.success) {
-          // Refresh departments list
-          const deptResponse = await axios.get(
-            `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+    Swal.fire({
+      title: "Are you sure?",
+      text: `Do you want to delete the department "${dept.departmentName}"?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Delete",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const response = await axios.delete(
+            `${config.API_BASE_URL}/departments/delete_department/${dept.id}`,
             {
               headers: {
                 "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-                "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-              }
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
             }
           );
-          
-          const parsedData = typeof deptResponse.data === "string" 
-            ? JSON.parse(deptResponse.data) 
-            : deptResponse.data;
-  
-          const departmentsData = parsedData.departments || 
-                                parsedData.data?.departments || 
-                                parsedData.data || 
-                                [];
-  
-          setDepartments(departmentsData);
+          if (response.data.success) {
+            // Refetch departments list after deletion
+            const deptResponse = await axios.get(
+              `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+              {
+                headers: {
+                  "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                  "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+                },
+              }
+            );
+
+            const parsedData =
+              typeof deptResponse.data === "string"
+                ? JSON.parse(deptResponse.data)
+                : deptResponse.data;
+
+            const departmentsData =
+              parsedData.departments ||
+              parsedData.data?.departments ||
+              parsedData.data ||
+              [];
+
+            setDepartments(departmentsData);
+            Swal.fire({
+              icon: "success",
+              title: "Deleted",
+              text: "Department deleted successfully.",
+            });
+          }
+        } catch (error) {
+          console.error("Delete Department Error:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to delete department.",
+          });
         }
-      } catch (error) {
-        console.error("Delete Department Error:", error);
       }
-    }
-    closeDeleteModal();
+    });
   };
 
   return (
@@ -280,9 +299,18 @@ const Department = () => {
           <h1>Department</h1>
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb">
-              <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
-              <li className="breadcrumb-item"><a href="/settings">Settings</a></li>
-              <li className="breadcrumb-item active" aria-current="page">Add Department</li>
+              <li className="breadcrumb-item">
+                <a href="/dashboard">Home</a>
+              </li>
+              <li className="breadcrumb-item">
+                <a href="/settings">Settings</a>
+              </li>
+              <li
+                className="breadcrumb-item active"
+                aria-current="page"
+              >
+                Add Department
+              </li>
             </ol>
           </nav>
         </div>
@@ -296,16 +324,18 @@ const Department = () => {
               <div className="card-body">
                 {/* Dropdown for Sites */}
                 <div className="mb-3">
-                  <label htmlFor="siteSelect" className="form-label">Select Site</label>
+                  <label htmlFor="siteSelect" className="form-label">
+                    Select Site
+                  </label>
                   <SiteDropdown />
                 </div>
                 {/* Input for Department Name */}
                 <div className="input-group">
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="Enter department name" 
-                    value={deptName} 
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Enter department name"
+                    value={deptName}
                     onChange={(e) => setDeptName(e.target.value)}
                   />
                   <button onClick={addDepartment} className="btn btn-primary">
@@ -336,16 +366,23 @@ const Department = () => {
                     <tbody>
                       {departments.map((dept) => {
                         // Find the associated site for this department
-                        const site = sites.find(s => s.id === dept.siteID) || {};
+                        const site =
+                          sites.find((s) => s.id === dept.siteID) || {};
                         return (
                           <tr key={dept.id}>
                             <td>{dept.departmentName}</td>
-                            <td>{site.siteName || 'N/A'}</td>
+                            <td>{site.siteName || "N/A"}</td>
                             <td>
-                              <button onClick={() => openEditModal(dept)} className="btn btn-warning btn-sm me-2">
+                              <button
+                                onClick={() => openEditModal(dept)}
+                                className="btn btn-warning btn-sm me-2"
+                              >
                                 <i className="bi bi-pencil"></i>
                               </button>
-                              <button onClick={() => openDeleteModal(dept)} className="btn btn-danger btn-sm">
+                              <button
+                                onClick={() => openDeleteModal(dept)}
+                                className="btn btn-danger btn-sm"
+                              >
                                 <i className="bi bi-trash"></i>
                               </button>
                             </td>
@@ -360,58 +397,6 @@ const Department = () => {
           </div>
         </div>
       </div>
-  
-      {/* Edit Modal */}
-      {showEditModal && (
-        <div className="modal d-block" tabIndex="-1">
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Edit Department</h5>
-                <button type="button" className="btn-close" onClick={closeEditModal}></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label htmlFor="editSiteSelect" className="form-label">Select Site</label>
-                  <EditSiteDropdown />
-                </div>
-                <input 
-                  type="text" 
-                  value={editDeptName} 
-                  onChange={(e) => setEditDeptName(e.target.value)} 
-                  className="form-control" 
-                  placeholder="Department name"
-                />
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={closeEditModal}>Cancel</button>
-                <button className="btn btn-primary" onClick={confirmEdit}>Save</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-  
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="modal d-block" tabIndex="-1">
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Confirm Delete</h5>
-                <button type="button" className="btn-close" onClick={closeDeleteModal}></button>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to delete the department "{currentDept?.departmentName}"?</p>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={closeDeleteModal}>Cancel</button>
-                <button className="btn btn-danger" onClick={confirmDelete}>Delete</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

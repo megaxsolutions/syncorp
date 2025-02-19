@@ -73,7 +73,7 @@ const EmployeeDashboard = () => {
                 <div className="col-md-4">
                   <div className="card shadow-sm">
                     <div className="card-body text-center">
-                      <Link to="/employee/attendance" className={`nav-link ${isAttendance ? 'active' : ''}`}>
+                      <Link to="/employee_attendance" className={`nav-link ${isAttendance ? 'active' : ''}`}>
                         <i className={`bi bi-calendar-check h1 ${isAttendance ? 'icon-highlight' : ''}`}></i>
                         <h5>Attendance</h5>
                       </Link>
@@ -83,7 +83,7 @@ const EmployeeDashboard = () => {
                 <div className="col-md-4">
                   <div className="card shadow-sm">
                     <div className="card-body text-center">
-                      <Link to="/employee/payslip" className={`nav-link ${isPayslip ? 'active' : ''}`}>
+                      <Link to="/employee_payslip" className={`nav-link ${isPayslip ? 'active' : ''}`}>
                         <i className={`bi bi-receipt h1 ${isPayslip ? 'icon-highlight' : ''}`}></i>
                         <h5>Payslip</h5>
                       </Link>
@@ -93,7 +93,7 @@ const EmployeeDashboard = () => {
                 <div className="col-md-4">
                   <div className="card shadow-sm">
                     <div className="card-body text-center">
-                      <Link to="/employee/leave-request" className={`nav-link ${isLeaveRequest ? 'active' : ''}`}>
+                      <Link to="/employee_leave_request" className={`nav-link ${isLeaveRequest ? 'active' : ''}`}>
                         <i className={`bi bi-arrow-right-square h1 ${isLeaveRequest ? 'icon-highlight' : ''}`}></i>
                         <h5>Leave Request</h5>
                       </Link>

@@ -3,18 +3,21 @@ import axios from "axios";
 import config from "../config";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
+import Swal from "sweetalert2";
 
 const Position = () => {
   const [positionName, setPositionName] = useState("");
-  const [positions, setPositions] = useState([]); // Initialize as empty array
+  const [positions, setPositions] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const positionsPerPage = 7;
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  // Move pagination calculations inside useEffect or after positions is guaranteed to be an array
+  // Pagination helpers
   const getCurrentPositions = () => {
     const indexOfLastPosition = currentPage * positionsPerPage;
     const indexOfFirstPosition = indexOfLastPosition - positionsPerPage;
-    return Array.isArray(positions) 
+    return Array.isArray(positions)
       ? positions.slice(indexOfFirstPosition, indexOfLastPosition)
       : [];
   };
@@ -23,15 +26,7 @@ const Position = () => {
     return Math.ceil((Array.isArray(positions) ? positions.length : 0) / positionsPerPage);
   };
 
-  // New state variables for modals
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [currentPosition, setCurrentPosition] = useState(null);
-  const [editPositionName, setEditPositionName] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  // Add cleanup effect for notifications
+  // Clear notifications after 3 seconds
   useEffect(() => {
     if (error || success) {
       const timer = setTimeout(() => {
@@ -42,12 +37,11 @@ const Position = () => {
     }
   }, [error, success]);
 
-  // Fetch positions on component mount
+  // Fetch positions on mount
   useEffect(() => {
     fetchPositions();
   }, []);
 
-  // Update fetchPositions function
   const fetchPositions = async () => {
     try {
       const response = await axios.get(`${config.API_BASE_URL}/main/get_all_dropdown_data`, {
@@ -56,11 +50,9 @@ const Position = () => {
           "X-EMP-ID": localStorage.getItem("X-EMP-ID")
         }
       });
-
       const parsedData = typeof response.data === "string" 
         ? JSON.parse(response.data) 
         : response.data;
-
       const positionsData = parsedData.positions || parsedData.data?.positions || [];
       setPositions(Array.isArray(positionsData) ? positionsData : []);
     } catch (error) {
@@ -69,7 +61,6 @@ const Position = () => {
     }
   };
 
-  // Update the addPosition function
   const addPosition = async () => {
     if (!positionName.trim()) {
       setError("Please enter a position name");
@@ -78,7 +69,7 @@ const Position = () => {
 
     try {
       const response = await axios.post(
-        `${config.API_BASE_URL}/positions/add_position`, // Updated to match backend endpoint
+        `${config.API_BASE_URL}/positions/add_position`,
         { position_name: positionName },
         {
           headers: {
@@ -90,7 +81,7 @@ const Position = () => {
 
       if (response.data.success) {
         setPositionName("");
-        fetchPositions(); // Refresh the positions list
+        fetchPositions();
         setSuccess("Position added successfully!");
       }
     } catch (error) {
@@ -99,81 +90,105 @@ const Position = () => {
     }
   };
 
+  // Edit using SweetAlert2
   const openEditModal = (position) => {
-    setCurrentPosition(position);
-    setEditPositionName(position.position || position.name); // Handle both position and name properties
-    setShowEditModal(true);
-  };
-
-  const closeEditModal = () => {
-    setShowEditModal(false);
-    setCurrentPosition(null);
-  };
-
-  // Update the confirmEdit function
-  const confirmEdit = async () => {
-    if (!editPositionName.trim() || !currentPosition) {
-      setError("Please enter a position name");
-      return;
-    }
-  
-    try {
-      const response = await axios.put(
-        `${config.API_BASE_URL}/positions/update_position/${currentPosition.id}`,
-        { position_name: editPositionName },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-          }
+    Swal.fire({
+      title: "Edit Position",
+      input: "text",
+      inputLabel: "Position Name",
+      inputValue: position.position || position.name,
+      showCancelButton: true,
+      confirmButtonText: "Save",
+      cancelButtonText: "Cancel",
+      preConfirm: (newName) => {
+        if (!newName.trim()) {
+          Swal.showValidationMessage("Please enter a position name");
         }
-      );
-  
-      if (response.data.success) {
-        fetchPositions(); // Refresh the positions list
-        setSuccess("Position updated successfully!");
-        closeEditModal();
+        return newName;
+      },
+    }).then(async (result) => {
+      if (result.isConfirmed && result.value) {
+        try {
+          const response = await axios.put(
+            `${config.API_BASE_URL}/positions/update_position/${position.id}`,
+            { position_name: result.value },
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+              }
+            }
+          );
+          if (response.data.success) {
+            fetchPositions();
+            setSuccess("Position updated successfully!");
+            Swal.fire({
+              icon: "success",
+              title: "Updated",
+              text: "Position updated successfully!",
+            });
+          } else {
+            setError("Failed to update position. Please try again.");
+            Swal.fire({
+              icon: "error",
+              title: "Error",
+              text: "Failed to update position. Please try again.",
+            });
+          }
+        } catch (error) {
+          console.error("Edit Position Error:", error);
+          setError("Failed to update position. Please try again.");
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to update position. Please try again.",
+          });
+        }
       }
-    } catch (error) {
-      console.error("Edit Position Error:", error);
-      setError("Failed to update position. Please try again.");
-    }
+    });
   };
 
+  // Delete using SweetAlert2 confirmation
   const openDeleteModal = (position) => {
-    setCurrentPosition(position);
-    setShowDeleteModal(true);
-  };
-
-  const closeDeleteModal = () => {
-    setShowDeleteModal(false);
-    setCurrentPosition(null);
-  };
-
-  // Update the confirmDelete function
-  const confirmDelete = async () => {
-    if (!currentPosition) return;
-  
-    try {
-      const response = await axios.delete(
-        `${config.API_BASE_URL}/positions/delete_position/${currentPosition.id}`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+    Swal.fire({
+      title: "Confirm Delete",
+      text: `Are you sure you want to delete the position "${position.position || position.name}"?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      cancelButtonText: "Cancel",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const response = await axios.delete(
+            `${config.API_BASE_URL}/positions/delete_position/${position.id}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+              }
+            }
+          );
+          if (response.data.success) {
+            fetchPositions();
+            setSuccess("Position deleted successfully!");
+            Swal.fire({
+              icon: "success",
+              title: "Deleted",
+              text: "Position deleted successfully!",
+            });
           }
+        } catch (error) {
+          console.error("Delete Position Error:", error);
+          setError("Failed to delete position. Please try again.");
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to delete position. Please try again.",
+          });
         }
-      );
-  
-      if (response.data.success) {
-        fetchPositions(); // Refresh the positions list
-        setSuccess("Position deleted successfully!");
-        closeDeleteModal();
       }
-    } catch (error) {
-      console.error("Delete Position Error:", error);
-      setError("Failed to delete position. Please try again.");
-    }
+    });
   };
 
   return (
@@ -181,19 +196,6 @@ const Position = () => {
       <Navbar />
       <Sidebar />
       <div id="main" className="main">
-        {/* Add notification display */}
-        {error && (
-          <div className="alert alert-danger alert-dismissible fade show" role="alert">
-            {error}
-            <button type="button" className="btn-close" onClick={() => setError("")}></button>
-          </div>
-        )}
-        {success && (
-          <div className="alert alert-success alert-dismissible fade show" role="alert">
-            {success}
-            <button type="button" className="btn-close" onClick={() => setSuccess("")}></button>
-          </div>
-        )}
         {/* Breadcrumb header */}
         <div className="pagetitle mb-4">
           <h1>Position</h1>
@@ -242,7 +244,7 @@ const Position = () => {
                     <ul className="list-group">
                       {getCurrentPositions().map((position) => (
                         <li key={position.id} className="list-group-item d-flex justify-content-between align-items-center">
-                          {position.position || position.name} {/* Handle both position and name properties */}
+                          {position.position || position.name}
                           <div>
                             <button onClick={() => openEditModal(position)} className="btn btn-warning btn-sm me-2">
                               <i className="bi bi-pencil"></i>
@@ -287,53 +289,6 @@ const Position = () => {
           </div>
         </div>
       </div>
-
-      {/* Edit Modal */}
-      {showEditModal && (
-        <div className="modal d-block" tabIndex="-1">
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Edit Position</h5>
-                <button type="button" className="btn-close" onClick={closeEditModal}></button>
-              </div>
-              <div className="modal-body">
-                <input
-                  type="text"
-                  value={editPositionName}
-                  onChange={(e) => setEditPositionName(e.target.value)}
-                  className="form-control"
-                />
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={closeEditModal}>Cancel</button>
-                <button className="btn btn-primary" onClick={confirmEdit}>Save</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="modal d-block" tabIndex="-1">
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Confirm Delete</h5>
-                <button type="button" className="btn-close" onClick={closeDeleteModal}></button>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to delete the position "{currentPosition?.position || currentPosition?.name}"?</p>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={closeDeleteModal}>Cancel</button>
-                <button className="btn btn-danger" onClick={confirmDelete}>Delete</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

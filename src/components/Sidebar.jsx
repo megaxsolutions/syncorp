@@ -168,6 +168,17 @@ const Sidebar = () => {
             </li>
             <li className="mt-2">
               <Link
+                to="/settings/overtime-type"
+                className={`nav-link ${
+                  location.pathname === "/settings/overtime-type" ? "active" : ""
+                }`}
+              >
+                <i className="bi bi-hourglass-split"></i>
+                <span>Overtime Type</span>
+              </Link>
+            </li>
+            <li className="mt-2">
+              <Link
                 to="/settings/cut-off"
                 className={`nav-link ${
                   location.pathname === "/settings/cut-off" ? "active" : ""

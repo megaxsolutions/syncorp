@@ -3,18 +3,13 @@ import axios from "axios";
 import config from "../config";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
+import Swal from "sweetalert2";
 
 const EmployeeLevel = () => {
   const [levelName, setLevelName] = useState("");
   const [levels, setLevels] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  
-  // New state variables for modals
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [currentLevel, setCurrentLevel] = useState(null);
-  const [editLevelName, setEditLevelName] = useState("");
 
   // New state for pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -82,91 +77,109 @@ const EmployeeLevel = () => {
     }
   };
 
-  // Add cleanup effect for notifications
-  useEffect(() => {
-    if (error || success) {
-      const timer = setTimeout(() => {
-        setError("");
-        setSuccess("");
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [error, success]);
-
+  // Edit using SweetAlert2
   const openEditModal = (level) => {
-    setCurrentLevel(level);
-    setEditLevelName(level.e_level || level.name); // Handle both e_level and name properties
-    setShowEditModal(true);
-  };
-
-  const closeEditModal = () => {
-    setShowEditModal(false);
-    setCurrentLevel(null);
-  };
-
-  const confirmEdit = async () => {
-    if (!editLevelName.trim() || !currentLevel) {
-      setError("Please enter an employee level name");
-      return;
-    }
-
-    try {
-      const response = await axios.put(
-        `${config.API_BASE_URL}/employee_levels/update_employee_level/${currentLevel.id}`,
-        { e_level: editLevelName },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
-          }
+    Swal.fire({
+      title: "Edit Employee Level",
+      input: "text",
+      inputLabel: "Employee Level Name",
+      inputValue: level.e_level || level.name,
+      showCancelButton: true,
+      confirmButtonText: "Save",
+      cancelButtonText: "Cancel",
+      preConfirm: (newName) => {
+        if (!newName.trim()) {
+          Swal.showValidationMessage("Please enter an employee level name");
         }
-      );
-
-      if (response.data.success) {
-        fetchLevels(); // Refresh the levels list
-        setSuccess("Employee level updated successfully!");
-        closeEditModal();
+        return newName;
+      },
+    }).then(async (result) => {
+      if (result.isConfirmed && result.value) {
+        try {
+          const response = await axios.put(
+            `${config.API_BASE_URL}/employee_levels/update_employee_level/${level.id}`,
+            { e_level: result.value },
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
+            }
+          );
+          if (response.data.success) {
+            fetchLevels();
+            setSuccess("Employee level updated successfully!");
+            Swal.fire({
+              icon: "success",
+              title: "Updated",
+              text: "Employee level updated successfully!",
+            });
+          } else {
+            setError("Failed to update employee level");
+            Swal.fire({
+              icon: "error",
+              title: "Error",
+              text: "Failed to update employee level",
+            });
+          }
+        } catch (error) {
+          console.error("Edit Level Error:", error);
+          setError("Failed to update employee level");
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to update employee level",
+          });
+        }
       }
-    } catch (error) {
-      console.error("Edit Level Error:", error);
-      setError("Failed to update employee level");
-    }
+    });
   };
 
+  // Delete using SweetAlert2 confirmation
   const openDeleteModal = (level) => {
-    setCurrentLevel(level);
-    setShowDeleteModal(true);
-  };
-
-  const closeDeleteModal = () => {
-    setShowDeleteModal(false);
-    setCurrentLevel(null);
-  };
-
-  const confirmDelete = async () => {
-    if (!currentLevel) return;
-
-    try {
-      const response = await axios.delete(
-        `${config.API_BASE_URL}/employee_levels/delete_employee_level/${currentLevel.id}`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID")
+    Swal.fire({
+      title: "Confirm Delete",
+      text: `Are you sure you want to delete the employee level "${
+        level.e_level || level.name
+      }"?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      cancelButtonText: "Cancel",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const response = await axios.delete(
+            `${config.API_BASE_URL}/employee_levels/delete_employee_level/${level.id}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
+            }
+          );
+          if (response.data.success) {
+            fetchLevels();
+            setSuccess("Employee level deleted successfully!");
+            Swal.fire({
+              icon: "success",
+              title: "Deleted",
+              text: "Employee level deleted successfully!",
+            });
           }
+        } catch (error) {
+          console.error("Delete Level Error:", error);
+          setError("Failed to delete employee level");
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to delete employee level",
+          });
         }
-      );
-
-      if (response.data.success) {
-        fetchLevels(); // Refresh the levels list
-        setSuccess("Employee level deleted successfully!");
-        closeDeleteModal();
       }
-    } catch (error) {
-      console.error("Delete Level Error:", error);
-      setError("Failed to delete employee level");
-    }
+    });
   };
+
 
   return (
     <>
@@ -185,19 +198,7 @@ const EmployeeLevel = () => {
           </nav>
         </div>
 
-        {/* Add error and success alerts */}
-        {error && (
-          <div className="alert alert-danger alert-dismissible fade show" role="alert">
-            {error}
-            <button type="button" className="btn-close" onClick={() => setError("")}></button>
-          </div>
-        )}
-        {success && (
-          <div className="alert alert-success alert-dismissible fade show" role="alert">
-            {success}
-            <button type="button" className="btn-close" onClick={() => setSuccess("")}></button>
-          </div>
-        )}
+
 
         <div className="row">
           {/* Left column: Add Employee Level Card */}
@@ -281,53 +282,6 @@ const EmployeeLevel = () => {
           </div>
         </div>
       </div>
-
-      {/* Edit Modal */}
-      {showEditModal && (
-        <div className="modal d-block" tabIndex="-1">
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Edit Employee Level</h5>
-                <button type="button" className="btn-close" onClick={closeEditModal}></button>
-              </div>
-              <div className="modal-body">
-                <input
-                  type="text"
-                  value={editLevelName}
-                  onChange={(e) => setEditLevelName(e.target.value)}
-                  className="form-control"
-                />
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={closeEditModal}>Cancel</button>
-                <button className="btn btn-primary" onClick={confirmEdit}>Save</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="modal d-block" tabIndex="-1">
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Confirm Delete</h5>
-                <button type="button" className="btn-close" onClick={closeDeleteModal}></button>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to delete the employee level "{currentLevel?.e_level || currentLevel?.name}"?</p>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={closeDeleteModal}>Cancel</button>
-                <button className="btn btn-danger" onClick={confirmDelete}>Delete</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

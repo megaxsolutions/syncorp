@@ -1,10 +1,22 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import profile from "../assets/img/messages-3.jpg";
 
 const EmployeeNavbar = () => {
+  const navigate = useNavigate();
+  
   const handleToggleSidebar = () => {
     document.body.classList.toggle("toggle-sidebar");
+  };
+
+  const handleSignOut = (e) => {
+    e.preventDefault();
+    // Remove token and employee ID from localStorage
+    localStorage.removeItem("X-JWT-TOKEN");
+    localStorage.removeItem("X-EMP-ID");
+    // Redirect to home page
+    navigate("/");
   };
 
   return (
@@ -46,7 +58,11 @@ const EmployeeNavbar = () => {
                 <hr className="dropdown-divider" />
               </li>
               <li>
-                <a className="dropdown-item d-flex align-items-center" href="#">
+                <a
+                  className="dropdown-item d-flex align-items-center"
+                  href="#"
+                  onClick={handleSignOut}
+                >
                   <i className="bi bi-box-arrow-right"></i>
                   <span>Sign Out</span>
                 </a>

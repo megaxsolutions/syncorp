@@ -4,6 +4,7 @@ import Sidebar from "../components/Sidebar";
 import axios from "axios";
 import config from "../config";
 import moment from "moment-timezone";
+import Swal from "sweetalert2";
 
 const Calendar = () => {
   const todayDate = new Date();
@@ -25,8 +26,6 @@ const Calendar = () => {
 
   // Modals & messages
   const [showModal, setShowModal] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -52,7 +51,11 @@ const Calendar = () => {
       }));
       setHolidays(mapped);
     } catch (err) {
-      setError("Failed to fetch holidays.");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to fetch holidays.",
+      });
     }
   };
 
@@ -60,21 +63,14 @@ const Calendar = () => {
     fetchHolidays();
   }, []);
 
-  // Auto-clear messages
-  useEffect(() => {
-    if (error || success) {
-      const timer = setTimeout(() => {
-        setError("");
-        setSuccess("");
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [error, success]);
-
   // Add
   const addNewHoliday = async () => {
     if (!selectedDate || !holidayName || !holidayType) {
-      setError("Please fill in all fields and select a type.");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Please fill in all fields and select a type.",
+      });
       return;
     }
     try {
@@ -94,12 +90,20 @@ const Calendar = () => {
         }
       );
       if (response.data.success) {
-        setSuccess("Holiday added successfully.");
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: "Holiday added successfully.",
+        });
         fetchHolidays();
         closeModal();
       }
     } catch {
-      setError("Failed to add holiday.");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to add holiday.",
+      });
     }
   };
 
@@ -123,12 +127,20 @@ const Calendar = () => {
         }
       );
       if (response.data.success) {
-        setSuccess("Holiday updated successfully.");
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: "Holiday updated successfully.",
+        });
         fetchHolidays();
         closeModal();
       }
     } catch {
-      setError("Failed to update holiday.");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to update holiday.",
+      });
     }
   };
 
@@ -146,12 +158,20 @@ const Calendar = () => {
         }
       );
       if (response.data.success) {
-        setSuccess("Holiday deleted successfully.");
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: "Holiday deleted successfully.",
+        });
         fetchHolidays();
         closeModal();
       }
     } catch {
-      setError("Failed to delete holiday.");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to delete holiday.",
+      });
     }
   };
 
@@ -294,31 +314,6 @@ const Calendar = () => {
             </ol>
           </nav>
         </div>
-
-        {(error || success) && (
-          <div className="mb-3">
-            {error && (
-              <div className="alert alert-danger alert-dismissible fade show" role="alert">
-                {error}
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setError("")}
-                ></button>
-              </div>
-            )}
-            {success && (
-              <div className="alert alert-success alert-dismissible fade show" role="alert">
-                {success}
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setSuccess("")}
-                ></button>
-              </div>
-            )}
-          </div>
-        )}
 
         <div
           className="d-flex justify-content-center"

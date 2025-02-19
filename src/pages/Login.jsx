@@ -51,7 +51,7 @@ function Login() {
       console.log("Employee login response:", response.data);
   
       if (response.data.data) {
-        localStorage.setItem("token", response.data.data);
+        localStorage.setItem("X-JWT-TOKEN", response.data.data);
         if (response.data.emp_id) {
           localStorage.setItem("X-EMP-ID", response.data.emp_id);
         }

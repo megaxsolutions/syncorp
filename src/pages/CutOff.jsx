@@ -4,17 +4,13 @@ import config from "../config";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import moment from "moment";
+import Swal from "sweetalert2";
 
 function CutOff() {
   const [cutOffs, setCutOffs] = useState([]);
   const [newCutOff, setNewCutOff] = useState({ startDate: "", endDate: "" });
-  const [editCutOff, setEditCutOff] = useState(null);
-
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [cutOffToDelete, setCutOffToDelete] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -26,7 +22,6 @@ function CutOff() {
       setError("Please fill in both start and end dates");
       return;
     }
-
     try {
       const response = await axios.post(
         `${config.API_BASE_URL}/cutoffs/add_cutoff`,
@@ -43,82 +38,132 @@ function CutOff() {
       );
 
       if (response.data.success) {
-        setSuccess("Cut-off period added successfully!");
+        Swal.fire({
+          icon: "success",
+          title: "Added",
+          text: "Cut-off period added successfully!",
+        });
         setNewCutOff({ startDate: "", endDate: "" });
         fetchCutOffs();
       }
     } catch (error) {
       console.error("Add Cut-off Error:", error);
       setError(error.response?.data?.error || "Failed to add cut-off period");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.error || "Failed to add cut-off period",
+      });
     }
   };
 
-  const handleEditClick = (cutOff) => {
-    setEditCutOff({ ...cutOff });
-  };
-
-  const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditCutOff((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleUpdateCutOff = async () => {
-    try {
-      const response = await axios.put(
-        `${config.API_BASE_URL}/cutoffs/update_cutoff/${editCutOff.id}`,
-        {
-          start_date: moment(editCutOff.startDate).format("YYYY-MM-DD"),
-          end_date: moment(editCutOff.endDate).format("YYYY-MM-DD"),
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          }
+  const openEditDialog = (cutOff) => {
+    Swal.fire({
+      title: "Edit Cut Off",
+      html: `
+        <label for="swalEditStart" style="display:block; text-align:left; margin-bottom:5px;">Start Date</label>
+        <input type="date" id="swalEditStart" class="swal2-input" value="${cutOff.startDate}">
+        <label for="swalEditEnd" style="display:block; text-align:left; margin-bottom:5px;">End Date</label>
+        <input type="date" id="swalEditEnd" class="swal2-input" value="${cutOff.endDate}">
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Save Changes",
+      cancelButtonText: "Cancel",
+      preConfirm: () => {
+        const newStart = document.getElementById("swalEditStart").value;
+        const newEnd = document.getElementById("swalEditEnd").value;
+        if (!newStart || !newEnd) {
+          Swal.showValidationMessage("Both dates are required");
         }
-      );
+        return { newStart, newEnd };
+      },
+    }).then(async (result) => {
+      if (result.isConfirmed && result.value) {
+        try {
+          const response = await axios.put(
+            `${config.API_BASE_URL}/cutoffs/update_cutoff/${cutOff.id}`,
+            {
+              start_date: moment(result.value.newStart).format("YYYY-MM-DD"),
+              end_date: moment(result.value.newEnd).format("YYYY-MM-DD"),
+            },
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
+            }
+          );
 
-      if (response.data.success) {
-        setSuccess("Cut-off period updated successfully!");
-        setEditCutOff(null);
-        fetchCutOffs();
-      }
-    } catch (error) {
-      console.error("Update Cut-off Error:", error);
-      setError(error.response?.data?.error || "Failed to update cut-off period");
-    }
-  };
-
-  const handleDeleteClick = (cutOff) => {
-    setCutOffToDelete(cutOff);
-    setShowDeleteModal(true);
-  };
-
-  const handleDeleteCutOff = async () => {
-    try {
-      const response = await axios.delete(
-        `${config.API_BASE_URL}/cutoffs/delete_cutoff/${cutOffToDelete.id}`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          if (response.data.success) {
+            Swal.fire({
+              icon: "success",
+              title: "Updated",
+              text: "Cut-off period updated successfully!",
+            });
+            fetchCutOffs();
+          } else {
+            Swal.fire({
+              icon: "error",
+              title: "Error",
+              text: "Failed to update cut-off period",
+            });
           }
+        } catch (error) {
+          console.error("Update Cut-off Error:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error.response?.data?.error || "Failed to update cut-off period",
+          });
         }
-      );
-
-      if (response.data.success) {
-        setSuccess("Cut-off period deleted successfully!");
-        setShowDeleteModal(false);
-        setCutOffToDelete(null);
-        fetchCutOffs();
       }
-    } catch (error) {
-      console.error("Delete Cut-off Error:", error);
-      setError(error.response?.data?.error || "Failed to delete cut-off period");
-    }
+    });
+  };
+
+  const openDeleteDialog = (cutOff) => {
+    Swal.fire({
+      title: "Confirm Delete",
+      text: "Are you sure you want to delete this cut-off period?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      cancelButtonText: "Cancel",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const response = await axios.delete(
+            `${config.API_BASE_URL}/cutoffs/delete_cutoff/${cutOff.id}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
+            }
+          );
+          if (response.data.success) {
+            Swal.fire({
+              icon: "success",
+              title: "Deleted",
+              text: "Cut-off period deleted successfully!",
+            });
+            fetchCutOffs();
+          } else {
+            Swal.fire({
+              icon: "error",
+              title: "Error",
+              text: "Failed to delete cut-off period",
+            });
+          }
+        } catch (error) {
+          console.error("Delete Cut-off Error:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error.response?.data?.error || "Failed to delete cut-off period",
+          });
+        }
+      }
+    });
   };
 
   const fetchCutOffs = async () => {
@@ -129,14 +174,13 @@ function CutOff() {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          }
+          },
         }
       );
-
-      const parsedData = typeof response.data === "string"
-        ? JSON.parse(response.data)
-        : response.data;
-
+      const parsedData =
+        typeof response.data === "string"
+          ? JSON.parse(response.data)
+          : response.data;
       const cutoffsData = parsedData.cutoff || parsedData.data?.cutoff || [];
       const formattedCutoffs = cutoffsData.map((cutoff) => ({
         id: cutoff.id,
@@ -189,21 +233,13 @@ function CutOff() {
         {error && (
           <div className="alert alert-danger alert-dismissible fade show" role="alert">
             {error}
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setError("")}
-            ></button>
+            <button type="button" className="btn-close" onClick={() => setError("")}></button>
           </div>
         )}
         {success && (
           <div className="alert alert-success alert-dismissible fade show" role="alert">
             {success}
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setSuccess("")}
-            ></button>
+            <button type="button" className="btn-close" onClick={() => setSuccess("")}></button>
           </div>
         )}
 
@@ -271,13 +307,13 @@ function CutOff() {
                           <td>{moment(cutOff.endDate).format("YYYY-MM-DD")}</td>
                           <td>
                             <button
-                              onClick={() => handleEditClick(cutOff)}
+                              onClick={() => openEditDialog(cutOff)}
                               className="btn btn-warning btn-sm me-2"
                             >
                               <i className="bi bi-pencil"></i>
                             </button>
                             <button
-                              onClick={() => handleDeleteClick(cutOff)}
+                              onClick={() => openDeleteDialog(cutOff)}
                               className="btn btn-danger btn-sm"
                             >
                               <i className="bi bi-trash"></i>
@@ -292,107 +328,6 @@ function CutOff() {
             </div>
           </div>
         </div>
-
-        {editCutOff && (
-          <div className="modal d-block" tabIndex={-1}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow-sm">
-                <div className="modal-header bg-warning">
-                  <h5 className="modal-title">Edit Cut Off</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setEditCutOff(null)}
-                  ></button>
-                </div>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label htmlFor="editStartDate" className="form-label">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      id="editStartDate"
-                      name="startDate"
-                      className="form-control"
-                      value={editCutOff.startDate}
-                      onChange={handleEditChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="editEndDate" className="form-label">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      id="editEndDate"
-                      name="endDate"
-                      className="form-control"
-                      value={editCutOff.endDate}
-                      onChange={handleEditChange}
-                    />
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setEditCutOff(null)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="button" className="btn btn-primary" onClick={handleUpdateCutOff}>
-                    Save Changes
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showDeleteModal && (
-          <div className="modal d-block" tabIndex={-1}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow-sm">
-                <div className="modal-header bg-danger text-white">
-                  <h5 className="modal-title">Confirm Delete</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => {
-                      setShowDeleteModal(false);
-                      setCutOffToDelete(null);
-                    }}
-                  ></button>
-                </div>
-                <div className="modal-body">
-                  <p>Are you sure you want to delete this cut-off period?</p>
-                  <div className="alert alert-warning">
-                    <small>
-                      <i className="bi bi-exclamation-triangle me-2"></i>
-                      This action cannot be undone.
-                    </small>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setShowDeleteModal(false);
-                      setCutOffToDelete(null);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button type="button" className="btn btn-danger" onClick={handleDeleteCutOff}>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
     </>
   );
