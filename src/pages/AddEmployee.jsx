@@ -3,6 +3,7 @@ import axios from "axios";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import config from "../config";
+import Swal from "sweetalert2";
 
 const AddEmployee = () => {
   const [employee, setEmployee] = useState({
@@ -316,7 +317,7 @@ const AddEmployee = () => {
                         required
                       />
                     </div>
-                    <div class="col-md-4">
+                    <div className="col-md-4">
                       <label htmlFor="lname" className="form-label">
                         Last Name
                       </label>

@@ -3,6 +3,7 @@ import axios from "axios";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import config from "../config";
+import Swal from "sweetalert2"; // Add this import at the top
 
 // Add this helper function at the top of your component
 const formatDateForInput = (dateString) => {
@@ -207,7 +208,12 @@ function ViewEmployee() {
     if (file) {
       if (file.size > 5242880) {
         // 5MB limit
-        alert("File is too large. Maximum size is 5MB");
+        Swal.fire({
+          icon: 'error',
+          title: 'File Too Large',
+          text: 'File size should be less than 5MB',
+          confirmButtonColor: '#d33'
+        });
         return;
       }
 
@@ -302,11 +308,24 @@ function ViewEmployee() {
         setSelectedEmployee(updatedEmployeeData);
         setPreview(null); // Reset preview
         setShowModal(false);
-        alert(response.data.success);
+        
+        // Replace alert with SweetAlert2
+        Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: response.data.success,
+          confirmButtonColor: '#3085d6'
+        });
       }
     } catch (error) {
       console.error("Error updating employee:", error);
-      alert(error.response?.data?.error || "Failed to update employee");
+      // Replace alert with SweetAlert2
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.response?.data?.error || 'Failed to update employee',
+        confirmButtonColor: '#d33'
+      });
     }
   };
 
