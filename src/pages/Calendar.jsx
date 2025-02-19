@@ -7,8 +7,8 @@ import moment from "moment-timezone";
 import Swal from "sweetalert2";
 
 const Calendar = () => {
-  const todayDate = new Date();
-  const todayStr = todayDate.toISOString().split("T")[0];
+  const todayDate = moment().tz("Asia/Manila").toDate();
+  const todayStr = moment().tz("Asia/Manila").format("YYYY-MM-DD");
   const [currentMonth, setCurrentMonth] = useState(todayDate.getMonth());
   const [currentYear, setCurrentYear] = useState(todayDate.getFullYear());
 
@@ -187,9 +187,9 @@ const Calendar = () => {
 
   // Click date
   const onDateClick = (day) => {
-    const dayStr = day.toISOString().split("T")[0];
+    const dayStr = moment(day).format("YYYY-MM-DD");
     setSelectedDate(dayStr);
-    const existing = holidays.find((h) => h.date === dayStr);
+    const existing = holidays.find(h => moment(h.date).format("YYYY-MM-DD") === dayStr);
 
     if (existing) {
       setIsEditing(true);
@@ -248,9 +248,9 @@ const Calendar = () => {
     }
 
     daysInMonth.forEach((day) => {
-      const dayStr = day.toISOString().split("T")[0];
+      const dayStr = moment(day).format("YYYY-MM-DD");
       const isToday = dayStr === todayStr;
-      const holiday = holidays.find((h) => h.date === dayStr);
+      const holiday = holidays.find(h => moment(h.date).format("YYYY-MM-DD") === dayStr);
 
       const baseStyle = { cursor: "pointer", padding: "15px", textAlign: "center" };
       let holidayStyle = {};
