@@ -16,7 +16,7 @@ const Attendance = () => {
   useEffect(() => {
     const fetchAttendanceData = async () => {
       try {
-        const emp_id = localStorage.getItem("X-EMP-ID"); // Assuming emp_id is stored in localStorage
+        const emp_id = localStorage.getItem("X-EMP-ID"); 
         const response = await axios.get(
           `${config.API_BASE_URL}/attendances/get_all_user_attendance/${emp_id}`,
           {

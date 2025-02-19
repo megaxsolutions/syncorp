@@ -42,7 +42,7 @@ function App() {
           <Route path="/settings/position" element={<Position />} />
           <Route path="/settings/employee-level" element={<EmployeeLevel />} />
           <Route path="/settings/holiday-calendar" element={<Calendar />} />
-          <Route path="/settings/overtime-type" element={<OvertimeType />} />
+          <Route path="/settings/overtime-typgite" element={<OvertimeType />} />
           <Route path="/settings/cut-off" element={<CutOff />} />
           <Route path="/settings/admin-user" element={<AdminUser />} />
           <Route path="/attendance" element={<Attendance />} />
