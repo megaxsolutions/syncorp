@@ -24,6 +24,7 @@ import EmployeePayslip from "./pages/Employee Page/Payslip";
 import LeaveRequest from "./pages/Employee Page/LeaveRequest";
 import OvertimeRequest from "./pages/Employee Page/OvertimeRequest";
 import AdminLevel from "./pages/AdminLevel";
+import AdminProfile from "./pages/AdminProfile";
 import ProtectedLayout from "./ProtectedLayout";
 
 function App() {
@@ -42,7 +43,7 @@ function App() {
           <Route path="/settings/position" element={<Position />} />
           <Route path="/settings/employee-level" element={<EmployeeLevel />} />
           <Route path="/settings/holiday-calendar" element={<Calendar />} />
-          <Route path="/settings/overtime-typgite" element={<OvertimeType />} />
+          <Route path="/settings/overtime-type" element={<OvertimeType />} />
           <Route path="/settings/cut-off" element={<CutOff />} />
           <Route path="/settings/admin-user" element={<AdminUser />} />
           <Route path="/attendance" element={<Attendance />} />
@@ -54,6 +55,7 @@ function App() {
           <Route path="/employee_overtime_request" element={<OvertimeRequest />} />
           <Route path="/employee_leave_request" element={<LeaveRequest />} />
           <Route path="/settings/admin-level" element={<AdminLevel />} />
+          <Route path="/profile" element={<AdminProfile />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

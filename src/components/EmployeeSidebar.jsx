@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useLocation, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import moment from "moment-timezone";
+import axios from "axios";
+import config from "../config";
+import Swal from "sweetalert2";
 
 const EmployeeSidebar = () => {
   const location = useLocation();
@@ -21,10 +24,82 @@ const EmployeeSidebar = () => {
   );
   const [isTimeIn, setIsTimeIn] = useState(false);
   const [isBreakIn, setIsBreakIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleTimeInClick = () => {
-    setIsTimeIn(!isTimeIn);
-  };
+useEffect(() => {
+  // On component mount, load isTimeIn from localStorage
+  const storedIsTimeIn = localStorage.getItem("isTimeIn") === "true";
+  setIsTimeIn(storedIsTimeIn);
+  
+  // Remove any API-based attendance status checks here  
+}, []);
+
+const handleTimeInOut = async () => {
+  try {
+    setIsLoading(true);
+    const emp_id = localStorage.getItem("X-EMP-ID");
+    const cluster_id = localStorage.getItem("cluster_id");
+
+    if (!isTimeIn) {
+      // Time In
+      const response = await axios.post(
+        `${config.API_BASE_URL}/attendances/add_attendance_time_in`,
+        { emp_id, cluster_id },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        setIsTimeIn(true);
+        localStorage.setItem("isTimeIn", "true"); // Persist state to localStorage
+        Swal.fire({
+          icon: "success",
+          title: "Time In Successful",
+          text: "Your attendance has been recorded.",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      }
+    } else {
+      // Time Out
+      const response = await axios.put(
+        `${config.API_BASE_URL}/attendances/update_attendance_time_out/${emp_id}`,
+        {},
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        setIsTimeIn(false);
+        localStorage.setItem("isTimeIn", "false"); // Persist state to localStorage
+        Swal.fire({
+          icon: "success",
+          title: "Time Out Successful",
+          text: "Your attendance has been updated.",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Attendance Error:", error);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: error.response?.data?.error || "Failed to process attendance.",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleBreakInClick = () => {
     setIsBreakIn(!isBreakIn);
@@ -45,7 +120,7 @@ const EmployeeSidebar = () => {
   }, []);
 
   return (
-    <aside id="sidebar" className="sidebar">
+    <aside id="sidebar" className="sidebar employee-sidebar">
       <div className="d-flex flex-column align-items-center mt-3">
         <div className="rounded-circle overflow-hidden mb-3 profile-circle">
           <img
@@ -60,9 +135,16 @@ const EmployeeSidebar = () => {
             className={`btn btn-sm timein-btn ${
               isTimeIn ? "btn-danger" : "btn-success"
             }`}
-            onClick={handleTimeInClick}
+            onClick={handleTimeInOut}
+            disabled={isLoading}
           >
-            {isTimeIn ? "Time Out" : "Time In"}
+            {isLoading ? (
+              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            ) : isTimeIn ? (
+              "Time Out"
+            ) : (
+              "Time In"
+            )}
           </button>
         </div>
         <div className="mb-3 full-width-btn">

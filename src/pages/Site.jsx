@@ -101,12 +101,10 @@ const Site = () => {
   };
 
   const openEditModal = (site) => {
-    setCurrentSite(site);
-    setEditSiteName(site.site_name);
     Swal.fire({
       title: "Edit Site",
       input: "text",
-      inputValue: site.site_name,
+      inputValue: site.siteName,
       showCancelButton: true,
       confirmButtonText: "Save",
       preConfirm: (newName) => {
@@ -117,19 +115,16 @@ const Site = () => {
       },
     }).then((result) => {
       if (result.isConfirmed) {
-        confirmEdit(result.value);
+        confirmEdit(result.value, site.id);
       }
     });
   };
 
-  const [currentSite, setCurrentSite] = useState(null);
-  const [editSiteName, setEditSiteName] = useState("");
 
-  const confirmEdit = async (newName) => {
-    if (newName.trim() && currentSite) {
+  const confirmEdit = async (newName, site_id) => {
       try {
         const response = await axios.put(
-          `${config.API_BASE_URL}/sites/update_site/${currentSite.id}`,
+          `${config.API_BASE_URL}/sites/update_site/${site_id}`,
           { site_name: newName },
           {
             headers: {
@@ -143,7 +138,7 @@ const Site = () => {
 
         setSites((prevSites) =>
           prevSites.map((site) =>
-            site.id === currentSite.id
+            site.id === site_id
               ? { ...site, siteName: newName }
               : site
           )
@@ -161,8 +156,6 @@ const Site = () => {
           text: "Failed to update site.",
         });
       }
-    }
-    setCurrentSite(null);
   };
 
   const handleDelete = (site) => {

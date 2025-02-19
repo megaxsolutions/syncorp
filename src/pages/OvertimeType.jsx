@@ -90,8 +90,6 @@ const OvertimeType = () => {
     }
   };
 
-  const [currentOvertimeType, setCurrentOvertimeType] = useState(null);
-  const [editOvertimeTypeName, setEditOvertimeTypeName] = useState("");
 
 const openEditModal = (overtime) => {
   if (!overtime || !overtime.id) {
@@ -99,8 +97,6 @@ const openEditModal = (overtime) => {
     return;
   }
 
-  setCurrentOvertimeType(overtime);
-  setEditOvertimeTypeName(overtime.type);
 
   Swal.fire({
     title: "Edit Overtime Type",
@@ -119,24 +115,15 @@ const openEditModal = (overtime) => {
   }).then((result) => {
     if (result.isConfirmed) {
       console.log("Swal confirmed. Editing:", result.value);
-      confirmEdit(result.value);
+      confirmEdit(result.value, overtime.id);
     }
   });
 };
 
-const confirmEdit = async (newName) => {
-  console.log("confirmEdit called with:", newName, currentOvertimeType);
-
-  if (!newName || !currentOvertimeType?.id) {
-    console.error("Invalid newName or currentOvertimeType:", newName, currentOvertimeType);
-    return;
-  }
-
+const confirmEdit = async (newName, overtime_type_id) => {
   try {
-    console.log("Updating overtime_type_id:", currentOvertimeType.id);
-
     const response = await axios.put(
-      `${config.API_BASE_URL}/overtime_types/update_overtime_type/${currentOvertimeType.id}`,
+      `${config.API_BASE_URL}/overtime_types/update_overtime_type/${overtime_type_id}`,
       { overtime_type: newName },
       {
         headers: {
@@ -152,7 +139,7 @@ const confirmEdit = async (newName) => {
     if (response.status === 200) {
       setOvertimeTypes((prev) =>
         prev.map((ot) =>
-          ot.id === currentOvertimeType.id ? { ...ot, type: newName } : ot
+          ot.id === overtime_type_id ? { ...ot, type: newName } : ot
         )
       );
 
@@ -176,8 +163,6 @@ const confirmEdit = async (newName) => {
       text: error.response?.data?.error || "Failed to update overtime type.",
     });
   }
-
-  setCurrentOvertimeType(null);
 };
 
 
