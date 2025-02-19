@@ -24,7 +24,7 @@ const LeaveRequest = () => {
         `${config.API_BASE_URL}/leave_requests/get_all_leave_request/${empId}`,
         {
           headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-JWT-TOKEN": localStorage.getItem("token"),
             "X-EMP-ID": empId
           }
         }
@@ -53,8 +53,10 @@ const LeaveRequest = () => {
     formDataToSend.append('emp_ID', empId);
     formDataToSend.append('details', details);
     // If SL is selected and file is provided, append the file
+
+
     if (leaveType === 'SL' && uploadFile) {
-      formDataToSend.append('file', uploadFile);
+      formDataToSend.append('file_uploaded', uploadFile);
     }
 
     try {
@@ -198,7 +200,7 @@ const LeaveRequest = () => {
                   {leaveType === "SL" && (
                     <div className="mb-3">
                       <label htmlFor="uploadFile" className="form-label">
-                        Upload Image for SL
+                        Upload File for SL
                       </label>
                       <input
                         type="file"

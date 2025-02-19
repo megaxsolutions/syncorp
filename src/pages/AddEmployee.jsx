@@ -105,12 +105,6 @@ const AddEmployee = () => {
     }
 
     try {
-      // Add debugging to see what's being sent
-      console.log("Sending form data:");
-      for (let pair of formData.entries()) {
-        console.log(pair[0] + ": " + pair[1]);
-      }
-
       const response = await axios.post(
         `${config.API_BASE_URL}/employees/add_employee`,
         formData,
@@ -124,7 +118,11 @@ const AddEmployee = () => {
       );
 
       if (response.data.success) {
-        setSuccess("Employee added successfully!");
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: "Employee added successfully!",
+        });
         // Reset form
         setEmployee({
           file_uploaded: "", // Changed from photo
@@ -154,8 +152,11 @@ const AddEmployee = () => {
         setPreview(null);
       }
     } catch (error) {
-      console.error("Error details:", error.response?.data);
-      setError(error.response?.data?.error || "Failed to add employee");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.error || "Failed to add employee",
+      });
     }
   };
 
@@ -298,6 +299,7 @@ const AddEmployee = () => {
                         id="fname"
                         value={employee.fname}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div className="col-md-4">
@@ -311,6 +313,7 @@ const AddEmployee = () => {
                         id="mname"
                         value={employee.mname}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div class="col-md-4">
@@ -324,6 +327,7 @@ const AddEmployee = () => {
                         id="lname"
                         value={employee.lname}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div className="col-md-6">
@@ -337,6 +341,7 @@ const AddEmployee = () => {
                         id="bdate"
                         value={employee.birthdate}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div className="col-md-6">
@@ -350,6 +355,7 @@ const AddEmployee = () => {
                         id="date_hired"
                         value={employee.date_added}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div className="col-md-6">
@@ -364,6 +370,7 @@ const AddEmployee = () => {
                         value={employee.email}
                         onChange={handleChange}
                         placeholder="example@email.com"
+                        required
                       />
                     </div>
                     <div className="col-md-6">
@@ -378,6 +385,7 @@ const AddEmployee = () => {
                         value={employee.phone}
                         onChange={handleChange}
                         placeholder="09XX-XXX-XXXX"
+                        required
                       />
                     </div>
                     <div className="col-md-4">
@@ -390,6 +398,7 @@ const AddEmployee = () => {
                         className="form-select"
                         value={employee.position}
                         onChange={handleChange}
+                        required
                       >
                         <option value="">Choose...</option>
                         {dropdownData.positions.map((pos) => (
@@ -409,6 +418,7 @@ const AddEmployee = () => {
                         className="form-select"
                         value={employee.department_id}
                         onChange={handleChange}
+                        required
                       >
                         <option value="">Choose...</option>
                         {dropdownData.departments.map((dept) => (
@@ -428,6 +438,7 @@ const AddEmployee = () => {
                         className="form-select"
                         value={employee.cluster_id}
                         onChange={handleChange}
+                        required
                       >
                         <option value="">Choose...</option>
                         {dropdownData.clusters.map((cluster) => (
@@ -447,6 +458,7 @@ const AddEmployee = () => {
                         className="form-select"
                         value={employee.site_id}
                         onChange={handleChange}
+                        required
                       >
                         <option value="">Choose Site...</option>
                         {dropdownData.sites.map((site) => (
@@ -466,6 +478,7 @@ const AddEmployee = () => {
                         className="form-select"
                         value={employee.employee_level}
                         onChange={handleChange}
+                        required
                       >
                         <option value="">Choose Level...</option>
                         {dropdownData.employee_levels.map((level) => (
@@ -485,6 +498,7 @@ const AddEmployee = () => {
                         className="form-select"
                         value={employee.employee_status}
                         onChange={handleChange}
+                        required
                       >
                         <option value="">Choose...</option>
                         <option value="Active">Active</option>
@@ -503,6 +517,7 @@ const AddEmployee = () => {
                         id="basicPay"
                         value={employee.basic_pay}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                   </div>
@@ -529,6 +544,7 @@ const AddEmployee = () => {
                         id="healthcare"
                         value={employee.healthcare}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div className="col-md-4">
@@ -542,6 +558,7 @@ const AddEmployee = () => {
                         id="sss"
                         value={employee.sss}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div className="col-md-4">
@@ -555,6 +572,7 @@ const AddEmployee = () => {
                         id="pagibig"
                         value={employee.pagibig}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div className="col-md-4">
@@ -568,6 +586,7 @@ const AddEmployee = () => {
                         id="philhealth"
                         value={employee.philhealth}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div className="col-md-4">
@@ -581,6 +600,7 @@ const AddEmployee = () => {
                         id="tin"
                         value={employee.tin}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                   </div>
@@ -607,6 +627,7 @@ const AddEmployee = () => {
                         id="address"
                         value={employee.address}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div className="col-md-4">
@@ -620,6 +641,7 @@ const AddEmployee = () => {
                         id="emergencyPerson"
                         value={employee.emergencyPerson}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                     <div className="col-md-4">
@@ -636,6 +658,7 @@ const AddEmployee = () => {
                         id="emergencyContactNumber"
                         value={employee.emergencyContactNumber}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                   </div>
