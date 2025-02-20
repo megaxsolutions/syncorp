@@ -18,7 +18,7 @@ const Attendance = () => {
       try {
         const emp_id = localStorage.getItem("X-EMP-ID"); // Assuming emp_id is stored in localStorage
         const response = await axios.get(
-          `${config.API_BASE_URL}/attendances/get_all_attendance/${emp_id}`,
+          `${config.API_BASE_URL}/attendances/get_all_attendance`,
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),

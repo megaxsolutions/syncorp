@@ -25,6 +25,7 @@ import LeaveRequest from "./pages/Employee Page/LeaveRequest";
 import OvertimeRequest from "./pages/Employee Page/OvertimeRequest";
 import LeaveType from "./pages/LeaveType";
 import AdminLevel from "./pages/AdminLevel";
+import AdminProfile from "./pages/AdminProfile";
 import ProtectedLayout from "./ProtectedLayout";
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
           <Route path="/settings/leave-type" element={<LeaveType />} />
           <Route path="/settings/cut-off" element={<CutOff />} />
           <Route path="/settings/admin-user" element={<AdminUser />} />
+          <Route path="/profile" element={<AdminProfile />} />
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/dtr" element={<DTR />} />
           <Route path="/settings/bulletin" element={<Bulletin />} />
