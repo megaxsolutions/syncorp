@@ -287,7 +287,7 @@ const AdminUser = () => {
     }
   };
 
-  // Add this function after handleUpdate
+  // Update the handleDelete function
   const handleDelete = async (admin) => {
     try {
       const result = await Swal.fire({
@@ -302,7 +302,7 @@ const AdminUser = () => {
 
       if (result.isConfirmed) {
         const response = await axios.delete(
-          `${config.API_BASE_URL}/admins/delete_admin/${admin.id}`,
+          `${config.API_BASE_URL}/admins/delete_admin/${admin.emp_ID}`, // Changed from admin.id to admin.emp_ID
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),

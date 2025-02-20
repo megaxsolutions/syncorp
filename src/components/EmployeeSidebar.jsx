@@ -1,14 +1,5 @@
 import React, { useState, useEffect } from "react";
 import moment from "moment-timezone";
-<<<<<<< Updated upstream
-=======
-import axios from "axios";
-import { useLocation, Link } from "react-router-dom";
-import "bootstrap/dist/css/bootstrap.min.css";
-import Swal from "sweetalert2";
-import { jwtDecode } from "jwt-decode"; // ✅ Correct import
-import config from "../config";
->>>>>>> Stashed changes
 
 const EmployeeSidebar = () => {
   const location = useLocation();
@@ -28,103 +19,8 @@ const EmployeeSidebar = () => {
   const [isTimeIn, setIsTimeIn] = useState(false);
   const [isBreakIn, setIsBreakIn] = useState(false);
 
-<<<<<<< Updated upstream
   const handleTimeInClick = () => {
     setIsTimeIn(!isTimeIn);
-=======
-  // State for profile photo
-  const [photoUrl, setPhotoUrl] = useState("https://via.placeholder.com/100");
-
-  useEffect(() => {
-  const fetchEmployeePhoto = () => {
-    try {
-      const token = localStorage.getItem("X-JWT-TOKEN");
-      if (!token) return;
-
-      // Decode the token
-      const decoded = jwtDecode(token);
-      console.log("Decoded token:", decoded);
-
-      if (decoded?.login?.length > 0) {
-        const userData = decoded.login[0]; // Extract user data from token
-
-        if (userData.photo) {
-          setPhotoUrl(`${config.API_BASE_URL}/uploads/${userData.photo}`);
-        } else {
-          setPhotoUrl("https://avatar.iran.liara.run/public/26"); // Fallback avatar
-        }
-      }
-    } catch (error) {
-      console.error("Error decoding token:", error);
-    }
-  };
-
-  fetchEmployeePhoto();
-}, []);
-
-
-  const handleTimeInOut = async () => {
-    try {
-      setIsLoading(true);
-      const emp_id = localStorage.getItem("X-EMP-ID");
-      const cluster_id = localStorage.getItem("cluster_id");
-
-      if (!isTimeIn) {
-        // Time In
-        const response = await axios.post(
-          `${config.API_BASE_URL}/attendances/add_attendance_time_in`,
-          { emp_id, cluster_id },
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": emp_id
-            }
-          }
-        );
-        if (response.data.success) {
-          setIsTimeIn(true);
-          localStorage.setItem("isTimeIn", "true");
-          Swal.fire({
-            icon: "success",
-            title: "Time In Successful",
-            timer: 2000,
-            showConfirmButton: false
-          });
-          // Notify Attendance component to refresh
-          window.dispatchEvent(new Event("refreshAttendance"));
-        }
-      } else {
-        // Time Out
-        const response = await axios.put(
-          `${config.API_BASE_URL}/attendances/update_attendance_time_out/${emp_id}`,
-          {},
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": emp_id
-            }
-          }
-        );
-        if (response.data.success) {
-          setIsTimeIn(false);
-          localStorage.setItem("isTimeIn", "false");
-          Swal.fire({
-            icon: "success",
-            title: "Time Out Successful",
-            timer: 2000,
-            showConfirmButton: false
-          });
-          // Notify Attendance component to refresh
-          window.dispatchEvent(new Event("refreshAttendance"));
-        }
-      }
-    } catch (error) {
-      console.error("Attendance Error:", error);
-      Swal.fire({ icon: "error", title: "Error", text: "Failed to process attendance." });
-    } finally {
-      setIsLoading(false);
-    }
->>>>>>> Stashed changes
   };
 
   const handleBreakInClick = () => {
@@ -159,26 +55,12 @@ const EmployeeSidebar = () => {
         <div className="d-flex align-items-center mb-1 datetime-row">
           <span className="date-time-text">{dateTime}</span>
           <button
-<<<<<<< Updated upstream
             className={`btn btn-sm timein-btn ${
               isTimeIn ? "btn-danger" : "btn-success"
             }`}
             onClick={handleTimeInClick}
           >
             {isTimeIn ? "Time Out" : "Time In"}
-=======
-            className={`btn btn-sm timein-btn ${isTimeIn ? "btn-danger" : "btn-success"}`}
-            onClick={handleTimeInOut}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-            ) : isTimeIn ? (
-              "Time Out"
-            ) : (
-              "Time In"
-            )}
->>>>>>> Stashed changes
           </button>
         </div>
         <div className="mb-3 full-width-btn">

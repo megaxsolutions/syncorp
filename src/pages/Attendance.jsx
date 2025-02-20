@@ -16,15 +16,9 @@ const Attendance = () => {
   useEffect(() => {
     const fetchAttendanceData = async () => {
       try {
-<<<<<<< Updated upstream
         const emp_id = localStorage.getItem("X-EMP-ID"); // Assuming emp_id is stored in localStorage
         const response = await axios.get(
           `${config.API_BASE_URL}/attendances/get_all_attendance/${emp_id}`,
-=======
-        const emp_id = localStorage.getItem("X-EMP-ID");
-        const response = await axios.get(
-          `${config.API_BASE_URL}/attendances/get_all_attendance/`,
->>>>>>> Stashed changes
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
