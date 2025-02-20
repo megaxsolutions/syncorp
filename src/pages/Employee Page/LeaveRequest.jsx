@@ -5,6 +5,7 @@ import EmployeeSidebar from '../../components/EmployeeSidebar';
 import axios from 'axios';
 import config from '../../config';
 import moment from 'moment';
+import Swal from 'sweetalert2';
 
 const LeaveRequest = () => {
   const [selectedDate, setSelectedDate] = useState('');
@@ -12,8 +13,7 @@ const LeaveRequest = () => {
   const [uploadFile, setUploadFile] = useState(null);
   const [details, setDetails] = useState('');
   const [leaveHistory, setLeaveHistory] = useState([]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [leaveTypes, setLeaveTypes] = useState([]);
 
   const empId = localStorage.getItem("X-EMP-ID");
 
@@ -24,7 +24,7 @@ const LeaveRequest = () => {
         `${config.API_BASE_URL}/leave_requests/get_all_leave_request/${empId}`,
         {
           headers: {
-            "X-JWT-TOKEN": localStorage.getItem("token"),
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": empId
           }
         }
@@ -34,56 +34,147 @@ const LeaveRequest = () => {
       }
     } catch (error) {
       console.error("Error fetching leave requests:", error);
-      setError("Failed to load leave requests");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load leave requests'
+      });
+    }
+  };
+
+  // Update the fetchLeaveTypes function
+  const fetchLeaveTypes = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/leave_types/get_all_leave_type`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": empId,
+          },
+        }
+      );
+      if (response.data?.data) {
+        // Format the leave types data to include both id and type
+        const formattedLeaveTypes = response.data.data.map(leave => ({
+          id: leave.id,
+          type: leave.type
+        }));
+        setLeaveTypes(formattedLeaveTypes);
+      }
+    } catch (error) {
+      console.error("Error fetching leave types:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load leave types'
+      });
     }
   };
 
   useEffect(() => {
     fetchLeaveRequests();
+    fetchLeaveTypes();
   }, []);
 
   const handleFileChange = (e) => {
     setUploadFile(e.target.files[0]);
   };
 
+  // Update the handleSubmit function
   const handleSubmit = async () => {
-    // Create a FormData object to support file upload if needed
-    const formDataToSend = new FormData();
-    formDataToSend.append('leave_type', leaveType);
-    formDataToSend.append('emp_ID', empId);
-    formDataToSend.append('details', details);
-    // If SL is selected and file is provided, append the file
+    // Validate required fields
+    if (!selectedDate || !leaveType || !details) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please fill in all required fields'
+      });
+      return;
+    }
 
+    // Find the selected leave type object
+    const selectedLeaveType = leaveTypes.find(type => type.id.toString() === leaveType);
+    
+    if (!selectedLeaveType) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please select a valid leave type'
+      });
+      return;
+    }
 
-    if (leaveType === 'SL' && uploadFile) {
-      formDataToSend.append('file_uploaded', uploadFile);
+    // Check if it's SL and file is required
+    if (selectedLeaveType.type === 'SL' && !uploadFile) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please upload a medical certificate for Sick Leave'
+      });
+      return;
     }
 
     try {
+      // Show loading state
+      Swal.fire({
+        title: 'Submitting...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      const formDataToSend = new FormData();
+      formDataToSend.append('leave_type', selectedLeaveType.type); // Send the type name
+      formDataToSend.append('leave_type_id', selectedLeaveType.id); // Also send the ID if needed
+      formDataToSend.append('emp_ID', empId);
+      formDataToSend.append('details', details);
+      formDataToSend.append('date', selectedDate);
+
+      // Append file if it exists
+      if (uploadFile) {
+        formDataToSend.append('file_uploaded', uploadFile);
+      }
+
       const response = await axios.post(
-        `${config.API_BASE_URL}/leave_requests/add_leave_request`,
+        `${config.API_BASE_URL}/leave_requests/add_leave_request`,  // Removed /${leaveType} from URL
         formDataToSend,
         {
           headers: {
             "Content-Type": "multipart/form-data",
-            "X-JWT-TOKEN": localStorage.getItem("token"),
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": empId
           }
         }
       );
+      
       if(response.data.success) {
-        setSuccess(response.data.success);
         // Clear form fields
         setSelectedDate('');
         setLeaveType('');
         setUploadFile(null);
         setDetails('');
+        // Clear file input
+        const fileInput = document.getElementById('uploadFile');
+        if (fileInput) fileInput.value = '';
         // Refresh leave history
         fetchLeaveRequests();
+
+        // Show success message
+        Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: response.data.success
+        });
       }
     } catch (error) {
       console.error("Error creating leave request:", error);
-      setError("Failed to create leave request.");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.response?.data?.message || 'Failed to create leave request'
+      });
     }
   };
 
@@ -110,16 +201,6 @@ const LeaveRequest = () => {
               <div className="card shadow-sm mb-3">
                 <div className="card-body">
                   <h5 className="card-title">Leave History</h5>
-                  {error && (
-                    <div className="alert alert-danger" role="alert">
-                      {error}
-                    </div>
-                  )}
-                  {success && (
-                    <div className="alert alert-success" role="alert">
-                      {success}
-                    </div>
-                  )}
                   <div className="table-responsive">
                     <table className="table table-striped table-bordered">
                       <thead>
@@ -135,7 +216,9 @@ const LeaveRequest = () => {
                           leaveHistory.map((record, index) => (
                             <tr key={index}>
                               <td>{moment(record.date).format("YYYY-MM-DD")}</td>
-                              <td>{record.leave_type}</td>
+                              <td>
+                                {leaveTypes.find(type => type.id.toString() === record.leave_type)?.type || record.leave_type}
+                              </td>
                               <td>
                                 {record.status ? (
                                   record.status === "Approved" ? (
@@ -190,24 +273,31 @@ const LeaveRequest = () => {
                       onChange={(e) => setLeaveType(e.target.value)}
                     >
                       <option value="">Select Leave Type</option>
-                      <option value="VL">VL</option>
-                      <option value="SL">SL</option>
-                      <option value="Emergency">Emergency</option>
-                      <option value="Paternity">Paternity</option>
-                      <option value="Maternity">Maternity</option>
+                      {leaveTypes.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.type}
+                        </option>
+                      ))}
                     </select>
                   </div>
-                  {leaveType === "SL" && (
+
+                  {/* Update the file upload condition */}
+                  {leaveTypes.find(type => type.id.toString() === leaveType)?.type === 'SL' && (
                     <div className="mb-3">
                       <label htmlFor="uploadFile" className="form-label">
-                        Upload File for SL
+                        Upload Medical Certificate (Required) <span className="text-danger">*</span>
                       </label>
                       <input
                         type="file"
                         className="form-control"
                         id="uploadFile"
                         onChange={handleFileChange}
+                        accept="image/*,.pdf"
+                        required
                       />
+                      <small className="text-muted">
+                        Accepted formats: Images (jpg, png, etc.)
+                      </small>
                     </div>
                   )}
                   <div className="mb-3">

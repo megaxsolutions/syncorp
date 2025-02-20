@@ -1,19 +1,70 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 import logo from "../assets/logo.png";
-import profile from "../assets/img/messages-3.jpg";
+import config from "../config";
 
 const Navbar = () => {
+  const navigate = useNavigate();
+  const [photoUrl, setPhotoUrl] = useState("https://avatar.iran.liara.run/public/26");
+  const [adminName, setAdminName] = useState("");
+  const [adminData, setAdminData] = useState(null);
+  const [role, setRole] = useState("");
+
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      try {
+        const token = localStorage.getItem("X-JWT-TOKEN");
+        if (!token) {
+          navigate("/");
+          return;
+        }
+
+        // Decode token to get admin info
+        const decoded = jwtDecode(token);
+        console.log("Decoded admin token:", decoded);
+
+        if (decoded?.login?.[0]) {  // Changed from decoded?.admin to decoded?.login?.[0]
+          const userData = decoded.login[0];  // Access first element of login array
+          setAdminData(userData);
+
+          // Format full name
+          const fullName = `${userData.fName || ""} ${
+            userData.mName ? userData.mName + ". " : ""
+          }${userData.lName || ""}`;
+          setAdminName(fullName.trim());
+          
+          // Set role based on employee_level
+          setRole(`Admin Level ${userData.employee_level || "1"}`);
+
+          // Set photo if available
+          if (userData.photo) {
+            setPhotoUrl(`${config.API_BASE_URL}/uploads/${userData.photo}`);
+          }
+        }
+
+      } catch (error) {
+        console.error("Error decoding token:", error);
+        if (error.name === 'InvalidTokenError') {
+          localStorage.removeItem("X-JWT-TOKEN");
+          localStorage.removeItem("X-EMP-ID");
+          navigate("/");
+        }
+      }
+    };
+
+    fetchAdminData();
+  }, [navigate]);
+
   const handleToggleSidebar = () => {
     document.body.classList.toggle("toggle-sidebar");
   };
 
-  // New sign out handler
   const handleSignOut = (e) => {
     e.preventDefault();
     localStorage.removeItem("X-JWT-TOKEN");
     localStorage.removeItem("X-EMP-ID");
-    // Redirect to login page (or any appropriate route)
-    window.location.href = "/login";
+    navigate("/");
   };
 
   return (
@@ -165,21 +216,43 @@ const Navbar = () => {
               href="#"
               data-bs-toggle="dropdown"
             >
-              <img src={profile} alt="Profile" className="rounded-circle" />
+              <img
+                src={photoUrl}
+                alt="Profile"
+                className="rounded-circle"
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  objectFit: "cover",
+                  border: "2px solid #4154f1",
+                }}
+              />
               <span className="d-none d-md-block dropdown-toggle ps-2">
-                K. Anderson
+                {adminName || "Administrator"}
               </span>
             </a>
 
             <ul className="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
               <li className="dropdown-header">
-                <h6>Kevin Anderson</h6>
-                <span>Web Designer</span>
+                <h6>{adminName || "Administrator"}</h6>
+                <span>{role}</span>
               </li>
+              {adminData && (
+                <>
+                  <li>
+                    <hr className="dropdown-divider" />
+                  </li>
+                  <li>
+                    <div className="dropdown-item d-flex align-items-center">
+                      <i className="bi bi-person me-2"></i>
+                      <span>ID: {adminData.emp_ID}</span>
+                    </div>
+                  </li>
+                </>
+              )}
               <li>
                 <hr className="dropdown-divider" />
               </li>
-
               <li>
                 <a
                   className="dropdown-item d-flex align-items-center"
@@ -192,23 +265,6 @@ const Navbar = () => {
               <li>
                 <hr className="dropdown-divider" />
               </li>
-
-              <li>
-                <a
-                  className="dropdown-item d-flex align-items-center"
-                  href="users-profile.html"
-                >
-                  <i className="bi bi-gear"></i>
-                  <span>Account Settings</span>
-                </a>
-              </li>
-              <li>
-                <hr className="dropdown-divider" />
-              </li>
-              <li>
-                <hr className="dropdown-divider" />
-              </li>
-
               <li>
                 <a
                   className="dropdown-item d-flex align-items-center"

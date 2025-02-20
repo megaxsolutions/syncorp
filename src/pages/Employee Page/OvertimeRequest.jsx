@@ -12,6 +12,7 @@ const OvertimeRequest = () => {
   const [otType, setOtType] = useState("");
   const [otHistory, setOtHistory] = useState([]);
   const [error, setError] = useState("");
+  const [otTypes, setOtTypes] = useState([]);
 
   const empId = localStorage.getItem("X-EMP-ID");
 
@@ -19,7 +20,7 @@ const OvertimeRequest = () => {
   const fetchOvertimeRequests = async () => {
     try {
       const response = await axios.get(
-        `${config.API_BASE_URL}/overtime_requests/get_all_overtime_request/${empId}`,
+        `${config.API_BASE_URL}/overtime_requests/get_all_user_overtime_request/${empId}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -28,7 +29,12 @@ const OvertimeRequest = () => {
         }
       );
       if (response.data?.data) {
-        setOtHistory(response.data.data);
+        // Format the data to ensure status is properly handled
+        const formattedData = response.data.data.map(record => ({
+          ...record,
+          status: record.status || 'Pending' // Default to 'Pending' if status is null
+        }));
+        setOtHistory(formattedData);
       }
     } catch (error) {
       console.error("Error fetching overtime requests:", error);
@@ -36,13 +42,36 @@ const OvertimeRequest = () => {
     }
   };
 
+  // Update the fetchOvertimeTypes function to include debugging
+  const fetchOvertimeTypes = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/overtime_types/get_all_overtime_type`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": empId,
+          },
+        }
+      );
+      console.log('OT Types Response:', response.data); // Debug log
+      if (response.data?.data) {
+        setOtTypes(response.data.data);
+        console.log('Set OT Types:', response.data.data); // Debug log
+      }
+    } catch (error) {
+      console.error("Error fetching overtime types:", error);
+    }
+  };
+
   useEffect(() => {
     fetchOvertimeRequests();
+    fetchOvertimeTypes();
   }, []);
 
   const handleSubmit = async () => {
-    // Validate required fields (hours and otType in this case)
-    if (!hours || !otType) {
+    // Validate required fields
+    if (!selectedDate || !hours || !otType) {
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -55,10 +84,11 @@ const OvertimeRequest = () => {
       const response = await axios.post(
         `${config.API_BASE_URL}/overtime_requests/add_overtime_request`,
         {
-          ot_type: otType,
+          ot_type: otType,  // Match the column name in your overtime_requests table
           hrs: hours,
+          date: selectedDate,
           emp_ID: empId,
-          status: "pending" // default status added here
+          status: "Pending"
         },
         {
           headers: {
@@ -67,18 +97,20 @@ const OvertimeRequest = () => {
           },
         }
       );
-      console.log("Overtime Request Response:", response.data);
-      Swal.fire({
-        icon: "success",
-        title: "Success",
-        text: response.data.success || "Overtime request created successfully.",
-      });
-      // Re-fetch the overtime requests list to update the table
-      fetchOvertimeRequests();
-      // Clear form fields
-      setSelectedDate("");
-      setHours("");
-      setOtType("");
+
+      if (response.data.success) {
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: response.data.success || "Overtime request created successfully.",
+        });
+        // Re-fetch the overtime requests list to update the table
+        fetchOvertimeRequests();
+        // Clear form fields
+        setSelectedDate("");
+        setHours("");
+        setOtType("");
+      }
     } catch (error) {
       console.error("Error creating overtime request:", error);
       Swal.fire({
@@ -124,7 +156,7 @@ const OvertimeRequest = () => {
                           <th>Date</th>
                           <th>Hours</th>
                           <th>OT Type</th>
-
+                          <th>Status</th>  {/* Add status column */}
                         </tr>
                       </thead>
                       <tbody>
@@ -134,7 +166,19 @@ const OvertimeRequest = () => {
                               <td>{record.date}</td>
                               <td>{record.hrs}</td>
                               <td>{record.ot_type}</td>
-
+                              <td>
+                                {record.status ? (
+                                  record.status === "Approved" ? (
+                                    <span className="badge bg-success">{record.status}</span>
+                                  ) : record.status === "Rejected" ? (
+                                    <span className="badge bg-danger">{record.status}</span>
+                                  ) : (
+                                    <span className="badge bg-warning text-dark">{record.status}</span>
+                                  )
+                                ) : (
+                                  <span className="badge bg-warning text-dark">Pending</span>
+                                )}
+                              </td>
                             </tr>
                           ))
                         ) : (
@@ -190,9 +234,15 @@ const OvertimeRequest = () => {
                       onChange={(e) => setOtType(e.target.value)}
                     >
                       <option value="">Select OT Type</option>
-                      <option value="pre-shift">Pre-Shift</option>
-                      <option value="post-shift">Post-Shift</option>
-                      <option value="RD">RD</option>
+                      {otTypes && otTypes.length > 0 ? (
+                        otTypes.map((type) => (
+                          <option key={type.id} value={type.type}>
+                            {type.type}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled>Loading overtime types...</option>
+                      )}
                     </select>
                   </div>
                   <button

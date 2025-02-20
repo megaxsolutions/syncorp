@@ -23,6 +23,7 @@ import EmployeeAttendance from "./pages/Employee Page/Attendance";
 import EmployeePayslip from "./pages/Employee Page/Payslip";
 import LeaveRequest from "./pages/Employee Page/LeaveRequest";
 import OvertimeRequest from "./pages/Employee Page/OvertimeRequest";
+import LeaveType from "./pages/LeaveType";
 import AdminLevel from "./pages/AdminLevel";
 import ProtectedLayout from "./ProtectedLayout";
 
@@ -43,6 +44,7 @@ function App() {
           <Route path="/settings/employee-level" element={<EmployeeLevel />} />
           <Route path="/settings/holiday-calendar" element={<Calendar />} />
           <Route path="/settings/overtime-type" element={<OvertimeType />} />
+          <Route path="/settings/leave-type" element={<LeaveType />} />
           <Route path="/settings/cut-off" element={<CutOff />} />
           <Route path="/settings/admin-user" element={<AdminUser />} />
           <Route path="/attendance" element={<Attendance />} />

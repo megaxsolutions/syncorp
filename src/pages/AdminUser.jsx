@@ -287,6 +287,49 @@ const AdminUser = () => {
     }
   };
 
+  // Add this function after handleUpdate
+  const handleDelete = async (admin) => {
+    try {
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: `Do you want to delete admin user ${admin.fName} ${admin.lName}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+      });
+
+      if (result.isConfirmed) {
+        const response = await axios.delete(
+          `${config.API_BASE_URL}/admins/delete_admin/${admin.id}`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+          }
+        );
+
+        if (response.data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Deleted!',
+            text: 'Admin user has been deleted.'
+          });
+          fetchAdmins(); // Refresh the list
+        }
+      }
+    } catch (error) {
+      console.error("Delete admin error:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.response?.data?.error || 'Failed to delete admin user'
+      });
+    }
+  };
+
   // Render employees in dropdown
   const renderEmployeeOptions = () => {
     if (!employees || employees.length === 0) {
@@ -458,12 +501,18 @@ const AdminUser = () => {
                               {user.fName} {user.lName}
                             </td>
                             <td>
-                              <div>
+                              <div className="btn-group">
                                 <button
                                   onClick={() => handleEdit(user)}
-                                  className="btn btn-warning btn-sm"
+                                  className="btn btn-warning btn-sm me-2"
                                 >
                                   <i className="bi bi-pencil"></i>
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(user)}
+                                  className="btn btn-danger btn-sm"
+                                >
+                                  <i className="bi bi-trash"></i>
                                 </button>
                               </div>
                             </td>

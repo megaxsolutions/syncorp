@@ -11,6 +11,7 @@ const Sidebar = () => {
   const isAttendance = location.pathname === "/attendance";
   const isDTR = location.pathname === "/dtr";
   const isPayroll = location.pathname === "/payroll";
+  const isLeaveType = location.pathname === "/settings/leave-type";
 
   return (
     <aside id="sidebar" className="sidebar">
@@ -175,6 +176,15 @@ const Sidebar = () => {
               >
                 <i className="bi bi-hourglass-split"></i>
                 <span>Overtime Type</span>
+              </Link>
+            </li>
+            <li className="mt-2">
+              <Link
+                to="/settings/leave-type"
+                className={`nav-link ${isLeaveType ? "active" : ""}`}
+              >
+                <i className="bi bi-calendar2-x"></i>
+                <span>Leave Type</span>
               </Link>
             </li>
             <li className="mt-2">
