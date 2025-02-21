@@ -864,3 +864,26 @@ ul li {
 .admin-level-table th:last-child {
   width: 30%;
 }
+
+.employee-sidebar{
+  background: #00c6ff;
+}
+
+.employee-sidebar .nav-link{
+  color: #fff;
+}
+
+/* Add these new styles */
+.employee-sidebar .nav-link.active {
+  background: rgba(73, 67, 67, 0.5) !important; /* Semi-transparent white */
+  color: #fff !important;
+}
+
+.employee-sidebar .nav-link:hover {
+ background: rgba(73, 67, 67, 0.5) !important; /* Semi-transparent white */
+  color: #fff !important;
+}
+
+.employee-sidebar .nav-link i {
+  color: #fff !important;
+}

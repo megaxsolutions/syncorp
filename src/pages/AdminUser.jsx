@@ -194,63 +194,50 @@ const AdminUser = () => {
     });
   };
 
-  // Update the handleSubmit function to ensure proper user_level handling
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.emp_id || !formData.password || !formData.user_level) {
-      Swal.fire({ icon: "error", title: "Error", text: "Please fill in all fields" });
-      return;
-    }
+  // Update the handleSubmit function to handle the user_level correctly
+const handleSubmit = async (e) => {
+  e.preventDefault();
   
-    try {
-      // Create the request body matching the backend expectations
-      const requestBody = {
-        emp_id: formData.emp_id,
-        password: formData.password,
-        user_level: formData.user_level
-      };
-  
-      const response = await axios.post(
-        `${config.API_BASE_URL}/admins/add_admin`,
-        requestBody,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          },
-        }
-      );
-  
-      if (response.data.success) {
-        Swal.fire({ icon: "success", title: "Success", text: "Account successfully created." });
-        setFormData({ emp_id: "", password: "", user_level: "" });
-        fetchAdmins();
+  if (!formData.emp_id || !formData.password || !formData.user_level) {
+    Swal.fire({ icon: "error", title: "Error", text: "Please fill in all fields" });
+    return;
+  }
+
+  try {
+    // Create the request body with the level value as a number
+    const requestBody = {
+      emp_id: formData.emp_id,
+      password: formData.password,
+      user_level: Number(formData.user_level) // Convert to number since backend expects a number
+    };
+
+    const response = await axios.post(
+      `${config.API_BASE_URL}/admins/add_admin`,
+      requestBody,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+        },
       }
-    } catch (error) {
-      console.error("Create admin error:", error);
-      if (error.response) {
-        let errorMsg = "An error occurred";
-        switch (error.response.status) {
-          case 404:
-            errorMsg = "Employee not found.";
-            break;
-          case 409:
-            errorMsg = "Admin already exists.";
-            break;
-          case 500:
-            errorMsg = "Failed to create admin entry. Please try again.";
-            break;
-          default:
-            errorMsg = error.response.data.error || errorMsg;
-        }
-        Swal.fire({ icon: "error", title: "Error", text: errorMsg });
-      } else {
-        Swal.fire({ icon: "error", title: "Error", text: "Network error. Please check your connection." });
-      }
+    );
+
+    if (response.data.success) {
+      Swal.fire({ 
+        icon: "success", 
+        title: "Success", 
+        text: response.data.success
+      });
+      setFormData({ emp_id: "", password: "", user_level: "" });
+      fetchAdmins();
     }
-  };
+  } catch (error) {
+    console.error("Create admin error:", error);
+    const errorMsg = error.response?.data?.error || "Failed to create admin entry";
+    Swal.fire({ icon: "error", title: "Error", text: errorMsg });
+  }
+};
 
   // Add the handleUpdate function to handle date formatting
   const handleUpdate = async (e) => {
@@ -287,7 +274,7 @@ const AdminUser = () => {
     }
   };
 
-  // Update the handleDelete function
+  // Add this function after handleUpdate
   const handleDelete = async (admin) => {
     try {
       const result = await Swal.fire({
@@ -330,6 +317,24 @@ const AdminUser = () => {
     }
   };
 
+  // Add this helper function to get level names from IDs
+const getLevelNames = (userLevels) => {
+  try {
+    const levels = JSON.parse(userLevels);
+    if (!Array.isArray(levels)) {
+      const level = adminLevels.find(l => l.id === Number(levels));
+      return level ? level.level : 'Unknown';
+    }
+    return levels.map(levelId => {
+      const level = adminLevels.find(l => l.id === Number(levelId));
+      return level ? level.level : 'Unknown';
+    }).join(', ');
+  } catch (error) {
+    console.error('Error parsing user levels:', error);
+    return 'Unknown';
+  }
+};
+
   // Render employees in dropdown
   const renderEmployeeOptions = () => {
     if (!employees || employees.length === 0) {
@@ -353,7 +358,7 @@ const AdminUser = () => {
     );
   };
 
-  // Update the renderAdminLevelOptions function to match backend expectations
+  // Update the renderAdminLevelOptions function to use level instead of id
   const renderAdminLevelOptions = () => {
     if (!adminLevels || adminLevels.length === 0) {
       return <option value="">No admin levels available</option>;
@@ -489,6 +494,7 @@ const AdminUser = () => {
                       <tr>
                         <th>Emp_ID</th>
                         <th>Name</th>
+                        <th>Admin Levels</th>
                         <th>Action</th>
                       </tr>
                     </thead>
@@ -500,6 +506,7 @@ const AdminUser = () => {
                             <td>
                               {user.fName} {user.lName}
                             </td>
+                            <td>{getLevelNames(user.user_level)}</td>
                             <td>
                               <div className="btn-group">
                                 <button
@@ -520,7 +527,7 @@ const AdminUser = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="3" className="text-center">
+                          <td colSpan="4" className="text-center">
                             No users found.
                           </td>
                         </tr>

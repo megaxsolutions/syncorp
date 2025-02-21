@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
 import moment from "moment-timezone";
+import axios from "axios";
+import { useLocation, Link } from "react-router-dom";
+import "bootstrap/dist/css/bootstrap.min.css";
+import Swal from "sweetalert2";
+import { jwtDecode } from "jwt-decode"; // ✅ Correct import
+import config from "../config";
 
 const EmployeeSidebar = () => {
   const location = useLocation();
@@ -9,6 +15,8 @@ const EmployeeSidebar = () => {
   const isLeaveRequest = location.pathname === "/employee_leave_request";
   const isOvertimeRequest = location.pathname === "/employee_overtime_request";
 
+  // Add isLoading state
+  const [isLoading, setIsLoading] = useState(false);
   const [dateTime, setDateTime] = useState(
     moment().tz("Asia/Manila").format("ddd").substring(0, 4).toUpperCase() +
       " " +
@@ -19,8 +27,137 @@ const EmployeeSidebar = () => {
   const [isTimeIn, setIsTimeIn] = useState(false);
   const [isBreakIn, setIsBreakIn] = useState(false);
 
-  const handleTimeInClick = () => {
-    setIsTimeIn(!isTimeIn);
+  // State for profile photo
+  const [photoUrl, setPhotoUrl] = useState("https://via.placeholder.com/100");
+
+  useEffect(() => {
+  const fetchEmployeePhoto = () => {
+    try {
+      const token = localStorage.getItem("X-JWT-TOKEN");
+      if (!token) return;
+
+      // Decode the token
+      const decoded = jwtDecode(token);
+      console.log("Decoded token:", decoded);
+
+      if (decoded?.login?.length > 0) {
+        const userData = decoded.login[0]; // Extract user data from token
+
+        if (userData.photo) {
+          setPhotoUrl(`${config.API_BASE_URL}/uploads/${userData.photo}`);
+        } else {
+          setPhotoUrl("https://avatar.iran.liara.run/public/26"); // Fallback avatar
+        }
+      }
+    } catch (error) {
+      console.error("Error decoding token:", error);
+    }
+  };
+
+  fetchEmployeePhoto();
+}, []);
+
+  // Remove the localStorage useEffect and modify the checkTimeInStatus effect
+
+  useEffect(() => {
+  const checkTimeInStatus = async () => {
+    try {
+      const emp_id = localStorage.getItem("X-EMP-ID");
+      const storedTimeInStatus = localStorage.getItem("isTimeIn");
+
+      if (storedTimeInStatus === "true") {
+        setIsTimeIn(true); // Keep it true if it's in localStorage
+        return;
+      }
+
+      const response = await axios.get(
+        `${config.API_BASE_URL}/attendances/get_all_user_attendance/${emp_id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
+
+      if (response.data?.data?.length > 0) {
+        const latestRecord = response.data.data[0];
+        const isCurrentlyTimeIn = !latestRecord.timeOUT;
+
+        if (isCurrentlyTimeIn) {
+          setIsTimeIn(true);
+          localStorage.setItem("isTimeIn", "true"); // Ensure it remains true
+        }
+      }
+    } catch (error) {
+      console.error("Error checking time in status:", error);
+    }
+  };
+
+  checkTimeInStatus();
+}, []); // Run once on mount
+
+  const handleTimeInOut = async () => {
+    try {
+      setIsLoading(true);
+      const emp_id = localStorage.getItem("X-EMP-ID");
+      const cluster_id = localStorage.getItem("cluster_id");
+
+      if (!isTimeIn) {
+        // Time In
+        const response = await axios.post(
+          `${config.API_BASE_URL}/attendances/add_attendance_time_in`,
+          { emp_id, cluster_id },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": emp_id
+            }
+          }
+        );
+        
+        if (response.data.success) {
+          setIsTimeIn(true);
+          localStorage.setItem("isTimeIn", "true");
+          Swal.fire({
+            icon: "success",
+            title: "Time In Successful",
+            timer: 2000,
+            showConfirmButton: false
+          });
+          window.dispatchEvent(new Event("refreshAttendance"));
+        }
+      } else {
+        // Time Out
+        const response = await axios.put(
+          `${config.API_BASE_URL}/attendances/update_attendance_time_out/${emp_id}`,
+          {},
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": emp_id
+            }
+          }
+        );
+
+        if (response.data.success) {
+          setIsTimeIn(false);
+          localStorage.setItem("isTimeIn", "false");
+          Swal.fire({
+            icon: "success",
+            title: "Time Out Successful",
+            timer: 2000,
+            showConfirmButton: false
+          });
+          window.dispatchEvent(new Event("refreshAttendance"));
+        }
+      }
+    } catch (error) {
+      console.error("Attendance Error:", error);
+      Swal.fire({ icon: "error", title: "Error", text: "Failed to process attendance." });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBreakInClick = () => {
@@ -42,7 +179,7 @@ const EmployeeSidebar = () => {
   }, []);
 
   return (
-    <aside id="sidebar" className="sidebar">
+    <aside id="sidebar" className="sidebar employee-sidebar">
       <div className="d-flex flex-column align-items-center mt-3">
         {/* Display user photo if available, else custom avatar */}
         <div className="rounded-circle overflow-hidden mb-3 profile-circle">
@@ -55,12 +192,17 @@ const EmployeeSidebar = () => {
         <div className="d-flex align-items-center mb-1 datetime-row">
           <span className="date-time-text">{dateTime}</span>
           <button
-            className={`btn btn-sm timein-btn ${
-              isTimeIn ? "btn-danger" : "btn-success"
-            }`}
-            onClick={handleTimeInClick}
+            className={`btn btn-sm timein-btn ${isTimeIn ? "btn-danger" : "btn-success"}`}
+            onClick={handleTimeInOut}
+            disabled={isLoading}
           >
-            {isTimeIn ? "Time Out" : "Time In"}
+            {isLoading ? (
+              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+            ) : isTimeIn ? (
+              "Time Out"
+            ) : (
+              "Time In"
+            )}
           </button>
         </div>
         <div className="mb-3 full-width-btn">

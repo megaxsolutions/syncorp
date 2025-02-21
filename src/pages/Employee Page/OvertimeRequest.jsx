@@ -152,12 +152,7 @@ const OvertimeRequest = () => {
                   <div className="table-responsive">
                     <table className="table table-striped table-bordered">
                       <thead>
-                        <tr>
-                          <th>Date</th>
-                          <th>Hours</th>
-                          <th>OT Type</th>
-                          <th>Status</th>  {/* Add status column */}
-                        </tr>
+                        <tr><th>Date</th><th>Hours</th><th>OT Type</th><th>Status</th></tr>
                       </thead>
                       <tbody>
                         {otHistory.length > 0 ? (
@@ -182,11 +177,7 @@ const OvertimeRequest = () => {
                             </tr>
                           ))
                         ) : (
-                          <tr>
-                            <td colSpan="4" className="text-center">
-                              No overtime records found.
-                            </td>
-                          </tr>
+                          <tr><td colSpan="4" className="text-center">No overtime records found.</td></tr>
                         )}
                       </tbody>
                     </table>

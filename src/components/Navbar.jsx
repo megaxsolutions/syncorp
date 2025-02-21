@@ -30,7 +30,7 @@ const Navbar = () => {
 
           // Format full name
           const fullName = `${userData.fName || ""} ${
-            userData.mName ? userData.mName + " " : ""
+            userData.mName ? userData.mName + ". " : ""
           }${userData.lName || ""}`;
           setAdminName(fullName.trim());
           
