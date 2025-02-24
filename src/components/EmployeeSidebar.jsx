@@ -60,6 +60,45 @@ const EmployeeSidebar = () => {
   fetchEmployeePhoto();
 }, []);
 
+  // Remove the localStorage useEffect and modify the checkTimeInStatus effect
+
+  useEffect(() => {
+  const checkTimeInStatus = async () => {
+    try {
+      const emp_id = localStorage.getItem("X-EMP-ID");
+      const storedTimeInStatus = localStorage.getItem("isTimeIn");
+
+      if (storedTimeInStatus === "true") {
+        setIsTimeIn(true); // Keep it true if it's in localStorage
+        return;
+      }
+
+      const response = await axios.get(
+        `${config.API_BASE_URL}/attendances/get_all_user_attendance/${emp_id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
+
+      if (response.data?.data?.length > 0) {
+        const latestRecord = response.data.data[0];
+        const isCurrentlyTimeIn = !latestRecord.timeOUT;
+
+        if (isCurrentlyTimeIn) {
+          setIsTimeIn(true);
+          localStorage.setItem("isTimeIn", "true"); // Ensure it remains true
+        }
+      }
+    } catch (error) {
+      console.error("Error checking time in status:", error);
+    }
+  };
+
+  checkTimeInStatus();
+}, []); // Run once on mount
 
   // Update the fetchClockState function
 useEffect(() => {
@@ -76,16 +115,11 @@ useEffect(() => {
         }
       );
 
-      // Check if response contains valid data
       if (response.data?.data?.length > 0) {
         const { state, break_state } = response.data.data[0];
-
         setIsTimeIn(state === 1);
-        setIsBreakIn(break_state === 1);
-      } else {
-        // If no data exists, set default values
-        setIsTimeIn(false);
-        setIsBreakIn(false);
+        setBreakState(break_state); // Set break state from API
+        setIsBreakIn(break_state === 1); // Update break in status based on break_state
       }
     } catch (error) {
       console.error("Error fetching clock state:", error);
@@ -93,8 +127,10 @@ useEffect(() => {
   };
 
   fetchClockState();
+  // Set up an interval to periodically check the clock state
   const intervalId = setInterval(fetchClockState, 30000);
 
+  // Listen for break state refresh events
   window.addEventListener("refreshBreakState", fetchClockState);
 
   return () => {
@@ -103,34 +139,6 @@ useEffect(() => {
   };
 }, []);
 
-  // Add this new useEffect to check break status
-  useEffect(() => {
-    const checkBreakStatus = async () => {
-      try {
-        const emp_id = localStorage.getItem("X-EMP-ID");
-        const response = await axios.get(
-          `${config.API_BASE_URL}/breaks/get_current_break/${emp_id}`,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": emp_id,
-            },
-          }
-        );
-
-        if (response.data?.data?.length > 0) {
-          const latestBreak = response.data.data[0];
-          const currentState = !latestBreak.breakOUT ? 1 : 0;
-          setBreakClockState(currentState);
-          setIsBreakIn(currentState === 1);
-        }
-      } catch (error) {
-        console.error("Error checking break status:", error);
-      }
-    };
-
-    checkBreakStatus();
-  }, []);
 
   const handleTimeInOut = async () => {
     try {
@@ -199,52 +207,96 @@ const handleBreakInClick = async () => {
     setIsLoadingBreak(true);
     const emp_id = localStorage.getItem("X-EMP-ID");
 
-    // Fetch latest clock state
-    const response = await axios.get(`${config.API_BASE_URL}/attendances/get_user_clock_state/${emp_id}`, {
-      headers: {
-        "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-        "X-EMP-ID": emp_id
-      }
-    });
+    if (!isBreakIn) {
+      // Break In
+      const breakInResponse = await axios.post(
+        `${config.API_BASE_URL}/breaks/add_break`,
+        { emp_id },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id
+          }
+        }
+      );
 
-    if (response.data && response.data.data.length > 0) {
-      const { break_state } = response.data.data[0];
+      // Update clock_state break_state
+      const updateClockStateResponse = await axios.put(
+        `${config.API_BASE_URL}/attendances/update_clock_state/${emp_id}`,
+        {
+          break_state: 1
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id
+          }
+        }
+      );
 
-      if (break_state === 1) {
+      if (breakInResponse.data.success && updateClockStateResponse.data.success) {
+        setIsBreakIn(true);
+        setBreakState(1);
         Swal.fire({
           icon: "success",
           title: "Break In Successful",
           timer: 2000,
           showConfirmButton: false
         });
-        setIsBreakIn(true);
-      } else {
+      }
+    } else {
+      // Break Out
+      const breakOutResponse = await axios.put(
+        `${config.API_BASE_URL}/breaks/update_break/${emp_id}`,
+        {},
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id
+          }
+        }
+      );
+
+      // Update clock_state break_state
+      const updateClockStateResponse = await axios.put(
+        `${config.API_BASE_URL}/attendances/update_clock_state/${emp_id}`,
+        {
+          break_state: 0
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id
+          }
+        }
+      );
+
+      if (breakOutResponse.data.success && updateClockStateResponse.data.success) {
+        setIsBreakIn(false);
+        setBreakState(0);
         Swal.fire({
-          icon: "warning",
-          title: "Break In not recorded yet. Try again.",
+          icon: "success",
+          title: "Break Out Successful",
           timer: 2000,
           showConfirmButton: false
         });
       }
-    } else {
-      Swal.fire({
-        icon: "error",
-        title: "No clock state found.",
-        text: "Please try again or contact support."
-      });
     }
+
+    // Refresh the clock state after break action
+    window.dispatchEvent(new Event("refreshBreakState"));
+
   } catch (error) {
     console.error("Break Error:", error);
     Swal.fire({
       icon: "error",
       title: "Error",
-      text: "Failed to check break status."
+      text: "Failed to process break time."
     });
   } finally {
     setIsLoadingBreak(false);
   }
 };
-
 
   useEffect(() => {
     const intervalId = setInterval(() => {

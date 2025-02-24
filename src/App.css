@@ -913,3 +913,34 @@ ul li {
   scrollbar-width: thin;
   scrollbar-color: #888 #f1f1f1;
 }
+
+.hover-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.feature-icon-border {
+  transition: transform 0.2s ease-in-out;
+}
+
+.hover-card:hover .feature-icon-border {
+  transform: scale(1.1);
+}
+
+.card {
+  border: none;
+  border-radius: 15px;
+}
+
+.btn {
+  border-radius: 25px;
+  padding: 8px 20px;
+}
+
+.btn i {
+  margin-left: 5px;
+}

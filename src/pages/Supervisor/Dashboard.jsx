@@ -68,36 +68,68 @@ const SupervisorDashboard = () => {
               </div>
 
               {/* Links */}
-              <div className="row mt-4">
+              <div className="row mt-4 g-4">
                 <div className="col-md-4">
-                  <div className="card shadow-sm">
-                    <div className="card-body text-center">
-                      <Link to="/employee_attendance" className={`nav-link ${isAttendance ? 'active' : ''}`}>
-                        <i className={`bi bi-calendar-check h1 ${isAttendance ? 'icon-highlight' : ''}`}></i>
-                        <h5>Attendance</h5>
-                      </Link>
+                  <Link to="/employee_attendance" className="text-decoration-none">
+                    <div className="card h-100 shadow-sm hover-card">
+                      <div className="card-body d-flex flex-column align-items-center text-center p-4">
+                        <div className="feature-icon-border d-inline-flex align-items-center justify-content-center bg-primary bg-gradient text-white fs-2 mb-3 rounded-circle" style={{ width: '80px', height: '80px' }}>
+                          <i className="bi bi-calendar-check"></i>
+                        </div>
+                        <h4 className="card-title mb-3">Attendance</h4>
+                        <p className="card-text text-muted">
+                          View and manage employee attendance records and time logs
+                        </p>
+                        <div className="mt-auto">
+                          <button className="btn btn-outline-primary">
+                            View Attendance <i className="bi bi-arrow-right"></i>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 </div>
+
                 <div className="col-md-4">
-                  <div className="card shadow-sm">
-                    <div className="card-body text-center">
-                      <Link to="/employee_payslip" className={`nav-link ${isPayslip ? 'active' : ''}`}>
-                        <i className={`bi bi-receipt h1 ${isPayslip ? 'icon-highlight' : ''}`}></i>
-                        <h5>Payslip</h5>
-                      </Link>
+                  <Link to="/employee_leave_request" className="text-decoration-none">
+                    <div className="card h-100 shadow-sm hover-card">
+                      <div className="card-body d-flex flex-column align-items-center text-center p-4">
+                        <div className="feature-icon-border d-inline-flex align-items-center justify-content-center bg-success bg-gradient text-white fs-2 mb-3 rounded-circle" style={{ width: '80px', height: '80px' }}>
+                          <i className="bi bi-calendar2-plus"></i>
+                        </div>
+                        <h4 className="card-title mb-3">Leave Request</h4>
+                        <p className="card-text text-muted">
+                          Process and track employee leave applications
+                        </p>
+                        <div className="mt-auto">
+                          <button className="btn btn-outline-success">
+                            Manage Leaves <i className="bi bi-arrow-right"></i>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 </div>
+
                 <div className="col-md-4">
-                  <div className="card shadow-sm">
-                    <div className="card-body text-center">
-                      <Link to="/employee_leave_request" className={`nav-link ${isLeaveRequest ? 'active' : ''}`}>
-                        <i className={`bi bi-arrow-right-square h1 ${isLeaveRequest ? 'icon-highlight' : ''}`}></i>
-                        <h5>Leave Request</h5>
-                      </Link>
+                  <Link to="/employee_overtime_request" className="text-decoration-none">
+                    <div className="card h-100 shadow-sm hover-card">
+                      <div className="card-body d-flex flex-column align-items-center text-center p-4">
+                        <div className="feature-icon-border d-inline-flex align-items-center justify-content-center bg-warning bg-gradient text-white fs-2 mb-3 rounded-circle" style={{ width: '80px', height: '80px' }}>
+                          <i className="bi bi-clock-history"></i>
+                        </div>
+                        <h4 className="card-title mb-3">Overtime Request</h4>
+                        <p className="card-text text-muted">
+                          Review and approve overtime requests
+                        </p>
+                        <div className="mt-auto">
+                          <button className="btn btn-outline-warning">
+                            Check Overtime <i className="bi bi-arrow-right"></i>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 </div>
               </div>
             </div>
