@@ -26,6 +26,9 @@ const EmployeeSidebar = () => {
   );
   const [isTimeIn, setIsTimeIn] = useState(false);
   const [isBreakIn, setIsBreakIn] = useState(false);
+  const [isLoadingBreak, setIsLoadingBreak] = useState(false);
+  const [breakClockState, setBreakClockState] = useState(0);
+  const [breakState, setBreakState] = useState(0);
 
   // State for profile photo
   const [photoUrl, setPhotoUrl] = useState("https://via.placeholder.com/100");
@@ -57,21 +60,14 @@ const EmployeeSidebar = () => {
   fetchEmployeePhoto();
 }, []);
 
-  // Remove the localStorage useEffect and modify the checkTimeInStatus effect
 
-  useEffect(() => {
-  const checkTimeInStatus = async () => {
+  // Update the fetchClockState function
+useEffect(() => {
+  const fetchClockState = async () => {
     try {
       const emp_id = localStorage.getItem("X-EMP-ID");
-      const storedTimeInStatus = localStorage.getItem("isTimeIn");
-
-      if (storedTimeInStatus === "true") {
-        setIsTimeIn(true); // Keep it true if it's in localStorage
-        return;
-      }
-
       const response = await axios.get(
-        `${config.API_BASE_URL}/attendances/get_all_user_attendance/${emp_id}`,
+        `${config.API_BASE_URL}/attendances/get_user_clock_state/${emp_id}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -80,22 +76,61 @@ const EmployeeSidebar = () => {
         }
       );
 
+      // Check if response contains valid data
       if (response.data?.data?.length > 0) {
-        const latestRecord = response.data.data[0];
-        const isCurrentlyTimeIn = !latestRecord.timeOUT;
+        const { state, break_state } = response.data.data[0];
 
-        if (isCurrentlyTimeIn) {
-          setIsTimeIn(true);
-          localStorage.setItem("isTimeIn", "true"); // Ensure it remains true
-        }
+        setIsTimeIn(state === 1);
+        setIsBreakIn(break_state === 1);
+      } else {
+        // If no data exists, set default values
+        setIsTimeIn(false);
+        setIsBreakIn(false);
       }
     } catch (error) {
-      console.error("Error checking time in status:", error);
+      console.error("Error fetching clock state:", error);
     }
   };
 
-  checkTimeInStatus();
-}, []); // Run once on mount
+  fetchClockState();
+  const intervalId = setInterval(fetchClockState, 30000);
+
+  window.addEventListener("refreshBreakState", fetchClockState);
+
+  return () => {
+    clearInterval(intervalId);
+    window.removeEventListener("refreshBreakState", fetchClockState);
+  };
+}, []);
+
+  // Add this new useEffect to check break status
+  useEffect(() => {
+    const checkBreakStatus = async () => {
+      try {
+        const emp_id = localStorage.getItem("X-EMP-ID");
+        const response = await axios.get(
+          `${config.API_BASE_URL}/breaks/get_current_break/${emp_id}`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": emp_id,
+            },
+          }
+        );
+
+        if (response.data?.data?.length > 0) {
+          const latestBreak = response.data.data[0];
+          const currentState = !latestBreak.breakOUT ? 1 : 0;
+          setBreakClockState(currentState);
+          setIsBreakIn(currentState === 1);
+        }
+      } catch (error) {
+        console.error("Error checking break status:", error);
+      }
+    };
+
+    checkBreakStatus();
+  }, []);
 
   const handleTimeInOut = async () => {
     try {
@@ -115,10 +150,9 @@ const EmployeeSidebar = () => {
             }
           }
         );
-        
+
         if (response.data.success) {
           setIsTimeIn(true);
-          localStorage.setItem("isTimeIn", "true");
           Swal.fire({
             icon: "success",
             title: "Time In Successful",
@@ -142,7 +176,6 @@ const EmployeeSidebar = () => {
 
         if (response.data.success) {
           setIsTimeIn(false);
-          localStorage.setItem("isTimeIn", "false");
           Swal.fire({
             icon: "success",
             title: "Time Out Successful",
@@ -160,9 +193,58 @@ const EmployeeSidebar = () => {
     }
   };
 
-  const handleBreakInClick = () => {
-    setIsBreakIn(!isBreakIn);
-  };
+  // Update the handleBreakInClick function
+const handleBreakInClick = async () => {
+  try {
+    setIsLoadingBreak(true);
+    const emp_id = localStorage.getItem("X-EMP-ID");
+
+    // Fetch latest clock state
+    const response = await axios.get(`${config.API_BASE_URL}/attendances/get_user_clock_state/${emp_id}`, {
+      headers: {
+        "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+        "X-EMP-ID": emp_id
+      }
+    });
+
+    if (response.data && response.data.data.length > 0) {
+      const { break_state } = response.data.data[0];
+
+      if (break_state === 1) {
+        Swal.fire({
+          icon: "success",
+          title: "Break In Successful",
+          timer: 2000,
+          showConfirmButton: false
+        });
+        setIsBreakIn(true);
+      } else {
+        Swal.fire({
+          icon: "warning",
+          title: "Break In not recorded yet. Try again.",
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }
+    } else {
+      Swal.fire({
+        icon: "error",
+        title: "No clock state found.",
+        text: "Please try again or contact support."
+      });
+    }
+  } catch (error) {
+    console.error("Break Error:", error);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Failed to check break status."
+    });
+  } finally {
+    setIsLoadingBreak(false);
+  }
+};
+
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -207,10 +289,17 @@ const EmployeeSidebar = () => {
         </div>
         <div className="mb-3 full-width-btn">
           <button
-            className={`btn btn-sm w-100 ${isBreakIn ? "btn-danger" : "btn-success"}`}
+            className={`btn btn-sm w-100 ${breakState === 1 ? "btn-danger" : "btn-success"}`}
             onClick={handleBreakInClick}
+            disabled={isLoadingBreak || !isTimeIn} // Disable break button if not timed in
           >
-            {isBreakIn ? "Break Out" : "Break In"}
+            {isLoadingBreak ? (
+              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+            ) : breakState === 1 ? (
+              "Break Out"
+            ) : (
+              "Break In"
+            )}
           </button>
         </div>
       </div>

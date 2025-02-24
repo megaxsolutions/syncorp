@@ -4,8 +4,8 @@ import { Outlet } from "react-router-dom";
 const ProtectedLayout = () => {
     return (
         <>
-            <Validator />
-            <Outlet /> {/* Renders the child routes */}
+            <Validator /> {/* Ensures role-based access control */}
+            <Outlet />
         </>
     );
 };

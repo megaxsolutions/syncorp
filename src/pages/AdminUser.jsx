@@ -3,120 +3,73 @@ import axios from "axios";
 import config from "../config";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
-import moment from "moment";
 import Swal from "sweetalert2";
 
 const AdminUser = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-
-  // Form data
   const [formData, setFormData] = useState({
     emp_id: "",
     password: "",
     user_level: "",
   });
-
-  // Employees & admin levels
   const [employees, setEmployees] = useState([]);
   const [adminLevels, setAdminLevels] = useState([]);
-
-  // Admin users from backend
   const [adminUsers, setAdminUsers] = useState([]);
+  const [userInDeleteMode, setUserInDeleteMode] = useState(null);
 
-  const [editFormData, setEditFormData] = useState({
-    birthdate: "",
-    fname: "",
-    mname: "",
-    lname: "",
-    date_hired: "",
-    department_id: "",
-    cluster_id: "",
-    site_id: "",
-    email: "",
-    phone: "",
-    address: "",
-    emergency_contact_person: "",
-    emergency_contact_number: "",
-    sss: "",
-    pagibig: "",
-    philhealth: "",
-    tin: "",
-    basic_pay: "",
-    employee_status: "",
-    positionID: "",
-    employee_level: "",
-    healthcare: ""
-  });
-
-  // Fetch active employees
+  // Fetch data on component mount
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const response = await axios.get(
-          `${config.API_BASE_URL}/employees/get_all_employee`,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
-          }
-        );
-
-        if (response.data && response.data.data) {
-          const uniqueEmployees = response.data.data.filter(
-            (emp) => emp.fName && emp.lName && emp.employee_status === "Active"
-          );
-
-          const employeeMap = new Map();
-          uniqueEmployees.forEach((emp) => {
-            if (!employeeMap.has(emp.emp_ID)) {
-              employeeMap.set(emp.emp_ID, emp);
-            }
-          });
-
-          const filteredEmployees = Array.from(employeeMap.values());
-          setEmployees(filteredEmployees);
-        }
-      } catch (error) {
-        console.error("Error fetching employees:", error);
-        Swal.fire({ icon: "error", title: "Error", text: "Failed to load employees" });
-      }
-    };
-
     fetchEmployees();
-  }, []);
-
-  // Fetch admin levels
-  useEffect(() => {
-    const fetchAdminLevels = async () => {
-      try {
-        const response = await axios.get(
-          `${config.API_BASE_URL}/main/get_all_dropdown_data`,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
-          }
-        );
-        if (response.data?.data?.admin_level) {
-          setAdminLevels(response.data.data.admin_level);
-        }
-      } catch (error) {
-        console.error("Error fetching admin levels:", error);
-        Swal.fire({ icon: "error", title: "Error", text: "Failed to load admin levels" });
-      }
-    };
-
     fetchAdminLevels();
-  }, []);
-
-  // Fetch admins from get_all_admin
-  useEffect(() => {
     fetchAdmins();
   }, []);
+
+  // API calls
+  const fetchEmployees = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/employees/get_all_employee`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (response.data?.data) {
+        const activeEmployees = response.data.data.filter(
+          emp => emp.fName && emp.lName && emp.employee_status === "Active"
+        );
+        setEmployees(activeEmployees);
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      Swal.fire({ icon: "error", title: "Error", text: "Failed to load employees" });
+    }
+  };
+
+  const fetchAdminLevels = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+      if (response.data?.data?.admin_level) {
+        setAdminLevels(response.data.data.admin_level);
+      }
+    } catch (error) {
+      console.error("Error fetching admin levels:", error);
+      Swal.fire({ icon: "error", title: "Error", text: "Failed to load admin levels" });
+    }
+  };
 
   const fetchAdmins = async () => {
     try {
@@ -130,12 +83,7 @@ const AdminUser = () => {
         }
       );
       if (response.data?.data) {
-        // Add timestamp to each entry
-        const adminsWithTimestamp = response.data.data.map((admin, index) => ({
-          ...admin,
-          addedAt: index // Use index as pseudo-timestamp
-        }));
-        setAdminUsers(adminsWithTimestamp);
+        setAdminUsers(response.data.data);
       }
     } catch (error) {
       console.error("Error fetching admins:", error);
@@ -143,40 +91,20 @@ const AdminUser = () => {
     }
   };
 
-  // Add this function to handle edit form changes
-  const handleEditChange = (e) => {
-    setEditFormData({
-      ...editFormData,
-      [e.target.name]: e.target.value
+  // Event handlers
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
     });
   };
 
-  // Update the handleEdit function to format dates correctly
+  // Update the handleEdit function
   const handleEdit = (user) => {
     setSelectedUser(user);
-    setEditFormData({
-      birthdate: user.bDate ? moment(user.bDate).format("YYYY-MM-DD") : "",
-      fname: user.fName || "",
-      mname: user.mName || "",
-      lname: user.lName || "",
-      date_hired: user.date_hired ? moment(user.date_hired).format("YYYY-MM-DD") : "",
-      department_id: user.departmentID || "",
-      cluster_id: user.clusterID || "",
-      site_id: user.siteID || "",
-      email: user.email || "",
-      phone: user.phone || "",
-      address: user.address || "",
-      emergency_contact_person: user.emergency_contact_person || "",
-      emergency_contact_number: user.emergency_contact_number || "",
-      sss: user.sss || "",
-      pagibig: user.pagibig || "",
-      philhealth: user.philhealth || "",
-      tin: user.tin || "",
-      basic_pay: user.basic_pay || "",
-      employee_status: user.employee_status || "",
-      positionID: user.positionID || "",
-      employee_level: user.employee_level || "",
-      healthcare: user.healthcare || ""
+    setFormData({
+      ...formData,
+      user_level: "" // Reset level selection
     });
     setShowEditModal(true);
   };
@@ -186,76 +114,39 @@ const AdminUser = () => {
     setSelectedUser(null);
   };
 
-  // Handle form changes
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  // Update the handleSubmit function to handle the user_level correctly
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  if (!formData.emp_id || !formData.password || !formData.user_level) {
-    Swal.fire({ icon: "error", title: "Error", text: "Please fill in all fields" });
-    return;
-  }
-
-  try {
-    // Create the request body with the level value as a number
-    const requestBody = {
-      emp_id: formData.emp_id,
-      password: formData.password,
-      user_level: Number(formData.user_level) // Convert to number since backend expects a number
-    };
-
-    const response = await axios.post(
-      `${config.API_BASE_URL}/admins/add_admin`,
-      requestBody,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-        },
-      }
-    );
-
-    if (response.data.success) {
-      Swal.fire({ 
-        icon: "success", 
-        title: "Success", 
-        text: response.data.success
-      });
-      setFormData({ emp_id: "", password: "", user_level: "" });
-      fetchAdmins();
-    }
-  } catch (error) {
-    console.error("Create admin error:", error);
-    const errorMsg = error.response?.data?.error || "Failed to create admin entry";
-    Swal.fire({ icon: "error", title: "Error", text: errorMsg });
-  }
-};
-
-  // Add the handleUpdate function to handle date formatting
-  const handleUpdate = async (e) => {
+  // Update handleSubmit validation
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      // Format dates before sending to backend
-      const formattedData = {
-        ...editFormData,
-        birthdate: moment(editFormData.birthdate).format("YYYY-MM-DD"),
-        date_hired: moment(editFormData.date_hired).format("YYYY-MM-DD")
-      };
 
-      const response = await axios.put(
-        `${config.API_BASE_URL}/admins/update_admin/${selectedUser.emp_ID}`,
-        formattedData,
+    if (!formData.emp_id || !formData.user_level) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Please fill in all required fields"
+      });
+      return;
+    }
+
+    // Check password only if admin level
+    if (isAdminLevel(formData.user_level) && !formData.password) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Password is required for admin level"
+      });
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        `${config.API_BASE_URL}/admins/add_admin`,
+        {
+          emp_id: formData.emp_id,
+          password: formData.password || null, // Send null if no password
+          user_level: Number(formData.user_level)
+        },
         {
           headers: {
-            "Content-Type": "application/json",
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
           },
@@ -263,33 +154,79 @@ const handleSubmit = async (e) => {
       );
 
       if (response.data.success) {
-        Swal.fire({ icon: "success", title: "Success", text: "Admin successfully updated." });
-        handleModalClose();
+        Swal.fire({ icon: "success", title: "Success", text: response.data.success });
+        setFormData({ emp_id: "", password: "", user_level: "" });
         fetchAdmins();
       }
     } catch (error) {
-      console.error("Update admin error:", error);
-      const errorMsg = error.response?.data?.error || "Failed to update admin";
-      Swal.fire({ icon: "error", title: "Error", text: errorMsg });
+      console.error("Create admin error:", error);
+      Swal.fire({ icon: "error", title: "Error", text: error.response?.data?.error || "Failed to create admin entry" });
     }
   };
 
-  // Add this function after handleUpdate
-  const handleDelete = async (admin) => {
+  // Update the handleUpdate function to match backend logic
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+
+    if (!formData.user_level) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Please select an admin level"
+      });
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        `${config.API_BASE_URL}/admins/update_admin_user_level`,
+        {
+          emp_id: selectedUser.emp_ID,
+          user_level: formData.user_level // Send single level ID as backend expects
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (response.data.success) {
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: response.data.success
+        });
+        handleModalClose();
+        fetchAdmins(); // Refresh the admin list
+      }
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "Failed to update admin level";
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: errorMsg
+      });
+    }
+  };
+
+  // Add this new function after your existing functions
+  const handleDeleteLevel = async (emp_id, level_id) => {
     try {
       const result = await Swal.fire({
         title: 'Are you sure?',
-        text: `Do you want to delete admin user ${admin.fName} ${admin.lName}?`,
+        text: "You want to remove this admin level?",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!'
+        confirmButtonText: 'Yes, remove it!'
       });
 
       if (result.isConfirmed) {
-        const response = await axios.delete(
-          `${config.API_BASE_URL}/admins/delete_admin/${admin.emp_ID}`, // Changed from admin.id to admin.emp_ID
+        const response = await axios.get(
+          `${config.API_BASE_URL}/admins/remove_user_level_admin/${emp_id}/${level_id}`,
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -301,39 +238,72 @@ const handleSubmit = async (e) => {
         if (response.data.success) {
           Swal.fire({
             icon: 'success',
-            title: 'Deleted!',
-            text: 'Admin user has been deleted.'
+            title: 'Success',
+            text: response.data.success
           });
+          setUserInDeleteMode(null); // Reset delete mode
           fetchAdmins(); // Refresh the list
         }
       }
     } catch (error) {
-      console.error("Delete admin error:", error);
+      const errorMsg = error.response?.data?.error || "Failed to remove admin level";
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: error.response?.data?.error || 'Failed to delete admin user'
+        text: errorMsg
       });
     }
   };
 
-  // Add this helper function to get level names from IDs
-const getLevelNames = (userLevels) => {
-  try {
-    const levels = JSON.parse(userLevels);
-    if (!Array.isArray(levels)) {
-      const level = adminLevels.find(l => l.id === Number(levels));
-      return level ? level.level : 'Unknown';
+  // Add handleDeleteModeToggle function
+  const handleDeleteModeToggle = (userId) => {
+    setUserInDeleteMode(userInDeleteMode === userId ? null : userId);
+  };
+
+  // In the getLevelNames function, modify it to accept the userId parameter:
+  const getLevelNames = (userLevels, userId) => {
+    try {
+      const levels = JSON.parse(userLevels);
+      // Return span instead of div for inline elements
+      return (
+        <span className="d-flex flex-wrap gap-2">
+          {levels.map(levelId => {
+            const level = adminLevels.find(l => l.id === levelId);
+            if (!level) return null;
+            return (
+              <span
+                key={levelId}
+                className="badge bg-primary d-flex align-items-center"
+                style={{ fontSize: '0.85em' }}
+              >
+                {level.level}
+                {userInDeleteMode === userId && (
+                  <button
+                    className="btn btn-link text-white p-0 ms-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteLevel(userId, levelId);
+                    }}
+                    style={{ fontSize: '0.85em' }}
+                  >
+                    <i className="bi bi-x"></i>
+                  </button>
+                )}
+              </span>
+            );
+          })}
+        </span>
+      );
+    } catch (error) {
+      console.error('Error parsing user levels:', error);
+      return 'Unknown';
     }
-    return levels.map(levelId => {
-      const level = adminLevels.find(l => l.id === Number(levelId));
-      return level ? level.level : 'Unknown';
-    }).join(', ');
-  } catch (error) {
-    console.error('Error parsing user levels:', error);
-    return 'Unknown';
-  }
-};
+  };
+
+  // Add this function to check if selected level is admin
+  const isAdminLevel = (levelId) => {
+    return !!levelId; // Since we only show admin levels, any selected level is an admin level
+  };
 
   // Render employees in dropdown
   const renderEmployeeOptions = () => {
@@ -358,15 +328,24 @@ const getLevelNames = (userLevels) => {
     );
   };
 
-  // Update the renderAdminLevelOptions function to use level instead of id
+  // Update the renderAdminLevelOptions function to only show admin levels
   const renderAdminLevelOptions = () => {
     if (!adminLevels || adminLevels.length === 0) {
       return <option value="">No admin levels available</option>;
     }
+
+    const adminOnlyLevels = adminLevels.filter(level =>
+      level.level.toLowerCase().includes('admin')
+    );
+
+    if (adminOnlyLevels.length === 0) {
+      return <option value="">No admin levels available</option>;
+    }
+
     return (
       <>
         <option value="">Select Level</option>
-        {adminLevels.map((level) => (
+        {adminOnlyLevels.map((level) => (
           <option key={level.id} value={level.id}>
             {level.level}
           </option>
@@ -389,6 +368,54 @@ const getLevelNames = (userLevels) => {
       // Sort by addedAt (newest at bottom)
       return (a.addedAt || 0) - (b.addedAt || 0);
     });
+
+  // Add handleDeleteAdmin inside the component
+  const handleDeleteAdmin = async (emp_id) => {
+    try {
+      const result = await Swal.fire({
+        title: 'Delete Admin Account',
+        text: "Are you sure you want to delete this admin account? This action cannot be undone.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+      });
+
+      if (result.isConfirmed) {
+        const response = await axios.delete(
+          `${config.API_BASE_URL}/admins/delete_admin/${emp_id}`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+          }
+        );
+
+        if (response.status === 200) {
+          await Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: 'Admin successfully deleted.'
+          });
+
+          // Update the admin list without page refresh
+          await fetchAdmins();
+
+          // Update the filtered list immediately
+          setAdminUsers(prevUsers => prevUsers.filter(user => user.emp_ID !== emp_id));
+        }
+      }
+    } catch (error) {
+      console.error('Delete admin error:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.response?.data?.error || "Failed to delete admin account"
+      });
+    }
+  };
 
   return (
     <>
@@ -451,21 +478,23 @@ const getLevelNames = (userLevels) => {
                         {renderAdminLevelOptions()}
                       </select>
                     </div>
-                    <div className="mb-3">
-                      <label htmlFor="password" className="form-label">
-                        Password
-                      </label>
-                      <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        className="form-control"
-                        value={formData.password}
-                        onChange={handleChange}
-                        placeholder="Enter password"
-                        required
-                      />
-                    </div>
+                    {isAdminLevel(formData.user_level) && (
+                      <div className="mb-3">
+                        <label htmlFor="password" className="form-label">
+                          Password
+                        </label>
+                        <input
+                          type="password"
+                          id="password"
+                          name="password"
+                          className="form-control"
+                          value={formData.password}
+                          onChange={handleChange}
+                          placeholder="Enter password"
+                          required
+                        />
+                      </div>
+                    )}
                     <button type="submit" className="btn btn-primary w-100">
                       Add Admin
                     </button>
@@ -506,7 +535,9 @@ const getLevelNames = (userLevels) => {
                             <td>
                               {user.fName} {user.lName}
                             </td>
-                            <td>{getLevelNames(user.user_level)}</td>
+                            <td>
+                              {getLevelNames(user.user_level, user.emp_ID)} {/* Pass the user's emp_ID */}
+                            </td>
                             <td>
                               <div className="btn-group">
                                 <button
@@ -516,10 +547,16 @@ const getLevelNames = (userLevels) => {
                                   <i className="bi bi-pencil"></i>
                                 </button>
                                 <button
-                                  onClick={() => handleDelete(user)}
+                                  onClick={() => handleDeleteModeToggle(user.emp_ID)}
+                                  className={`btn btn-${userInDeleteMode === user.emp_ID ? 'secondary' : 'danger'} btn-sm me-2`}
+                                >
+                                  <i className={`bi bi-${userInDeleteMode === user.emp_ID ? 'x' : 'trash'}`}></i>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteAdmin(user.emp_ID)}
                                   className="btn btn-danger btn-sm"
                                 >
-                                  <i className="bi bi-trash"></i>
+                                  <i className="bi bi-person-x"></i>
                                 </button>
                               </div>
                             </td>
@@ -542,177 +579,68 @@ const getLevelNames = (userLevels) => {
       </main>
 
       {/* Edit Modal */}
+      {/* Update the Edit Modal JSX */}
       {showEditModal && (
         <div className="modal show fade" tabIndex="-1" style={{ display: "block" }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
+          <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Edit Admin User</h5>
+                <h5 className="modal-title">Add Admin Level</h5>
                 <button type="button" className="btn-close" onClick={handleModalClose}></button>
               </div>
               <div className="modal-body">
                 <form onSubmit={handleUpdate}>
-                  <div className="row">
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">First Name</label>
-                      <input
-                        type="text"
-                        name="fname"
-                        className="form-control"
-                        value={editFormData.fname}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">Middle Name</label>
-                      <input
-                        type="text"
-                        name="mname"
-                        className="form-control"
-                        value={editFormData.mname}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">Last Name</label>
-                      <input
-                        type="text"
-                        name="lname"
-                        className="form-control"
-                        value={editFormData.lname}
-                        onChange={handleEditChange}
-                      />
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Employee</label>
+                    <p>{selectedUser?.fName} {selectedUser?.lName}</p>
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor="edit_user_level" className="form-label">Select Level to Add</label>
+                    <select
+                      id="edit_user_level"
+                      name="user_level"
+                      className="form-select"
+                      value={formData.user_level}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">Select Level</option>
+                      {adminLevels.map((level) => {
+                        // Check if level is already assigned
+                        let currentLevels = [];
+                        try {
+                          currentLevels = selectedUser?.user_level ?
+                            JSON.parse(selectedUser.user_level) : [];
+                        } catch (e) {
+                          console.error('Error parsing user levels:', e);
+                        }
+
+                        const isAssigned = currentLevels.includes(level.id);
+
+                        return (
+                          <option
+                            key={level.id}
+                            value={level.id}
+                            disabled={isAssigned}
+                          >
+                            {level.level} {isAssigned ? '(Already assigned)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Current Levels:</label>
+                    <div className="mb-0">
+                      {getLevelNames(selectedUser?.user_level, selectedUser?.emp_ID)}
                     </div>
                   </div>
-
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Birth Date</label>
-                      <input
-                        type="date"
-                        name="birthdate"
-                        className="form-control"
-                        value={editFormData.birthdate}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Date Hired</label>
-                      <input
-                        type="date"
-                        name="date_hired"
-                        className="form-control"
-                        value={editFormData.date_hired}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="row">
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">Email</label>
-                      <input
-                        type="email"
-                        name="email"
-                        className="form-control"
-                        value={editFormData.email}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">Phone</label>
-                      <input
-                        type="text"
-                        name="phone"
-                        className="form-control"
-                        value={editFormData.phone}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                    <div className="col-md-4 mb-3">
-                      <label className="form-label">Address</label>
-                      <input
-                        type="text"
-                        name="address"
-                        className="form-control"
-                        value={editFormData.address}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Emergency Contact Person</label>
-                      <input
-                        type="text"
-                        name="emergency_contact_person"
-                        className="form-control"
-                        value={editFormData.emergency_contact_person}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Emergency Contact Number</label>
-                      <input
-                        type="text"
-                        name="emergency_contact_number"
-                        className="form-control"
-                        value={editFormData.emergency_contact_number}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="row">
-                    <div className="col-md-3 mb-3">
-                      <label className="form-label">SSS</label>
-                      <input
-                        type="text"
-                        name="sss"
-                        className="form-control"
-                        value={editFormData.sss}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                    <div className="col-md-3 mb-3">
-                      <label className="form-label">Pag-IBIG</label>
-                      <input
-                        type="text"
-                        name="pagibig"
-                        className="form-control"
-                        value={editFormData.pagibig}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                    <div className="col-md-3 mb-3">
-                      <label className="form-label">PhilHealth</label>
-                      <input
-                        type="text"
-                        name="philhealth"
-                        className="form-control"
-                        value={editFormData.philhealth}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                    <div className="col-md-3 mb-3">
-                      <label className="form-label">TIN</label>
-                      <input
-                        type="text"
-                        name="tin"
-                        className="form-control"
-                        value={editFormData.tin}
-                        onChange={handleEditChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="modal-footer">
+                  <div className="modal-footer px-0 pb-0">
                     <button type="button" className="btn btn-secondary" onClick={handleModalClose}>
                       Cancel
                     </button>
                     <button type="submit" className="btn btn-primary">
-                      Save Changes
+                      Add Level
                     </button>
                   </div>
                 </form>

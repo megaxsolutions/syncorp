@@ -1,11 +1,10 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
-import About from "./pages/About";
 import NotFound from "./pages/NotFound";
-import ViewEmployee from "./pages/ViewEmployee";
 import Dashboard from "./pages/Dashboard";
 import AddEmployee from "./pages/AddEmployee";
+import ViewEmployee from "./pages/ViewEmployee";
 import Site from "./pages/Site";
 import Department from "./pages/Department";
 import Cluster from "./pages/Cluster";
@@ -26,42 +25,55 @@ import OvertimeRequest from "./pages/Employee Page/OvertimeRequest";
 import LeaveType from "./pages/LeaveType";
 import AdminLevel from "./pages/AdminLevel";
 import AdminProfile from "./pages/AdminProfile";
-import ProtectedLayout from "./ProtectedLayout";
+import SupervisorDashboard from "./pages/Supervisor/Dashboard";
+import AdminProtectedLayout from "./pages/AdminProtectedLayout";
+import EmployeeProtectedLayout from "./pages/EmployeeProtectedLayout";
+import SupervisorProtectedLayout from "./pages/SupervisorProtectedLayout";
 
 function App() {
   return (
-    <>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route element={<ProtectedLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/add-employee" element={<AddEmployee />} />
-          <Route path="/view-employee" element={<ViewEmployee />} />
-          <Route path="/settings/site" element={<Site />} />
-          <Route path="/settings/department" element={<Department />} />
-          <Route path="/settings/cluster" element={<Cluster />} />
-          <Route path="/settings/position" element={<Position />} />
-          <Route path="/settings/employee-level" element={<EmployeeLevel />} />
-          <Route path="/settings/holiday-calendar" element={<Calendar />} />
-          <Route path="/settings/overtime-type" element={<OvertimeType />} />
-          <Route path="/settings/leave-type" element={<LeaveType />} />
-          <Route path="/settings/cut-off" element={<CutOff />} />
-          <Route path="/settings/admin-user" element={<AdminUser />} />
-          <Route path="/profile" element={<AdminProfile />} />
-          <Route path="/attendance" element={<Attendance />} />
-          <Route path="/dtr" element={<DTR />} />
-          <Route path="/settings/bulletin" element={<Bulletin />} />
-          <Route path="/employee_dashboard" element={<EmployeeDashboard />} />
-          <Route path="/employee_attendance" element={<EmployeeAttendance />} />
-          <Route path="/employee_payslip" element={<EmployeePayslip />} />
-          <Route path="/employee_overtime_request" element={<OvertimeRequest />} />
-          <Route path="/employee_leave_request" element={<LeaveRequest />} />
-          <Route path="/settings/admin-level" element={<AdminLevel />} />
-          <Route path="*" element={<NotFound />} />
-        </Route>
-      </Routes>
-    </>
+    <Routes>
+      {/* Public Route */}
+      <Route path="/" element={<Login />} />
+
+      {/* Admin Routes */}
+      <Route element={<AdminProtectedLayout />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/add-employee" element={<AddEmployee />} />
+        <Route path="/view-employee" element={<ViewEmployee />} />
+        <Route path="/settings/site" element={<Site />} />
+        <Route path="/settings/department" element={<Department />} />
+        <Route path="/settings/cluster" element={<Cluster />} />
+        <Route path="/settings/position" element={<Position />} />
+        <Route path="/settings/employee-level" element={<EmployeeLevel />} />
+        <Route path="/settings/holiday-calendar" element={<Calendar />} />
+        <Route path="/settings/overtime-type" element={<OvertimeType />} />
+        <Route path="/settings/leave-type" element={<LeaveType />} />
+        <Route path="/settings/cut-off" element={<CutOff />} />
+        <Route path="/settings/admin-user" element={<AdminUser />} />
+        <Route path="/profile" element={<AdminProfile />} />
+        <Route path="/attendance" element={<Attendance />} />
+        <Route path="/dtr" element={<DTR />} />
+        <Route path="/settings/bulletin" element={<Bulletin />} />
+        <Route path="/settings/admin-level" element={<AdminLevel />} />
+      </Route>
+
+      {/* Employee Routes */}
+      <Route element={<EmployeeProtectedLayout />}>
+        <Route path="/employee_dashboard" element={<EmployeeDashboard />} />
+        <Route path="/employee_attendance" element={<EmployeeAttendance />} />
+        <Route path="/employee_payslip" element={<EmployeePayslip />} />
+        <Route path="/employee_overtime_request" element={<OvertimeRequest />} />
+        <Route path="/employee_leave_request" element={<LeaveRequest />} />
+      </Route>
+
+      <Route element={<SupervisorProtectedLayout />}>
+        <Route path="/supervisor_dashboard" element={<SupervisorDashboard />} />
+      </Route>
+
+      {/* 404 Page */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 

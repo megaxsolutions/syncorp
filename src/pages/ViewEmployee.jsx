@@ -513,7 +513,7 @@ function ViewEmployee() {
                               onClick={handleCloseModal}
                             />
                           </div>
-                          <div className="modal-body">
+                          <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                             <h5>Profile</h5>
                             <hr />
                             <div className="row g-3">
@@ -875,7 +875,7 @@ function ViewEmployee() {
                               onClick={handleCloseDetailsModal}
                             />
                           </div>
-                          <div className="modal-body">
+                          <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                             <h5 className="mb-3 border-bottom pb-2">Profile</h5>
                             <div className="row g-3 mb-4">
                               {/* Update the view modal photo section */}

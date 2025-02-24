@@ -81,9 +81,17 @@ const LeaveRequest = () => {
     setUploadFile(e.target.files[0]);
   };
 
+  // Add this function after your state declarations
+  const hasPendingLeaveOfType = (leaveTypeId) => {
+    return leaveHistory.some(record => 
+      record.leave_type === leaveTypeId && 
+      (!record.status || record.status === "Pending")
+    );
+  };
+
   // Update the handleSubmit function
   const handleSubmit = async () => {
-    // Validate required fields
+    // Existing validation for required fields
     if (!selectedDate || !leaveType || !details) {
       Swal.fire({
         icon: 'error',
@@ -93,7 +101,6 @@ const LeaveRequest = () => {
       return;
     }
 
-    // Find the selected leave type object
     const selectedLeaveType = leaveTypes.find(type => type.id.toString() === leaveType);
     
     if (!selectedLeaveType) {
@@ -105,7 +112,17 @@ const LeaveRequest = () => {
       return;
     }
 
-    // Check if it's SL and file is required
+    // Add check for pending leave of same type
+    if (hasPendingLeaveOfType(leaveType)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: `You already have a pending ${selectedLeaveType.type} leave request`
+      });
+      return;
+    }
+
+    // Existing SL validation
     if (selectedLeaveType.type === 'SL' && !uploadFile) {
       Swal.fire({
         icon: 'error',
@@ -138,7 +155,7 @@ const LeaveRequest = () => {
       }
 
       const response = await axios.post(
-        `${config.API_BASE_URL}/leave_requests/add_leave_request`,  // Removed /${leaveType} from URL
+        `${config.API_BASE_URL}/leave_requests/add_leave_request/${selectedLeaveType.id}`,  // Updated URL to match backend route pattern
         formDataToSend,
         {
           headers: {
@@ -274,8 +291,12 @@ const LeaveRequest = () => {
                     >
                       <option value="">Select Leave Type</option>
                       {leaveTypes.map((type) => (
-                        <option key={type.id} value={type.id}>
-                          {type.type}
+                        <option 
+                          key={type.id} 
+                          value={type.id}
+                          disabled={hasPendingLeaveOfType(type.id.toString())}
+                        >
+                          {type.type} {hasPendingLeaveOfType(type.id.toString()) ? '(Pending)' : ''}
                         </option>
                       ))}
                     </select>

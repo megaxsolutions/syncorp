@@ -52,6 +52,7 @@ function Login() {
   
       if (response.data.data) {
         localStorage.setItem("X-JWT-TOKEN", response.data.data);
+        localStorage.setItem("USER_ROLE", "employee"); // Add this line
         if (response.data.emp_id) {
           localStorage.setItem("X-EMP-ID", response.data.emp_id);
         }
@@ -78,6 +79,7 @@ function Login() {
   
       if (response.data.data) {
         localStorage.setItem("X-JWT-TOKEN", response.data.data);
+        localStorage.setItem("USER_ROLE", "admin"); // Add this line
         if (response.data.emp_id) {
           localStorage.setItem("X-EMP-ID", response.data.emp_id);
         }

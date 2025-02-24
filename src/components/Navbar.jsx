@@ -48,6 +48,7 @@ const Navbar = () => {
         if (error.name === 'InvalidTokenError') {
           localStorage.removeItem("X-JWT-TOKEN");
           localStorage.removeItem("X-EMP-ID");
+          localStorage.removeItem("USER_ROLE");
           navigate("/");
         }
       }
@@ -64,6 +65,7 @@ const Navbar = () => {
     e.preventDefault();
     localStorage.removeItem("X-JWT-TOKEN");
     localStorage.removeItem("X-EMP-ID");
+    localStorage.removeItem("USER_ROLE");
     navigate("/");
   };
 
