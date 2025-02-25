@@ -21,7 +21,7 @@ const LeaveRequest = () => {
   const fetchLeaveRequests = async () => {
     try {
       const response = await axios.get(
-        `${config.API_BASE_URL}/leave_requests/get_all_leave_request/${empId}`,
+        `${config.API_BASE_URL}/leave_requests/get_all_user_leave_request/${empId}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -83,8 +83,8 @@ const LeaveRequest = () => {
 
   // Add this function after your state declarations
   const hasPendingLeaveOfType = (leaveTypeId) => {
-    return leaveHistory.some(record => 
-      record.leave_type === leaveTypeId && 
+    return leaveHistory.some(record =>
+      record.leave_type === leaveTypeId &&
       (!record.status || record.status === "Pending")
     );
   };
@@ -102,7 +102,7 @@ const LeaveRequest = () => {
     }
 
     const selectedLeaveType = leaveTypes.find(type => type.id.toString() === leaveType);
-    
+
     if (!selectedLeaveType) {
       Swal.fire({
         icon: 'error',
@@ -165,7 +165,7 @@ const LeaveRequest = () => {
           }
         }
       );
-      
+
       if(response.data.success) {
         // Clear form fields
         setSelectedDate('');
@@ -291,8 +291,8 @@ const LeaveRequest = () => {
                     >
                       <option value="">Select Leave Type</option>
                       {leaveTypes.map((type) => (
-                        <option 
-                          key={type.id} 
+                        <option
+                          key={type.id}
                           value={type.id}
                           disabled={hasPendingLeaveOfType(type.id.toString())}
                         >

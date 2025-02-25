@@ -26,6 +26,10 @@ import LeaveType from "./pages/LeaveType";
 import AdminLevel from "./pages/AdminLevel";
 import AdminProfile from "./pages/AdminProfile";
 import SupervisorDashboard from "./pages/Supervisor/Dashboard";
+import SupervisorLeaveRequest from "./pages/Supervisor/LeaveRequest";
+import SupervisorOvertimeRequest from "./pages/Supervisor/OvertimeRequest";
+import SupervisorAttendance from "./pages/Supervisor/Attendance";
+import SupervisorSchedule from "./pages/Supervisor/Schedule";
 import AdminProtectedLayout from "./pages/AdminProtectedLayout";
 import EmployeeProtectedLayout from "./pages/EmployeeProtectedLayout";
 import SupervisorProtectedLayout from "./pages/SupervisorProtectedLayout";
@@ -69,6 +73,10 @@ function App() {
 
       <Route element={<SupervisorProtectedLayout />}>
         <Route path="/supervisor_dashboard" element={<SupervisorDashboard />} />
+        <Route path="/supervisor_leave_request" element={<SupervisorLeaveRequest />} />
+        <Route path="/supervisor_overtime_request" element={<SupervisorOvertimeRequest />} />
+        <Route path="/supervisor_attendance" element={<SupervisorAttendance />} />
+        <Route path="/supervisor_schedule" element={<SupervisorSchedule />} />
       </Route>
 
       {/* 404 Page */}

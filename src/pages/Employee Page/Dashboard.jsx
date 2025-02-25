@@ -13,9 +13,9 @@ const EmployeeDashboard = () => {
   return (
     <div>
       <EmployeeNavbar />
-      <EmployeeSidebar /> 
-      <main id="main" className="main"> 
-        <div className="container-fluid" id="pagetitle"> 
+      <EmployeeSidebar />
+      <main id="main" className="main">
+        <div className="container-fluid" id="pagetitle">
           <div className="pagetitle">
             <h1>Dashboard</h1>
             <nav>
@@ -69,36 +69,53 @@ const EmployeeDashboard = () => {
               </div>
 
               {/* Links */}
-              <div className="row mt-4">
+              <div className="row mt-4 g-4">
                 <div className="col-md-4">
-                  <div className="card shadow-sm">
-                    <div className="card-body text-center">
-                      <Link to="/employee_attendance" className={`nav-link ${isAttendance ? 'active' : ''}`}>
-                        <i className={`bi bi-calendar-check h1 ${isAttendance ? 'icon-highlight' : ''}`}></i>
-                        <h5>Attendance</h5>
-                      </Link>
+                  <Link to="/employee_attendance" className="text-decoration-none">
+                    <div className="card h-100 border-0 shadow-sm hover-card">
+                      <div className="card-body d-flex flex-column align-items-center p-4">
+                        <div className={`icon-circle ${isAttendance ? 'bg-primary' : 'bg-light'} mb-3`}>
+                          <i className={`bi bi-calendar-check fs-2 ${isAttendance ? 'text-white' : 'text-primary'}`}></i>
+                        </div>
+                        <h5 className="card-title mb-2">Attendance</h5>
+                        <p className="card-text text-muted text-center mb-0">
+                          View and manage your daily attendance records
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 </div>
+
                 <div className="col-md-4">
-                  <div className="card shadow-sm">
-                    <div className="card-body text-center">
-                      <Link to="/employee_payslip" className={`nav-link ${isPayslip ? 'active' : ''}`}>
-                        <i className={`bi bi-receipt h1 ${isPayslip ? 'icon-highlight' : ''}`}></i>
-                        <h5>Payslip</h5>
-                      </Link>
+                  <Link to="/employee_payslip" className="text-decoration-none">
+                    <div className="card h-100 border-0 shadow-sm hover-card">
+                      <div className="card-body d-flex flex-column align-items-center p-4">
+                        <div className={`icon-circle ${isPayslip ? 'bg-success' : 'bg-light'} mb-3`}>
+                          <i className={`bi bi-receipt fs-2 ${isPayslip ? 'text-white' : 'text-success'}`}></i>
+                        </div>
+                        <h5 className="card-title mb-2">Payslip</h5>
+                        <p className="card-text text-muted text-center mb-0">
+                          Access and download your salary statements
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 </div>
+
                 <div className="col-md-4">
-                  <div className="card shadow-sm">
-                    <div className="card-body text-center">
-                      <Link to="/employee_leave_request" className={`nav-link ${isLeaveRequest ? 'active' : ''}`}>
-                        <i className={`bi bi-arrow-right-square h1 ${isLeaveRequest ? 'icon-highlight' : ''}`}></i>
-                        <h5>Leave Request</h5>
-                      </Link>
+                  <Link to="/employee_leave_request" className="text-decoration-none">
+                    <div className="card h-100 border-0 shadow-sm hover-card">
+                      <div className="card-body d-flex flex-column align-items-center p-4">
+                        <div className={`icon-circle ${isLeaveRequest ? 'bg-warning' : 'bg-light'} mb-3`}>
+                          <i className={`bi bi-arrow-right-square fs-2 ${isLeaveRequest ? 'text-white' : 'text-warning'}`}></i>
+                        </div>
+                        <h5 className="card-title mb-2">Leave Request</h5>
+                        <p className="card-text text-muted text-center mb-0">
+                          Submit and track your leave applications
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 </div>
               </div>
             </div>

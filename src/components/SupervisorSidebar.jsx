@@ -7,11 +7,12 @@ import config from "../config";
 
 const SupervisorSidebar = () => {
   const location = useLocation();
-  const isDashboard = location.pathname === "/employee_dashboard";
-  const isAttendance = location.pathname === "/employee_attendance";
-  const isPayslip = location.pathname === "/employee_payslip";
-  const isLeaveRequest = location.pathname === "/employee_leave_request";
-  const isOvertimeRequest = location.pathname === "/employee_overtime_request";
+  const isDashboard = location.pathname === "/supervisor_dashboard";
+  const isAttendance = location.pathname === "/supervisor_attendance";
+  const isLeaveRequest = location.pathname === "/supervisor_leave_request";
+  const isOvertimeRequest = location.pathname === "/supervisor_overtime_request";
+  const isSchedule = location.pathname === "/supervisor_schedule";
+  const isCoaching = location.pathname === "/employee_coaching";
 
   const [dateTime, setDateTime] = useState(
     moment().tz("Asia/Manila").format("ddd").substring(0, 4).toUpperCase() +
@@ -66,9 +67,8 @@ const SupervisorSidebar = () => {
   }, []);
 
   return (
-    <aside id="sidebar" className="sidebar employee-sidebar">
-      <div className="d-flex flex-column align-items-center mt-3">
-        {/* Display user photo if available, else custom avatar */}
+    <aside id="sidebar" className="sidebar supervisor-sidebar">
+      <div className="d-flex flex-column align-items-center mt-4">
         <div className="rounded-circle overflow-hidden mb-3 profile-circle">
           <img
             src={photoUrl}
@@ -76,35 +76,28 @@ const SupervisorSidebar = () => {
             className="img-fluid"
           />
         </div>
-        <div className="d-flex align-items-center mb-3">
+        <div className="d-flex align-items-center mb-4">
           <span className="date-time-text">{dateTime}</span>
         </div>
       </div>
 
-      <ul className="sidebar-nav margin-top-10" id="sidebar-nav">
+      <ul className="sidebar-nav" id="sidebar-nav">
         <li className="nav-item">
-          <Link to="/employee_dashboard" className={`nav-link ${isDashboard ? "active" : ""}`}>
+          <Link to="/supervisor_dashboard" className={`nav-link ${isDashboard ? "active" : ""}`}>
             <i className="bi bi-grid"></i>
             <span className="navs">Dashboard</span>
           </Link>
         </li>
 
         <li className="nav-item">
-          <Link to="/employee_attendance" className={`nav-link ${isAttendance ? "active" : ""}`}>
+          <Link to="/supervisor_attendance" className={`nav-link ${isAttendance ? "active" : ""}`}>
             <i className="bi bi-calendar-check"></i>
             <span className="navs">Attendance</span>
           </Link>
         </li>
 
         <li className="nav-item">
-          <Link to="/employee_payslip" className={`nav-link ${isPayslip ? "active" : ""}`}>
-            <i className="bi bi-cash-stack"></i>
-            <span className="navs">Payslip</span>
-          </Link>
-        </li>
-
-        <li className="nav-item">
-          <Link to="/employee_leave_request" className={`nav-link ${isLeaveRequest ? "active" : ""}`}>
+          <Link to="/supervisor_leave_request" className={`nav-link ${isLeaveRequest ? "active" : ""}`}>
             <i className="bi bi-arrow-right-square"></i>
             <span className="navs">Leave Request</span>
           </Link>
@@ -112,11 +105,25 @@ const SupervisorSidebar = () => {
 
         <li className="nav-item">
           <Link
-            to="/employee_overtime_request"
+            to="/supervisor_overtime_request"
             className={`nav-link ${isOvertimeRequest ? "active" : ""}`}
           >
             <i className="bi bi-clock-history"></i>
             <span className="navs">Overtime Request</span>
+          </Link>
+        </li>
+
+        <li className="nav-item">
+          <Link to="/supervisor_schedule" className={`nav-link ${isSchedule ? "active" : ""}`}>
+            <i className="bi bi-calendar2-week"></i>
+            <span className="navs">Schedule</span>
+          </Link>
+        </li>
+
+        <li className="nav-item">
+          <Link to="/employee_coaching" className={`nav-link ${isCoaching ? "active" : ""}`}>
+            <i className="bi bi-person-workspace"></i>
+            <span className="navs">Coaching</span>
           </Link>
         </li>
       </ul>
