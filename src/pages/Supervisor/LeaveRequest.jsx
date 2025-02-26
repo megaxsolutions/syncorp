@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import config from "../../config";
 import moment from "moment";
+import Swal from "sweetalert2";
 import SupervisorNavbar from "../../components/SupervisorNavbar";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
 
@@ -10,6 +11,8 @@ const SupervisorLeaveRequest = () => {
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState('');
 
   // Update the fetchLeaveRequests function to map id to leave_request_id
   const fetchLeaveRequests = async () => {
@@ -37,6 +40,9 @@ const SupervisorLeaveRequest = () => {
           moment(b.date).valueOf() - moment(a.date).valueOf()
         );
 
+        console.log(123);
+        console.log(response.data?.data);
+        console.log(123);
         setLeaveRequests(sortedData);
       }
     } catch (error) {
@@ -61,68 +67,132 @@ const SupervisorLeaveRequest = () => {
 
   // Update the handleApprove function
   const handleApprove = async (leaveRequestId) => {
-    console.log('Approving leave request:', leaveRequestId); // Debug log
-
     if (!leaveRequestId) {
-      console.error('No leave request ID provided');
-      setError("Cannot approve: Invalid leave request ID");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Cannot approve: Invalid leave request ID'
+      });
       return;
     }
 
     try {
-      // First update the status
-      await axios.put(
-        `${config.API_BASE_URL}/leave_request/update_status_leave_request/${leaveRequestId}`,
-        {
-          status: 'Approved'
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          }
-        }
-      );
+      // Show confirmation dialog first
+      const result = await Swal.fire({
+        title: 'Approve Leave Request',
+        text: 'Are you sure you want to approve this leave request?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#dc3545',
+        confirmButtonText: 'Yes, approve it!'
+      });
 
-      // Then update the approval information
-      await axios.put(
-        `${config.API_BASE_URL}/leave_request/update_approval_leave_request/${leaveRequestId}`,
-        {
-          emp_id_approved_by: localStorage.getItem("X-EMP-ID")
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+      if (result.isConfirmed) {
+        // First update the status
+        await axios.put(
+          `${config.API_BASE_URL}/leave_requests/update_status_leave_request/${leaveRequestId}`,
+          { status: 'approved' },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            }
           }
-        }
-      );
+        );
 
-      setError('');
-      await fetchLeaveRequests();
+        // Then update the approval information
+        await axios.put(
+          `${config.API_BASE_URL}/leave_requests/update_approval_leave_request/${leaveRequestId}`,
+          { emp_id_approved_by: localStorage.getItem("X-EMP-ID") },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            }
+          }
+        );
+
+        await Swal.fire({
+          icon: 'success',
+          title: 'Approved!',
+          text: 'Leave request has been approved.',
+          timer: 1500,
+          showConfirmButton: false
+        });
+
+        setError('');
+        await fetchLeaveRequests();
+      }
     } catch (error) {
       console.error("Error approving leave request:", error);
-      setError("Failed to approve leave request");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to approve leave request'
+      });
     }
   };
 
-  const handleReject = async (empId) => {
-    try {
-      await axios.put(`${config.API_BASE_URL}/leave-requests/reject/${empId}`, {
-        status: 'rejected',
-        approved_by: localStorage.getItem("X-EMP-ID"),
-        date_approved: moment().format('YYYY-MM-DD')
-      }, {
-        headers: {
-          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-        }
+  const handleReject = async (leaveRequestId) => {
+    if (!leaveRequestId) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Cannot reject: Invalid leave request ID'
       });
-      // Refresh data after rejection
-      window.location.reload();
-    } catch (error) {
-      setError("Failed to reject leave request");
+      return;
     }
+
+    try {
+      // Show confirmation dialog first
+      const result = await Swal.fire({
+        title: 'Reject Leave Request',
+        text: 'Are you sure you want to reject this leave request?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, reject it!'
+      });
+
+      if (result.isConfirmed) {
+        // Update the status
+        await axios.put(
+          `${config.API_BASE_URL}/leave_requests/update_status_leave_request/${leaveRequestId}`,
+          { status: 'rejected' },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            }
+          }
+        );
+
+        await Swal.fire({
+          icon: 'success',
+          title: 'Rejected!',
+          text: 'Leave request has been rejected.',
+          timer: 1500,
+          showConfirmButton: false
+        });
+
+        setError('');
+        await fetchLeaveRequests();
+      }
+    } catch (error) {
+      console.error("Error rejecting leave request:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to reject leave request'
+      });
+    }
+  };
+
+  const handleViewImage = (imageUrl) => {
+    setSelectedImage(imageUrl);
+    setShowImageModal(true);
   };
 
   return (
@@ -202,7 +272,7 @@ const SupervisorLeaveRequest = () => {
                                 </button>
                                 <button
                                   className="btn btn-danger btn-sm me-2"
-                                  onClick={() => handleReject(record.emp_ID)}
+                                  onClick={() => handleReject(record.leave_request_id)}
                                   title="Reject"
                                 >
                                   <i className="bi bi-x-circle-fill"> Reject</i>
@@ -210,7 +280,7 @@ const SupervisorLeaveRequest = () => {
                                 {record.leave_type === 'SL' && record.file_uploaded && (
                                   <button
                                     className="btn btn-info btn-sm"
-                                    onClick={() => window.open(record.file_uploaded, '_blank')}
+                                    onClick={() => handleViewImage(record.file_uploaded)}
                                     title="View Medical Certificate"
                                   >
                                     <i className="bi bi-file-medical"> View</i>
@@ -224,10 +294,10 @@ const SupervisorLeaveRequest = () => {
                                 {record.leave_type === 'SL' && record.file_uploaded && (
                                   <button
                                     className="btn btn-info btn-sm"
-                                    onClick={() => window.open(record.file_uploaded, '_blank')}
+                                    onClick={() => handleViewImage(record.file_uploaded)}
                                     title="View Medical Certificate"
                                   >
-                                    <i className="bi bi-file-medical"></i>
+                                    <i className="bi bi-file-medical"> View</i>
                                   </button>
                                 )}
                               </div>
@@ -238,10 +308,10 @@ const SupervisorLeaveRequest = () => {
                                 {record.leave_type === 'SL' && record.file_uploaded && (
                                   <button
                                     className="btn btn-info btn-sm"
-                                    onClick={() => window.open(record.file_uploaded, '_blank')}
+                                    onClick={() => handleViewImage(record.file_uploaded)}
                                     title="View Medical Certificate"
                                   >
-                                    <i className="bi bi-file-medical"></i>
+                                    <i className="bi bi-file-medical"> View</i>
                                   </button>
                                 )}
                               </div>
@@ -303,6 +373,48 @@ const SupervisorLeaveRequest = () => {
           </div>
         </div>
       </main>
+      {showImageModal && (
+        <div className="modal fade show" style={{ display: 'block' }}>
+          <div className="modal-dialog modal-lg modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Medical Certificate</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowImageModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body text-center">
+                <img
+                  src={selectedImage}
+                  alt="Medical Certificate"
+                  className="img-fluid"
+                  style={{ maxHeight: '70vh' }}
+                />
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowImageModal(false)}
+                >
+                  Close
+                </button>
+                <a
+                  href={selectedImage}
+                  download
+                  className="btn btn-primary"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Download
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

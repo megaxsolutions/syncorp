@@ -379,26 +379,43 @@ const SupervisorAttendance = () => {
                   <form onSubmit={handleEditSubmit}>
                     <div className="mb-3">
                       <label htmlFor="timeIN" className="form-label">Time In</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="timeIN"
-                        value={editForm.timeIN}
-                        onChange={(e) => setEditForm({ ...editForm, timeIN: e.target.value })}
-                        required
-                      />
+                      <div className="input-group">
+                        <input
+                          type="datetime-local"
+                          className="form-control"
+                          id="timeIN"
+                          value={moment(editForm.timeIN).format('YYYY-MM-DDTHH:mm')}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            timeIN: moment(e.target.value).format('YYYY-MM-DD HH:mm:ss')
+                          })}
+                          required
+                        />
+                      </div>
                     </div>
                     <div className="mb-3">
                       <label htmlFor="timeOUT" className="form-label">Time Out</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="timeOUT"
-                        value={editForm.timeOUT}
-                        onChange={(e) => setEditForm({ ...editForm, timeOUT: e.target.value })}
-                      />
+                      <div className="input-group">
+                        <input
+                          type="datetime-local"
+                          className="form-control"
+                          id="timeOUT"
+                          value={editForm.timeOUT ? moment(editForm.timeOUT).format('YYYY-MM-DDTHH:mm') : ''}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            timeOUT: e.target.value ? moment(e.target.value).format('YYYY-MM-DD HH:mm:ss') : ''
+                          })}
+                        />
+                      </div>
                     </div>
-                    <button type="submit" className="btn btn-primary">Save changes</button>
+                    <div className="modal-footer">
+                      <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn btn-primary">
+                        Save changes
+                      </button>
+                    </div>
                   </form>
                 </div>
               </div>

@@ -59,6 +59,11 @@ const SupervisorOvertimeRequest = () => {
   };
 
   const handleApprove = async (overtimeRequestId) => {
+
+    console.log(123);
+    console.log(overtimeRequestId);
+    console.log(123);
+
     if (!overtimeRequestId) {
       setError("Cannot approve: Invalid overtime request ID");
       return;
@@ -66,7 +71,7 @@ const SupervisorOvertimeRequest = () => {
 
     try {
       await axios.put(
-        `${config.API_BASE_URL}/overtime_request/update_status_overtime_request/${overtimeRequestId}`,
+        `${config.API_BASE_URL}/overtime_requests/update_status_overtime_request/${overtimeRequestId}`,
         {
           status: 'Approved'
         },
@@ -79,7 +84,7 @@ const SupervisorOvertimeRequest = () => {
       );
 
       await axios.put(
-        `${config.API_BASE_URL}/overtime_request/update_approval_overtime_request/${overtimeRequestId}`,
+        `${config.API_BASE_URL}/overtime_requests/update_approval_overtime_request/${overtimeRequestId}`,
         {
           emp_id_approved_by: localStorage.getItem("X-EMP-ID")
         },
@@ -107,7 +112,7 @@ const SupervisorOvertimeRequest = () => {
 
     try {
       await axios.put(
-        `${config.API_BASE_URL}/overtime_request/update_status_overtime_request/${overtimeRequestId}`,
+        `${config.API_BASE_URL}/overtime_requests/update_status_overtime_request/${overtimeRequestId}`,
         {
           status: 'Rejected'
         },
