@@ -4,12 +4,19 @@ import config from "../../config";
 import moment from "moment";
 import SupervisorNavbar from "../../components/SupervisorNavbar";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
+import Swal from 'sweetalert2';
 
 const SupervisorAttendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [editForm, setEditForm] = useState({
+    timeIN: '',
+    timeOUT: ''
+  });
 
   const fetchAttendance = async () => {
     try {
@@ -25,13 +32,17 @@ const SupervisorAttendance = () => {
 
       if (response.data?.data) {
         const formattedData = response.data.data.map(record => ({
-          ...record,
+          // Ensure these fields match the backend response
+          attendanceID: record.id,
+          employeeID: record.emp_ID,
+          fullName: record.fullName,
+          clusterID: record.clusterID,
+          date: moment(record.date).format('YYYY-MM-DD'),
           timeIN: moment(record.timeIN).format('YYYY-MM-DD HH:mm:ss'),
-          timeOUT: record.timeOUT ? moment(record.timeOUT).format('YYYY-MM-DD HH:mm:ss') : '-',
-          date: moment(record.date).format('YYYY-MM-DD')
+          timeOUT: record.timeOUT ? moment(record.timeOUT).format('YYYY-MM-DD HH:mm:ss') : '-'
         }));
 
-        // Sort by date descending (latest first)
+        // Sort descending
         const sortedData = formattedData.sort((a, b) =>
           moment(b.date).valueOf() - moment(a.date).valueOf()
         );
@@ -58,9 +69,115 @@ const SupervisorAttendance = () => {
     setCurrentPage(pageNumber);
   };
 
-  const handleEdit = async (record) => {
-    // Implement edit functionality
-    console.log("Edit record:", record);
+  const handleEdit = (record) => {
+    // Add debugging logs
+    console.log('Record received in handleEdit:', record);
+    console.log('AttendanceID:', record.attendanceID);
+    console.log('EmployeeID:', record.employeeID);
+
+    setEditingRecord({
+      id: record.attendanceID,
+      emp_ID: record.employeeID
+    });
+
+    // Log the editingRecord after setting
+    console.log('EditingRecord after set:', {
+      id: record.attendanceID,
+      emp_ID: record.employeeID
+    });
+
+    setEditForm({
+      timeIN: record.timeIN,
+      timeOUT: record.timeOUT === '-' ? '' : record.timeOUT
+    });
+
+    // Log the form values
+    console.log('EditForm values:', {
+      timeIN: record.timeIN,
+      timeOUT: record.timeOUT === '-' ? '' : record.timeOUT
+    });
+
+    setShowEditModal(true);
+  };
+
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+
+    // Enhanced debugging logs
+    console.log('Form submission started');
+    console.log('EditingRecord state:', editingRecord);
+    console.log('EditForm state:', editForm);
+    console.log('URL params:', {
+      emp_id: editingRecord?.emp_ID,
+      attendance_id: editingRecord?.id
+    });
+    console.log('Request body:', {
+      time_in: moment(editForm.timeIN).format('YYYY-MM-DD HH:mm:ss'),
+      time_out: editForm.timeOUT ? moment(editForm.timeOUT).format('YYYY-MM-DD HH:mm:ss') : null
+    });
+
+    // Enhanced validation
+    if (!editingRecord) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No record selected for editing'
+      });
+      return;
+    }
+
+    if (!editingRecord.emp_ID) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Employee ID is missing'
+      });
+      return;
+    }
+
+    if (!editingRecord.id) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Attendance ID is missing'
+      });
+      return;
+    }
+
+    try {
+      const response = await axios.put(
+        `${config.API_BASE_URL}/attendances/update_user_attendance/${editingRecord.emp_ID}/${editingRecord.id}`,
+        {
+          time_in: moment(editForm.timeIN).format('YYYY-MM-DD HH:mm:ss'),
+          time_out: editForm.timeOUT ? moment(editForm.timeOUT).format('YYYY-MM-DD HH:mm:ss') : null
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+      if (response.data.success) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: 'Attendance record updated successfully',
+          timer: 1500,
+          showConfirmButton: false
+        });
+        setShowEditModal(false);
+        fetchAttendance(); // Refresh the data
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.response?.data?.error || 'Failed to update attendance record'
+      });
+    }
   };
 
   const handleDelete = async (record) => {
@@ -194,6 +311,45 @@ const SupervisorAttendance = () => {
             </div>
           </div>
         </div>
+
+        {showEditModal && (
+          <div className="modal fade show" style={{ display: 'block' }}>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Edit Attendance Record</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowEditModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <form onSubmit={handleEditSubmit}>
+                    <div className="mb-3">
+                      <label htmlFor="timeIN" className="form-label">Time In</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        id="timeIN"
+                        value={editForm.timeIN}
+                        onChange={(e) => setEditForm({ ...editForm, timeIN: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label htmlFor="timeOUT" className="form-label">Time Out</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        id="timeOUT"
+                        value={editForm.timeOUT}
+                        onChange={(e) => setEditForm({ ...editForm, timeOUT: e.target.value })}
+                      />
+                    </div>
+                    <button type="submit" className="btn btn-primary">Save changes</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );
