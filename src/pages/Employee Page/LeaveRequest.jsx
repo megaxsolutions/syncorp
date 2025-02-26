@@ -148,6 +148,7 @@ const LeaveRequest = () => {
       formDataToSend.append('emp_ID', empId);
       formDataToSend.append('details', details);
       formDataToSend.append('date', selectedDate);
+      formDataToSend.append('status', 'Pending'); // Add status as Pending
 
       // Append file if it exists
       if (uploadFile) {

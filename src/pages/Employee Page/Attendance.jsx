@@ -15,12 +15,22 @@ const EmployeeAttendance = () => {
 
   const emp_id = localStorage.getItem("X-EMP-ID");
 
+  // Add new state for breaks
+  const [breaks, setBreaks] = useState([]);
+
+  // Add new state for modal
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  // Add this function near your other state declarations
+  const [refreshInterval, setRefreshInterval] = useState(null);
+
   // Fetch attendance data
   const fetchAttendance = async () => {
     try {
       setLoading(true);
       console.log("Fetching attendance data...");
-      
+
       const response = await axios.get(
         `${config.API_BASE_URL}/attendances/get_all_user_attendance/${emp_id}`,
         {
@@ -56,20 +66,41 @@ const EmployeeAttendance = () => {
     }
   };
 
+  // Replace the existing fetchBreaks function with:
+  const fetchBreaks = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/breaks/get_all_user_break/${emp_id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
+
+      // No need to filter since the backend already filters by emp_ID
+      const breakData = response.data.data || [];
+      setBreaks(breakData);
+    } catch (error) {
+      console.error("Error fetching breaks:", error);
+    }
+  };
+
   // Updated helper function to calculate time difference
   const calculateTimeDifference = (timeIn, timeOut) => {
     if (!timeIn || !timeOut) return '-';
-    
+
     const startTime = new Date(timeIn);
     const endTime = new Date(timeOut);
-    
+
     // Calculate difference in milliseconds
     const diff = endTime - startTime;
-    
+
     // Convert to hours and minutes
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     // Format the output
     if (hours === 0) {
       return `${minutes}m`;
@@ -80,20 +111,57 @@ const EmployeeAttendance = () => {
     }
   };
 
+  // Modify the useEffect hook that handles fetching data
   useEffect(() => {
     fetchAttendance();
+    fetchBreaks();
 
-    const refreshListener = () => fetchAttendance();
+    // Set up an interval to refresh data every 30 seconds
+    const interval = setInterval(() => {
+      fetchAttendance();
+      fetchBreaks();
+    }, 30000); // 30 seconds
+
+    const refreshListener = () => {
+      fetchAttendance();
+      fetchBreaks();
+    };
+
     window.addEventListener('refreshAttendance', refreshListener);
+    window.addEventListener('refreshBreakState', refreshListener); // Add this line
 
+    // Cleanup function
     return () => {
+      clearInterval(interval);
       window.removeEventListener('refreshAttendance', refreshListener);
+      window.removeEventListener('refreshBreakState', refreshListener); // Add this line
     };
   }, [emp_id]);
 
   // Force data refresh manually
+  // Update the handleUpdateAttendance function
   const handleUpdateAttendance = () => {
     fetchAttendance();
+    fetchBreaks();
+  };
+
+  // Add function to get breaks for a specific date
+  const getBreaksForDate = (date) => {
+    return breaks
+      .filter(breakRecord => {
+        const breakDate = new Date(breakRecord.breakIN).toLocaleDateString();
+        return breakDate === date;
+      })
+      .sort((a, b) => {
+        // Sort by breakIN time in descending order (latest first)
+        return new Date(b.breakIN) - new Date(a.breakIN);
+      });
+  };
+
+  // Add function to handle history click
+  const handleHistoryClick = (date) => {
+    setSelectedDate(date);
+    setShowHistoryModal(true);
   };
 
   // Pagination logic
@@ -147,24 +215,49 @@ const EmployeeAttendance = () => {
                         <th>Date</th>
                         <th>Time In</th>
                         <th>Time Out</th>
+                        <th>Break In/Out</th>
                         <th>Total</th>
                         <th>Leave Request</th>
                       </tr>
                     </thead>
                     <tbody>
                       {currentRecords.length > 0 ? (
-                        currentRecords.map((record, index) => (
-                          <tr key={index}>
-                            <td>{new Date(record.date).toLocaleDateString()}</td>
-                            <td>{record.timeIN}</td>
-                            <td>{record.timeOUT}</td>
-                            <td>{record.total}</td>
-                            <td>No</td>
-                          </tr>
-                        ))
+                        currentRecords.map((record, index) => {
+                          const dateBreaks = getBreaksForDate(record.date);
+                          return (
+                            <tr key={index}>
+                              <td>{record.date}</td>
+                              <td>{record.timeIN}</td>
+                              <td>{record.timeOUT}</td>
+                              <td className="break-column" style={{ maxWidth: "200px" }}>
+                                {dateBreaks.length > 0 ? (
+                                  <div className="break-container" style={{ fontSize: '0.85rem' }}>
+                                    {dateBreaks.map((breakRecord, idx) => (
+                                      <div key={idx} className="break-record text-nowrap">
+                                        <small>
+                                          {new Date(breakRecord.breakIN).toLocaleTimeString([],
+                                            { hour: '2-digit', minute: '2-digit' })} -
+                                          {breakRecord.breakOUT ?
+                                            new Date(breakRecord.breakOUT).toLocaleTimeString([],
+                                              { hour: '2-digit', minute: '2-digit' })
+                                            : 'Ongoing'}
+                                        </small>
+                                        {idx < dateBreaks.length - 1 && <span className="mx-1">|</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted">No breaks</span>
+                                )}
+                              </td>
+                              <td>{record.total}</td>
+                              <td>No</td>
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr>
-                          <td colSpan="5" className="text-center">
+                          <td colSpan="6" className="text-center">
                             No attendance data found.
                           </td>
                         </tr>

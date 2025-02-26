@@ -220,21 +220,7 @@ const handleBreakInClick = async () => {
         }
       );
 
-      // Update clock_state break_state
-      const updateClockStateResponse = await axios.put(
-        `${config.API_BASE_URL}/attendances/update_clock_state/${emp_id}`,
-        {
-          break_state: 1
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id
-          }
-        }
-      );
-
-      if (breakInResponse.data.success && updateClockStateResponse.data.success) {
+      if (breakInResponse.data.success) {
         setIsBreakIn(true);
         setBreakState(1);
         Swal.fire({
@@ -257,21 +243,7 @@ const handleBreakInClick = async () => {
         }
       );
 
-      // Update clock_state break_state
-      const updateClockStateResponse = await axios.put(
-        `${config.API_BASE_URL}/attendances/update_clock_state/${emp_id}`,
-        {
-          break_state: 0
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id
-          }
-        }
-      );
-
-      if (breakOutResponse.data.success && updateClockStateResponse.data.success) {
+      if (breakOutResponse.data.success) {
         setIsBreakIn(false);
         setBreakState(0);
         Swal.fire({

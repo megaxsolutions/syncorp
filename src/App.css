@@ -1421,3 +1421,103 @@ ul li {
 .text-muted {
   font-size: 0.9rem;
 }
+
+/* Add these styles to your CSS */
+.break-record {
+  font-size: 0.875rem;
+}
+
+.break-record hr {
+  margin: 0.25rem 0;
+  opacity: 0.2;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+/* Add these styles to your CSS */
+.modal-lg {
+  max-width: 900px;
+}
+
+.break-record {
+  white-space: nowrap;
+}
+
+.btn-info {
+  background-color: #17a2b8;
+  border-color: #17a2b8;
+}
+
+.btn-info:hover {
+  background-color: #138496;
+  border-color: #117a8b;
+}
+
+ .break-column {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .break-container {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .break-record {
+    display: inline-block;
+  }
+
+.break-column {
+  max-width: 200px;
+  overflow-x: auto;
+  /* Hide vertical scrollbar */
+  overflow-y: hidden;
+}
+
+.break-container {
+  display: flex;
+  flex-wrap: nowrap;
+  /* Add some padding to prevent content from touching edges */
+  padding: 4px;
+  /* Minimum width to ensure content is scrollable */
+  min-width: min-content;
+}
+
+.break-record {
+  display: inline-flex;
+  align-items: center;
+  /* Add some spacing between records */
+  margin-right: 8px;
+  /* Keep text from wrapping */
+  white-space: nowrap;
+}
+
+/* Style the scrollbar for webkit browsers */
+.break-column::-webkit-scrollbar {
+  height: 6px;
+}
+
+.break-column::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.break-column::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.break-column::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Style for Firefox */
+.break-column {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f1;
+}

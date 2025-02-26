@@ -7,8 +7,8 @@ import moment from "moment-timezone";
 import Swal from "sweetalert2";
 
 const Calendar = () => {
-  const todayDate = new Date();
-  const todayStr = todayDate.toISOString().split("T")[0];
+  const todayDate = moment().startOf('day').toDate();
+  const todayStr = moment().format('YYYY-MM-DD');
   const [currentMonth, setCurrentMonth] = useState(todayDate.getMonth());
   const [currentYear, setCurrentYear] = useState(todayDate.getFullYear());
 
@@ -187,7 +187,7 @@ const Calendar = () => {
 
   // Click date
   const onDateClick = (day) => {
-    const dayStr = day.toISOString().split("T")[0];
+    const dayStr = moment(day).format('YYYY-MM-DD');
     setSelectedDate(dayStr);
     const existing = holidays.find((h) => h.date === dayStr);
 
@@ -207,11 +207,12 @@ const Calendar = () => {
 
   // Days in month
   const getDaysInMonth = (month, year) => {
-    const date = new Date(year, month, 1);
+    const date = moment([year, month, 1]);
     const days = [];
-    while (date.getMonth() === month) {
-      days.push(new Date(date));
-      date.setDate(date.getDate() + 1);
+    const daysInMonth = date.daysInMonth();
+
+    for (let i = 0; i < daysInMonth; i++) {
+      days.push(date.clone().add(i, 'days').toDate());
     }
     return days;
   };
@@ -248,7 +249,7 @@ const Calendar = () => {
     }
 
     daysInMonth.forEach((day) => {
-      const dayStr = day.toISOString().split("T")[0];
+      const dayStr = moment(day).format('YYYY-MM-DD');
       const isToday = dayStr === todayStr;
       const holiday = holidays.find((h) => h.date === dayStr);
 
