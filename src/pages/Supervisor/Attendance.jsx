@@ -32,8 +32,8 @@ const SupervisorAttendance = () => {
 
       if (response.data?.data) {
         const formattedData = response.data.data.map(record => ({
-          attendanceID: record.id,         // Make sure these match
-          employeeID: record.emp_ID,      // your backend response
+          attendanceID: record.id,
+          employeeID: record.emp_ID,
           fullName: record.fullName,
           clusterID: record.clusterID,
           date: moment(record.date).format('YYYY-MM-DD'),
@@ -41,10 +41,12 @@ const SupervisorAttendance = () => {
           timeOUT: record.timeOUT ? moment(record.timeOUT).format('YYYY-MM-DD HH:mm:ss') : '-'
         }));
 
-        // Sort descending
-        const sortedData = formattedData.sort((a, b) =>
-          moment(b.date).valueOf() - moment(a.date).valueOf()
-        );
+        // Sort by timeIN in descending order
+        const sortedData = formattedData.sort((a, b) => {
+          const timeA = moment(a.timeIN);
+          const timeB = moment(b.timeIN);
+          return timeB.valueOf() - timeA.valueOf();
+        });
 
         setAttendanceRecords(sortedData);
       }

@@ -191,7 +191,7 @@ const SupervisorLeaveRequest = () => {
   };
 
   const handleViewImage = (imageUrl) => {
-    setSelectedImage(imageUrl);
+    setSelectedImage(`${config.API_BASE_URL}/uploads/${imageUrl}`);
     setShowImageModal(true);
   };
 
@@ -254,7 +254,7 @@ const SupervisorLeaveRequest = () => {
                               record.status === 'approved' ? 'bg-success' :
                               record.status === 'rejected' ? 'bg-danger' : 'bg-warning'
                             }`}>
-                              {record.status || ''}
+                              {record.status ? record.status.charAt(0).toUpperCase() + record.status.slice(1) : ''}
                             </span>
                           </td>
                           <td>{record.date_approved}</td>

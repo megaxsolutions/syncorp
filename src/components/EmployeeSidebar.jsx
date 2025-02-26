@@ -141,65 +141,80 @@ useEffect(() => {
 
 
   const handleTimeInOut = async () => {
-    try {
-      setIsLoading(true);
-      const emp_id = localStorage.getItem("X-EMP-ID");
-      const cluster_id = localStorage.getItem("cluster_id");
+  try {
+    setIsLoading(true);
+    const emp_id = localStorage.getItem("X-EMP-ID");
+    const token = localStorage.getItem("X-JWT-TOKEN");
 
-      if (!isTimeIn) {
-        // Time In
-        const response = await axios.post(
-          `${config.API_BASE_URL}/attendances/add_attendance_time_in`,
-          { emp_id, cluster_id },
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": emp_id
-            }
+    // Get cluster_id from JWT token
+    const decoded = jwtDecode(token);
+    const cluster_id = decoded.login[0].clusterID;
+
+    // Store cluster_id in localStorage
+    localStorage.setItem("cluster_id", cluster_id);
+
+    if (!isTimeIn) {
+      // Time In
+      const response = await axios.post(
+        `${config.API_BASE_URL}/attendances/add_attendance_time_in`,
+        {
+          emp_id,
+          cluster_id  // Send cluster_id with the request
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": token,
+            "X-EMP-ID": emp_id
           }
-        );
-
-        if (response.data.success) {
-          setIsTimeIn(true);
-          Swal.fire({
-            icon: "success",
-            title: "Time In Successful",
-            timer: 2000,
-            showConfirmButton: false
-          });
-          window.dispatchEvent(new Event("refreshAttendance"));
         }
-      } else {
-        // Time Out
-        const response = await axios.put(
-          `${config.API_BASE_URL}/attendances/update_attendance_time_out/${emp_id}`,
-          {},
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": emp_id
-            }
-          }
-        );
+      );
 
-        if (response.data.success) {
-          setIsTimeIn(false);
-          Swal.fire({
-            icon: "success",
-            title: "Time Out Successful",
-            timer: 2000,
-            showConfirmButton: false
-          });
-          window.dispatchEvent(new Event("refreshAttendance"));
-        }
+      if (response.data.success) {
+        setIsTimeIn(true);
+        Swal.fire({
+          icon: "success",
+          title: "Time In Successful",
+          text: response.data.success,
+          timer: 5000,
+          showConfirmButton: false
+        });
+        window.dispatchEvent(new Event("refreshAttendance"));
       }
-    } catch (error) {
-      console.error("Attendance Error:", error);
-      Swal.fire({ icon: "error", title: "Error", text: "Failed to process attendance." });
-    } finally {
-      setIsLoading(false);
+    } else {
+      // Time Out logic remains the same
+      const response = await axios.put(
+        `${config.API_BASE_URL}/attendances/update_attendance_time_out/${emp_id}`,
+        {},
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id
+          }
+        }
+      );
+
+      if (response.data.success) {
+        setIsTimeIn(false);
+        Swal.fire({
+          icon: "success",
+          title: "Time Out Successful",
+          text: response.data.success, // Additional text
+          timer: 5000,
+          showConfirmButton: false
+        });
+        window.dispatchEvent(new Event("refreshAttendance"));
+      }
     }
-  };
+  } catch (error) {
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: error.response?.data?.error || "Failed to process attendance."
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Update the handleBreakInClick function
 const handleBreakInClick = async () => {

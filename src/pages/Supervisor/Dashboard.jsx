@@ -6,9 +6,9 @@ import SupervisorSidebar from '../../components/SupervisorSidebar';
 const SupervisorDashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const isAttendance = location.pathname === "/employee/attendance";
-  const isPayslip = location.pathname === "/employee/payslip";
+  const isAttendance = location.pathname === "/supervisor/attendance";
   const isLeaveRequest = location.pathname === "/supervisor/leave-request";
+  const isOvertimeRequest = location.pathname === "/supervisor/overtime-request";
 
   const handleLeaveRequestClick = (e) => {
     e.preventDefault();
@@ -44,7 +44,7 @@ const SupervisorDashboard = () => {
               {/* Cards Section */}
               <div className="row g-4">
                 <div className="col-md-4">
-                  <Link to="/employee_attendance" className="text-decoration-none">
+                  <Link to="/supervisor_attendance" className="text-decoration-none">
                     <div className="card h-100 shadow-sm hover-card">
                       <div className="card-body d-flex flex-column align-items-center text-center p-4">
                         <div className="feature-icon-border d-inline-flex align-items-center justify-content-center bg-primary bg-gradient text-white fs-2 mb-3 rounded-circle" style={{ width: '80px', height: '80px' }}>
@@ -88,7 +88,7 @@ const SupervisorDashboard = () => {
                 </div>
 
                 <div className="col-md-4">
-                  <Link to="/employee_overtime_request" className="text-decoration-none">
+                  <Link to="/supervisor_overtime_request" className="text-decoration-none">
                     <div className="card h-100 shadow-sm hover-card">
                       <div className="card-body d-flex flex-column align-items-center text-center p-4">
                         <div className="feature-icon-border d-inline-flex align-items-center justify-content-center bg-warning bg-gradient text-white fs-2 mb-3 rounded-circle" style={{ width: '80px', height: '80px' }}>

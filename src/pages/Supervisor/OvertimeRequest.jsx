@@ -181,17 +181,20 @@ const SupervisorOvertimeRequest = () => {
                   <tbody>
                     {currentItems.length > 0 ? (
                       currentItems.map((record, index) => (
-                        <tr key={index}>
+                        <tr
+                          key={index}
+                          className={record.status === 'Approved' ? 'table-success' : ''}
+                        >
                           <td>{record.date}</td>
                           <td>{record.emp_ID}</td>
                           <td>{record.hrs}</td>
                           <td>{record.ot_type}</td>
                           <td>
                             <span className={`badge ${
-                              record.status === 'Approved' ? 'bg-success' :
+                              record.status === 'approved' ? 'bg-success' :
                               record.status === 'Rejected' ? 'bg-danger' : 'bg-warning'
                             }`}>
-                              {record.status || 'Pending'}
+                              {record.status ? record.status.charAt(0).toUpperCase() + record.status.slice(1).toLowerCase() : 'Pending'}
                             </span>
                           </td>
                           <td>{record.date_approved}</td>

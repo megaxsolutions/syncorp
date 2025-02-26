@@ -65,6 +65,7 @@ const EmployeeNavbar = () => {
     localStorage.removeItem("X-JWT-TOKEN");
     localStorage.removeItem("X-EMP-ID");
     localStorage.removeItem("USER_ROLE");
+    localStorage.removeItem("cluster_id");
     navigate("/");
   };
 
