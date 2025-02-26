@@ -32,9 +32,8 @@ const SupervisorAttendance = () => {
 
       if (response.data?.data) {
         const formattedData = response.data.data.map(record => ({
-          // Ensure these fields match the backend response
-          attendanceID: record.id,
-          employeeID: record.emp_ID,
+          attendanceID: record.id,         // Make sure these match
+          employeeID: record.emp_ID,      // your backend response
           fullName: record.fullName,
           clusterID: record.clusterID,
           date: moment(record.date).format('YYYY-MM-DD'),
@@ -181,8 +180,64 @@ const SupervisorAttendance = () => {
   };
 
   const handleDelete = async (record) => {
-    // Implement delete functionality
-    console.log("Delete record:", record);
+    try {
+      // Add validation to check if required IDs exist
+      if (!record.employeeID || !record.attendanceID) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Missing required IDs for deletion'
+        });
+        return;
+      }
+
+      // Debug logs
+      console.log('Deleting record:', {
+        employeeID: record.employeeID,
+        attendanceID: record.attendanceID
+      });
+
+      // Show confirmation dialog
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete it!'
+      });
+
+      if (result.isConfirmed) {
+        const response = await axios.delete(
+          `${config.API_BASE_URL}/attendances/delete_attendance/${record.employeeID}/${record.attendanceID}`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+          }
+        );
+
+        if (response.status === 200) {
+          await Swal.fire({
+            icon: 'success',
+            title: 'Deleted!',
+            text: 'Attendance record has been deleted.',
+            timer: 1500,
+            showConfirmButton: false
+          });
+          fetchAttendance(); // Refresh the records
+        }
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.response?.data?.error || 'Failed to delete attendance record'
+      });
+    }
   };
 
   return (
