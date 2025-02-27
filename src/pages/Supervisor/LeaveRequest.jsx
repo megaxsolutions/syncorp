@@ -16,6 +16,12 @@ const SupervisorLeaveRequest = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [employees, setEmployees] = useState({});
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [dateRange, setDateRange] = useState({
+    startDate: '',
+    endDate: ''
+  });
+  const [showFilters, setShowFilters] = useState(false);
 
   // Update the fetchLeaveRequests function to include full name
   const fetchLeaveRequests = async () => {
@@ -231,17 +237,35 @@ const SupervisorLeaveRequest = () => {
   };
 
   const handleSearch = () => {
-    const filtered = leaveRequests.filter(record => {
-      const empIdMatch = record.emp_ID ?
-        record.emp_ID.toString().toLowerCase().includes(searchTerm.toLowerCase()) :
-        false;
+    let filtered = [...leaveRequests];
 
-      const nameMatch = record.fullName ?
-        record.fullName.toLowerCase().includes(searchTerm.toLowerCase()) :
-        false;
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(record => {
+        const empIdMatch = record.emp_ID ?
+          record.emp_ID.toString().toLowerCase().includes(searchTerm.toLowerCase()) :
+          false;
 
-      return empIdMatch || nameMatch;
-    });
+        const nameMatch = record.fullName ?
+          record.fullName.toLowerCase().includes(searchTerm.toLowerCase()) :
+          false;
+
+        return empIdMatch || nameMatch;
+      });
+    }
+
+    // Filter by selected employee
+    if (selectedEmployee) {
+      filtered = filtered.filter(record => record.emp_ID === selectedEmployee);
+    }
+
+    // Filter by date range
+    if (dateRange.startDate && dateRange.endDate) {
+      filtered = filtered.filter(record => {
+        const recordDate = moment(record.date);
+        return recordDate.isBetween(dateRange.startDate, dateRange.endDate, 'day', '[]');
+      });
+    }
 
     setFilteredRequests(filtered);
     setCurrentPage(1);
@@ -249,6 +273,8 @@ const SupervisorLeaveRequest = () => {
 
   const handleReset = () => {
     setSearchTerm('');
+    setSelectedEmployee('');
+    setDateRange({ startDate: '', endDate: '' });
     setFilteredRequests(leaveRequests);
     setCurrentPage(1);
   };
@@ -281,38 +307,105 @@ const SupervisorLeaveRequest = () => {
               )}
               <div className="table-responsive">
                 <div className="d-flex justify-content-between align-items-center mb-3">
-                  <div className="d-flex gap-2">
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      style={{ width: '200px' }}
-                      placeholder="Search by ID or Name"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleSearch();
-                        }
-                      }}
-                    />
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={handleSearch}
-                    >
-                      <i className="bi bi-search"></i> Search
-                    </button>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleReset}
-                    >
-                      <i className="bi bi-x-circle"></i> Reset
-                    </button>
+                  <div className="d-flex gap-2 flex-wrap">
+                    <div className="dropdown">
+                      <button
+                        className="btn btn-outline-secondary btn-sm dropdown-toggle"
+                        type="button"
+                        onClick={() => setShowFilters(!showFilters)}
+                      >
+                        <i className="bi bi-funnel"></i> Filters
+                      </button>
+                      <div className={`dropdown-menu p-3 ${showFilters ? 'show' : ''}`} style={{ width: '300px' }}>
+                        <div className="mb-3">
+                          <label className="form-label">
+                            <i className="bi bi-search"></i> Search
+                          </label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="Search by ID or Name"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label">
+                            <i className="bi bi-people"></i> Employee
+                          </label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={selectedEmployee}
+                            onChange={(e) => setSelectedEmployee(e.target.value)}
+                          >
+                            <option value="">All Employees</option>
+                            {Object.entries(employees).map(([id, name]) => (
+                              <option key={id} value={id}>{name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label">
+                            <i className="bi bi-calendar-range"></i> Date Range
+                          </label>
+                          <div className="d-flex gap-2">
+                            <input
+                              type="date"
+                              className="form-control form-control-sm"
+                              value={dateRange.startDate}
+                              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                            />
+                            <input
+                              type="date"
+                              className="form-control form-control-sm"
+                              value={dateRange.endDate}
+                              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                        <div className="d-flex gap-2">
+                          <button
+                            className="btn btn-primary btn-sm w-50"
+                            onClick={() => {
+                              handleSearch();
+                              setShowFilters(false);
+                            }}
+                          >
+                            <i className="bi bi-search"></i> Apply Filters
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm w-50"
+                            onClick={() => {
+                              handleReset();
+                              setShowFilters(false);
+                            }}
+                          >
+                            <i className="bi bi-x-circle"></i> Reset
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Show active filter indicators */}
+                    {(searchTerm || selectedEmployee || dateRange.startDate || dateRange.endDate) && (
+                      <div className="d-flex gap-1 align-items-center">
+                        <span className="badge bg-info">
+                          <i className="bi bi-funnel-fill"></i> Active Filters
+                        </span>
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={handleReset}
+                          title="Clear all filters"
+                        >
+                          <i className="bi bi-x"></i>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="d-flex justify-content-start mb-3">
                   <span className="text-muted">
-                    Showing {leaveRequests.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
-                    {Math.min(indexOfLastItem, leaveRequests.length)} of {leaveRequests.length} entries
+                    Showing {filteredRequests.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
+                    {Math.min(indexOfLastItem, filteredRequests.length)} of {filteredRequests.length} entries
                   </span>
                 </div>
                 <table className="table table-hover table-bordered">

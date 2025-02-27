@@ -538,6 +538,12 @@
   background-color: #f6f9ff;
 }
 
+.dropdown-menu.show {
+  position: absolute;
+  transform: translate(0px, 40px);
+  z-index: 1000;
+}
+
 @media (min-width: 768px) {
   .dropdown-menu-arrow::before {
     content: "";

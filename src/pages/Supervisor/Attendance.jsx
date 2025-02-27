@@ -19,6 +19,15 @@ const SupervisorAttendance = () => {
   });
   const [filteredRecords, setFilteredRecords] = useState([]);
   const [searchName, setSearchName] = useState('');
+  const [employees, setEmployees] = useState({});
+
+  // Add new state for filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateRange, setDateRange] = useState({
+    startDate: '',
+    endDate: ''
+  });
+  const [selectedEmployee, setSelectedEmployee] = useState('');
 
   const fetchAttendance = async () => {
     try {
@@ -58,8 +67,34 @@ const SupervisorAttendance = () => {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/employees/get_all_employee`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      const employeeMap = {};
+      response.data.data.forEach(emp => {
+        employeeMap[emp.emp_ID] = {
+          fullName: `${emp.fName} ${emp.mName ? emp.mName + ' ' : ''}${emp.lName}`,
+          emp_ID: emp.emp_ID
+        };
+      });
+      setEmployees(employeeMap);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    }
+  };
+
   useEffect(() => {
     fetchAttendance();
+    fetchEmployees();
   }, []);
 
   useEffect(() => {
@@ -248,18 +283,39 @@ const SupervisorAttendance = () => {
     }
   };
 
+  // Update the handleSearch function
   const handleSearch = () => {
     let filtered = [...attendanceRecords];
 
     if (searchName.trim()) {
-      filtered = filtered.filter(record =>
-        record.fullName.toLowerCase().includes(searchName.trim().toLowerCase())
-      );
-    } else {
-      filtered = attendanceRecords;
+      filtered = filtered.filter(record => {
+        const nameMatch = record.fullName?.toLowerCase().includes(searchName.trim().toLowerCase()) || false;
+        const idMatch = record.employeeID?.toString().toLowerCase().includes(searchName.trim().toLowerCase()) || false;
+        return nameMatch || idMatch;
+      });
+    }
+
+    if (selectedEmployee) {
+      filtered = filtered.filter(record => record.employeeID === selectedEmployee);
+    }
+
+    if (dateRange.startDate && dateRange.endDate) {
+      filtered = filtered.filter(record => {
+        const recordDate = moment(record.date);
+        return recordDate.isBetween(dateRange.startDate, dateRange.endDate, 'day', '[]');
+      });
     }
 
     setFilteredRecords(filtered);
+    setCurrentPage(1);
+  };
+
+  // Add handleReset function
+  const handleReset = () => {
+    setSearchName('');
+    setSelectedEmployee('');
+    setDateRange({ startDate: '', endDate: '' });
+    setFilteredRecords(attendanceRecords);
     setCurrentPage(1);
   };
 
@@ -291,38 +347,112 @@ const SupervisorAttendance = () => {
               )}
               <div className="table-responsive">
                 <div className="d-flex justify-content-between align-items-center mb-3">
-                  <div className="d-flex gap-2">
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      style={{ width: '200px' }}
-                      placeholder="Search by Name"
-                      value={searchName}
-                      onChange={(e) => setSearchName(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleSearch();
-                        }
-                      }}
-                    />
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={handleSearch}
-                    >
-                      <i className="bi bi-search"></i> Search
-                    </button>
+                  <div className="d-flex gap-2 flex-wrap">
+                    <div className="dropdown">
+                      <button
+                        className="btn btn-outline-secondary btn-sm dropdown-toggle"
+                        type="button"
+                        onClick={() => setShowFilters(!showFilters)}
+                      >
+                        <i className="bi bi-funnel"></i> Filters
+                      </button>
+                      <div className={`dropdown-menu p-3 ${showFilters ? 'show' : ''}`} style={{ width: '300px' }}>
+                        <div className="mb-3">
+                          <label className="form-label">
+                            <i className="bi bi-search"></i> Search
+                          </label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="Search by ID or Name"
+                            value={searchName}
+                            onChange={(e) => setSearchName(e.target.value)}
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label">
+                            <i className="bi bi-people"></i> Employee
+                          </label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={selectedEmployee}
+                            onChange={(e) => setSelectedEmployee(e.target.value)}
+                          >
+                            <option value="">All Employees</option>
+                            {Object.entries(employees).map(([id, emp]) => (
+                              <option key={id} value={id}>{emp.fullName}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label">
+                            <i className="bi bi-calendar-range"></i> Date Range
+                          </label>
+                          <div className="d-flex gap-2">
+                            <input
+                              type="date"
+                              className="form-control form-control-sm"
+                              value={dateRange.startDate}
+                              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                            />
+                            <input
+                              type="date"
+                              className="form-control form-control-sm"
+                              value={dateRange.endDate}
+                              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                        <div className="d-flex gap-2">
+                          <button
+                            className="btn btn-primary btn-sm w-50"
+                            onClick={() => {
+                              handleSearch();
+                              setShowFilters(false);
+                            }}
+                          >
+                            <i className="bi bi-search"></i> Apply Filters
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm w-50"
+                            onClick={() => {
+                              handleReset();
+                              setShowFilters(false);
+                            }}
+                          >
+                            <i className="bi bi-x-circle"></i> Reset
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Show active filter indicators */}
+                    {(searchName || selectedEmployee || dateRange.startDate || dateRange.endDate) && (
+                      <div className="d-flex gap-1 align-items-center">
+                        <span className="badge bg-info">
+                          <i className="bi bi-funnel-fill"></i> Active Filters
+                        </span>
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={handleReset}
+                          title="Clear all filters"
+                        >
+                          <i className="bi bi-x"></i>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="d-flex justify-content-start mb-3">
                   <span className="text-muted">
-                    Showing {attendanceRecords.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
-                    {Math.min(indexOfLastItem, attendanceRecords.length)} of {attendanceRecords.length} entries
+                    Showing {filteredRecords.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
+                    {Math.min(indexOfLastItem, filteredRecords.length)} of {filteredRecords.length} entries
                   </span>
                 </div>
                 <table className="table table-hover table-bordered">
                   <thead className="table-light">
                     <tr>
                       <th>Date</th>
+                      <th>Employee ID</th>
                       <th>Employee Name</th>
                       <th>Time In</th>
                       <th>Time Out</th>
@@ -335,7 +465,8 @@ const SupervisorAttendance = () => {
                       currentItems.map((record, index) => (
                         <tr key={index}>
                           <td>{record.date}</td>
-                          <td>{record.fullName}</td>
+                          <td>{record.employeeID}</td>
+                          <td>{employees[record.employeeID]?.fullName || record.fullName}</td>
                           <td>{record.timeIN}</td>
                           <td>{record.timeOUT}</td>
                           <td>{record.clusterID}</td>
@@ -361,7 +492,7 @@ const SupervisorAttendance = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="6" className="text-center">
+                        <td colSpan="7" className="text-center">
                           No attendance records found.
                         </td>
                       </tr>
