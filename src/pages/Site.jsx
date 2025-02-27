@@ -62,7 +62,6 @@ const Site = () => {
       }
 
       const newSite = { site_name: siteName.siteName };
-
       const response = await axios.post(
         `${config.API_BASE_URL}/sites/add_site`,
         newSite,
@@ -74,8 +73,6 @@ const Site = () => {
         }
       );
 
-      console.log("Server Response:", response.data);
-
       const newSiteData = response.data;
       const updatedSiteData = {
         id: newSiteData.id ?? Math.random(),
@@ -85,17 +82,19 @@ const Site = () => {
 
       setSites((prevSites) => [...prevSites, updatedSiteData]);
       setSite({ siteName: "" });
+
+      // Show success message from backend or fallback
       Swal.fire({
         icon: "success",
         title: "Success",
-        text: "Site added successfully.",
+        text: response.data.message || "Site added successfully.",
       });
     } catch (error) {
       console.error("Add Site Error:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Failed to add site.",
+        text: error.response?.data?.message || "Failed to add site.",
       });
     }
   };
@@ -120,48 +119,45 @@ const Site = () => {
     });
   };
 
-
   const confirmEdit = async (newName, site_id) => {
-      try {
-        const response = await axios.put(
-          `${config.API_BASE_URL}/sites/update_site/${site_id}`,
-          { site_name: newName },
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
-          }
-        );
+    try {
+      const response = await axios.put(
+        `${config.API_BASE_URL}/sites/update_site/${site_id}`,
+        { site_name: newName },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
 
-        console.log("Update response:", response.data);
+      setSites((prevSites) =>
+        prevSites.map((site) =>
+          site.id === site_id ? { ...site, siteName: newName } : site
+        )
+      );
 
-        setSites((prevSites) =>
-          prevSites.map((site) =>
-            site.id === site_id
-              ? { ...site, siteName: newName }
-              : site
-          )
-        );
-        Swal.fire({
-          icon: "success",
-          title: "Updated",
-          text: "Site updated successfully.",
-        });
-      } catch (error) {
-        console.error("Update Site Error:", error);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Failed to update site.",
-        });
-      }
+      // Show success message from backend or fallback
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: response.data.message || "Site updated successfully.",
+      });
+    } catch (error) {
+      console.error("Update Site Error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.message || "Failed to update site.",
+      });
+    }
   };
 
   const handleDelete = (site) => {
     Swal.fire({
       title: "Are you sure?",
-      text: `Do you want to delete the site "${site.site_name}"?`,
+      text: `Do you want to delete the site "${site.siteName}"?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -179,21 +175,21 @@ const Site = () => {
               },
             }
           );
-          console.log("Delete response:", response.data);
-          setSites((prevSites) =>
-            prevSites.filter((s) => s.id !== site.id)
-          );
+
+          setSites((prevSites) => prevSites.filter((s) => s.id !== site.id));
+
+          // Show success message from backend or fallback
           Swal.fire({
             icon: "success",
-            title: "Deleted",
-            text: "Site has been deleted.",
+            title: "Success",
+            text: response.data.message || "Site has been deleted.",
           });
         } catch (error) {
           console.error("Delete Site Error:", error);
           Swal.fire({
             icon: "error",
             title: "Error",
-            text: "Failed to delete site.",
+            text: error.response?.data?.message || "Failed to delete site.",
           });
         }
       }
@@ -294,9 +290,7 @@ const Site = () => {
                           >
                             <button
                               className="page-link"
-                              onClick={() =>
-                                setCurrentPage(currentPage - 1)
-                              }
+                              onClick={() => setCurrentPage(currentPage - 1)}
                               aria-label="Previous"
                             >
                               <span aria-hidden="true">&laquo;</span>
@@ -324,9 +318,7 @@ const Site = () => {
                           >
                             <button
                               className="page-link"
-                              onClick={() =>
-                                setCurrentPage(currentPage + 1)
-                              }
+                              onClick={() => setCurrentPage(currentPage + 1)}
                               aria-label="Next"
                             >
                               <span aria-hidden="true">&raquo;</span>

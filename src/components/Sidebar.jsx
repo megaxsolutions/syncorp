@@ -1,6 +1,7 @@
 import React from "react";
 import { useLocation, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap/dist/js/bootstrap.bundle.min.js";
 
 const Sidebar = () => {
   const location = useLocation();
@@ -12,6 +13,14 @@ const Sidebar = () => {
   const isDTR = location.pathname === "/dtr";
   const isPayroll = location.pathname === "/payroll";
   const isLeaveType = location.pathname === "/settings/leave-type";
+
+  const handleDropdownClick = (event, targetId) => {
+    event.preventDefault();
+    const targetElement = document.querySelector(targetId);
+    const bsCollapse = new bootstrap.Collapse(targetElement, {
+      toggle: true,
+    });
+  };
 
   return (
     <aside id="sidebar" className="sidebar">
@@ -33,8 +42,7 @@ const Sidebar = () => {
             className={`nav-link ${
               isAddEmployee || isViewEmployee ? "" : "collapsed"
             }`}
-            data-bs-target="#employees-nav"
-            data-bs-toggle="collapse"
+            onClick={(e) => handleDropdownClick(e, "#employees-nav")}
             style={{ background: "none", border: "none" }}
           >
             <i className="bi bi-menu-button-wide"></i>
@@ -73,8 +81,7 @@ const Sidebar = () => {
         <li className="nav-item">
           <button
             className={`nav-link ${isSettingsActive ? "" : "collapsed"}`}
-            data-bs-target="#settings-nav"
-            data-bs-toggle="collapse"
+            onClick={(e) => handleDropdownClick(e, "#settings-nav")}
             style={{ background: "none", border: "none" }}
           >
             <i className="bi bi-gear"></i>
@@ -171,7 +178,9 @@ const Sidebar = () => {
               <Link
                 to="/settings/overtime-type"
                 className={`nav-link ${
-                  location.pathname === "/settings/overtime-type" ? "active" : ""
+                  location.pathname === "/settings/overtime-type"
+                    ? "active"
+                    : ""
                 }`}
               >
                 <i className="bi bi-hourglass-split"></i>
