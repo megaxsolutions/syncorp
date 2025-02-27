@@ -5,6 +5,7 @@ import { jwtDecode } from "jwt-decode"; // ✅ Correct import
 import logo from "../assets/logo.png";
 import config from "../config";
 import LoadingOverlay from './LoadingOverlay';
+import Swal from 'sweetalert2';
 
 const EmployeeNavbar = () => {
   const navigate = useNavigate();
@@ -73,12 +74,51 @@ const EmployeeNavbar = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Add any necessary state updates or API calls here
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate loading
-      localStorage.setItem("USER_ROLE", "supervisor"); // Update role to supervisor
-      navigate('/supervisor_dashboard');
+      // Get employee ID from localStorage
+      const emp_id = localStorage.getItem("X-EMP-ID");
+
+      // Fetch admin login data
+      const response = await axios.get(
+        `${config.API_BASE_URL}/admins/get_all_admin`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
+
+      // Find the current user's admin data
+      const currentUserAdmin = response.data.data.find(
+        user => user.emp_ID === parseInt(emp_id)
+      );
+
+      // Parse user_level if it's a string and check if 2 exists in the array
+      const userLevels = typeof currentUserAdmin?.user_level === 'string'
+        ? JSON.parse(currentUserAdmin.user_level)
+        : currentUserAdmin?.user_level || [];
+
+      // Check if user has supervisor privileges (level 2)
+      if (currentUserAdmin && userLevels.includes(2)) {
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate loading
+        localStorage.setItem("USER_ROLE", "supervisor");
+        navigate('/supervisor_dashboard');
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Access Denied',
+          text: 'You do not have supervisor privileges.',
+          confirmButtonColor: '#3085d6'
+        });
+      }
     } catch (error) {
       console.error('Error switching role:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to verify supervisor access.',
+        confirmButtonColor: '#3085d6'
+      });
     } finally {
       setIsLoading(false);
     }
