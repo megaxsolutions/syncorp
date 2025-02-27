@@ -155,25 +155,54 @@ const Department = () => {
   // Edit department using SweetAlert2 prompt
   const openEditModal = (dept) => {
     Swal.fire({
-      title: "Edit Department",
-      input: "text",
-      inputLabel: "Department Name",
-      inputValue: dept.departmentName,
+      title: 'Edit Department',
+      html: `
+        <form>
+          <div class="mb-3">
+            <label class="form-label">Department Name</label>
+            <input
+              type="text"
+              id="deptName"
+              class="form-control"
+              value="${dept.departmentName}"
+            >
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Site</label>
+            <select id="siteSelect" class="form-select">
+              ${sites.map(site => `
+                <option value="${site.id}" ${site.id === dept.siteID ? 'selected' : ''}>
+                  ${site.siteName}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+        </form>
+      `,
       showCancelButton: true,
-      preConfirm: (newName) => {
+      confirmButtonText: 'Save Changes',
+      preConfirm: () => {
+        const newName = document.getElementById('deptName').value;
+        const newSiteId = document.getElementById('siteSelect').value;
+
         if (!newName.trim()) {
-          Swal.showValidationMessage("Department name cannot be empty");
+          Swal.showValidationMessage('Department name cannot be empty');
+          return false;
         }
-        return newName;
-      },
+
+        return {
+          name: newName,
+          siteId: newSiteId
+        };
+      }
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
           const response = await axios.put(
             `${config.API_BASE_URL}/departments/update_department/${dept.id}`,
             {
-              department_name: result.value,
-              site_id: dept.siteID, // retain current site selection
+              department_name: result.value.name,
+              site_id: result.value.siteId
             },
             {
               headers: {
@@ -208,17 +237,17 @@ const Department = () => {
 
             setDepartments(departmentsData);
             Swal.fire({
-              icon: "success",
-              title: "Updated",
-              text: "Department updated successfully.",
+              icon: 'success',
+              title: 'Updated',
+              text: 'Department updated successfully.'
             });
           }
         } catch (error) {
           console.error("Update Department Error:", error);
           Swal.fire({
-            icon: "error",
-            title: "Error",
-            text: "Failed to update department.",
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to update department.'
           });
         }
       }
