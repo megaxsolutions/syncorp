@@ -4,6 +4,7 @@ import config from "../../config";
 import SupervisorNavbar from "../../components/SupervisorNavbar";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
 import moment from 'moment';
+import Swal from 'sweetalert2';
 
 const SupervisorSchedule = () => {
   const [employees, setEmployees] = useState([]);
@@ -24,6 +25,8 @@ const SupervisorSchedule = () => {
   const [otType, setOtType] = useState('regular'); // Add this with your other state declarations
   const [overtimeTypes, setOvertimeTypes] = useState([]);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [regularSchedules, setRegularSchedules] = useState([]);
+  const [overtimeSchedules, setOvertimeSchedules] = useState([]);
 
   // Calendar Navigation
   const handlePrevMonth = () => {
@@ -104,6 +107,42 @@ const SupervisorSchedule = () => {
     fetchOvertimeTypes();
   }, []);
 
+  const fetchSchedules = async () => {
+    try {
+      // Fetch regular schedules
+      const regularResponse = await axios.get(
+        `${config.API_BASE_URL}/shift_schedules/get_shift_schedule_day`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          }
+        }
+      );
+
+      // Fetch overtime schedules
+      const overtimeResponse = await axios.get(
+        `${config.API_BASE_URL}/shift_schedules/get_shift_schedule_day_overtime`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          }
+        }
+      );
+
+      setRegularSchedules(regularResponse.data.data || []);
+      setOvertimeSchedules(overtimeResponse.data.data || []);
+    } catch (error) {
+      console.error("Error fetching schedules:", error);
+      setError("Failed to load schedules");
+    }
+  };
+
+  useEffect(() => {
+    fetchSchedules();
+  }, []);
+
   const handleEmployeeSelect = (empId) => {
     setSelectedEmployees(prev => {
       if (prev.includes(empId)) {
@@ -122,6 +161,14 @@ const SupervisorSchedule = () => {
   };
 
   const handleRegularSchedule = () => {
+    if (selectedEmployees.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No Employees Selected',
+        text: 'Please select at least one employee'
+      });
+      return;
+    }
     setShowRegularModal(true);
   };
 
@@ -141,14 +188,117 @@ const SupervisorSchedule = () => {
     setShowRemoveModal(false);
   };
 
-  const handleScheduleSubmit = () => {
-    console.log({
-      shiftInTime,
-      shiftOutTime,
-      scheduleTypes,
-      selectedEmployees
-    });
-    setShowRegularModal(false);
+  const handleScheduleSubmit = async () => {
+    try {
+      // Validate selections
+      if (!selectedEmployees.length) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Please select at least one employee'
+        });
+        return;
+      }
+
+      // Get selected days based on schedule types
+      const selectedDays = [];
+      const startOfWeek = moment(currentDate).startOf('week');
+      const startOfMonth = moment(currentDate).startOf('month');
+
+      if (scheduleTypes.currentDay) {
+        selectedDays.push(currentDate.format('YYYY-MM-DD'));
+      }
+
+      if (scheduleTypes.thisWeek) {
+        for (let i = 1; i <= 5; i++) { // Monday to Friday
+          selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
+        }
+      }
+
+      if (scheduleTypes.thisMonth) {
+        const daysInMonth = currentDate.daysInMonth();
+        for (let i = 1; i <= daysInMonth; i++) {
+          const day = moment(startOfMonth).add(i - 1, 'days');
+          if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
+            selectedDays.push(day.format('YYYY-MM-DD'));
+          }
+        }
+      }
+
+      // Prepare request data
+      const requestData = {
+        array_employee_emp_id: selectedEmployees,
+        admin_emp_id: localStorage.getItem("X-EMP-ID"),
+        shift_in: shiftInTime,
+        shift_out: shiftOutTime,
+        array_selected_days: selectedDays,
+        schedule_type_id: 1 // Regular schedule type
+      };
+
+      // Show loading
+      Swal.fire({
+        title: 'Creating schedules...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      // Make API call
+      const response = await axios.post(
+        `${config.API_BASE_URL}/shift_schedules/add_shift_schedule_multiple_day`,
+        requestData,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          }
+        }
+      );
+
+      // Close modal and show success message
+      setShowRegularModal(false);
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: response.data.success,
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      // Reset form
+      setScheduleTypes({
+        currentDay: false,
+        thisWeek: false,
+        thisMonth: false,
+        autoOffWeekend: false
+      });
+
+    } catch (error) {
+      console.error('Error creating schedules:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.response?.data?.error || 'Failed to create schedules'
+      });
+    }
+  };
+
+  const getSchedulesForDay = (day) => {
+    if (!day) return [];
+
+    const dateStr = moment(currentDate).date(day).format('YYYY-MM-DD');
+
+    const regular = regularSchedules.filter(schedule =>
+      moment(schedule.day).format('YYYY-MM-DD') === dateStr
+    );
+
+    const overtime = overtimeSchedules.filter(schedule =>
+      moment(schedule.day).format('YYYY-MM-DD') === dateStr
+    );
+
+    return { regular, overtime };
   };
 
   return (
@@ -283,7 +433,34 @@ const SupervisorSchedule = () => {
                                 {day && (
                                   <>
                                     <div className="fw-bold">{day}</div>
-                                    {/* Add schedule indicators here */}
+                                    <div className="schedule-container" style={{ fontSize: '0.8rem' }}>
+                                      {getSchedulesForDay(day).regular.map((schedule, idx) => (
+                                        <div
+                                          key={`regular-${idx}`}
+                                          className="schedule-item bg-primary text-white p-1 mb-1 rounded"
+                                          style={{ fontSize: '0.7rem' }}
+                                        >
+                                          <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID}</div>
+                                          <small>
+                                            {moment(schedule.shift_in).format('HH:mm')} -
+                                            {moment(schedule.shift_out).format('HH:mm')}
+                                          </small>
+                                        </div>
+                                      ))}
+                                      {getSchedulesForDay(day).overtime.map((schedule, idx) => (
+                                        <div
+                                          key={`ot-${idx}`}
+                                          className="schedule-item bg-warning text-dark p-1 mb-1 rounded"
+                                          style={{ fontSize: '0.7rem' }}
+                                        >
+                                          <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID} (OT)</div>
+                                          <small>
+                                            {moment(schedule.shift_in).format('HH:mm')} -
+                                            {moment(schedule.shift_out).format('HH:mm')}
+                                          </small>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </>
                                 )}
                               </td>
@@ -393,7 +570,23 @@ const SupervisorSchedule = () => {
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowRegularModal(false)}>Close</button>
-                  <button type="button" className="btn btn-primary" onClick={handleScheduleSubmit}>Set Schedule</button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      if (!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth) {
+                        Swal.fire({
+                          icon: 'warning',
+                          title: 'No Schedule Type Selected',
+                          text: 'Please select at least one schedule type'
+                        });
+                        return;
+                      }
+                      handleScheduleSubmit();
+                    }}
+                  >
+                    Set Schedule
+                  </button>
                 </div>
               </div>
             </div>

@@ -1539,3 +1539,16 @@ ul li {
 .table-success:hover {
   background-color: rgba(25, 135, 84, 0.15) !important;
 }
+
+.schedule-container {
+      max-height: 80px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+.schedule-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .schedule-container::-webkit-scrollbar-thumb {
+      background-color: rgba(0,0,0,0.2);
+      border-radius: 3px;
+    }
