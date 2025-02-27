@@ -70,7 +70,10 @@ const OvertimeType = () => {
       const newData = response.data;
       const updatedOvertimeType = {
         id: newData.id ?? Math.random(),
-        type: newData.overtime_type ?? newData.overtimeType ?? overtimeType.overtimeType,
+        type:
+          newData.overtime_type ??
+          newData.overtimeType ??
+          overtimeType.overtimeType,
       };
 
       setOvertimeTypes((prev) => [...prev, updatedOvertimeType]);
@@ -93,93 +96,72 @@ const OvertimeType = () => {
   const [currentOvertimeType, setCurrentOvertimeType] = useState(null);
   const [editOvertimeTypeName, setEditOvertimeTypeName] = useState("");
 
-const openEditModal = (overtime) => {
-  if (!overtime || !overtime.id) {
-    console.error("Invalid overtime data:", overtime);
-    return;
-  }
-
-  setCurrentOvertimeType(overtime);
-  setEditOvertimeTypeName(overtime.type);
-
-  Swal.fire({
-    title: "Edit Overtime Type",
-    input: "text",
-    inputValue: overtime.type,
-    showCancelButton: true,
-    confirmButtonText: "Save",
-    preConfirm: (newName) => {
-      if (!newName) {
-        Swal.showValidationMessage(`Overtime type cannot be empty`);
-        return false;
-      }
-      console.log("New name from Swal:", newName); // Debug log
-      return newName;
-    },
-  }).then((result) => {
-    if (result.isConfirmed) {
-      console.log("Swal confirmed. Editing:", result.value);
-      confirmEdit(result.value);
+  const openEditModal = async (overtime) => {
+    if (!overtime || !overtime.id) {
+      console.error("Invalid overtime data:", overtime);
+      return;
     }
-  });
-};
 
-const confirmEdit = async (newName) => {
-  console.log("confirmEdit called with:", newName, currentOvertimeType);
-
-  if (!newName || !currentOvertimeType?.id) {
-    console.error("Invalid newName or currentOvertimeType:", newName, currentOvertimeType);
-    return;
-  }
-
-  try {
-    console.log("Updating overtime_type_id:", currentOvertimeType.id);
-
-    const response = await axios.put(
-      `${config.API_BASE_URL}/overtime_types/update_overtime_type/${currentOvertimeType.id}`,
-      { overtime_type: newName },
-      {
-        headers: {
-          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          "Content-Type": "application/json",
+    try {
+      const result = await Swal.fire({
+        title: "Edit Overtime Type",
+        input: "text",
+        inputValue: overtime.type,
+        showCancelButton: true,
+        confirmButtonText: "Save",
+        preConfirm: (newName) => {
+          if (!newName.trim()) {
+            Swal.showValidationMessage(`Overtime type cannot be empty`);
+            return false;
+          }
+          return newName.trim();
         },
+      });
+
+      if (result.isConfirmed && result.value) {
+        await handleEdit(overtime.id, result.value);
       }
-    );
+    } catch (error) {
+      console.error("Edit modal error:", error);
+    }
+  };
 
-    console.log("Update response:", response.data);
-
-    if (response.status === 200) {
-      setOvertimeTypes((prev) =>
-        prev.map((ot) =>
-          ot.id === currentOvertimeType.id ? { ...ot, type: newName } : ot
-        )
+  const handleEdit = async (overtimeId, newName) => {
+    try {
+      const response = await axios.put(
+        `${config.API_BASE_URL}/overtime_types/update_overtime_type/${overtimeId}`,
+        { overtime_type: newName },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "Content-Type": "application/json",
+          },
+        }
       );
 
-      Swal.fire({
-        icon: "success",
-        title: "Updated",
-        text: "Overtime type updated successfully.",
-      });
-    } else {
-      Swal.fire({
+      if (response.status === 200) {
+        setOvertimeTypes((prev) =>
+          prev.map((ot) =>
+            ot.id === overtimeId ? { ...ot, type: newName } : ot
+          )
+        );
+
+        await Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: "Overtime type updated successfully.",
+        });
+      }
+    } catch (error) {
+      console.error("Update error:", error);
+      await Swal.fire({
         icon: "error",
         title: "Error",
-        text: response.data.error || "Failed to update overtime type.",
+        text: error.response?.data?.error || "Failed to update overtime type.",
       });
     }
-  } catch (error) {
-    console.error("Update Overtime Type Error:", error);
-    Swal.fire({
-      icon: "error",
-      title: "Error",
-      text: error.response?.data?.error || "Failed to update overtime type.",
-    });
-  }
-
-  setCurrentOvertimeType(null);
-};
-
+  };
 
   const handleDelete = (overtime) => {
     Swal.fire({
@@ -306,7 +288,8 @@ const confirmEdit = async (newName) => {
                     <div className="d-flex justify-content-between align-items-center mt-2">
                       <p className="mb-0">
                         Showing {indexOfFirstItem + 1} -{" "}
-                        {Math.min(indexOfLastItem, overtimeTypes.length)} entries
+                        {Math.min(indexOfLastItem, overtimeTypes.length)}{" "}
+                        entries
                       </p>
                       <nav>
                         <ul className="pagination mb-0">
@@ -345,9 +328,7 @@ const confirmEdit = async (newName) => {
                           >
                             <button
                               className="page-link"
-                              onClick={() =>
-                                setCurrentPage(currentPage + 1)
-                              }
+                              onClick={() => setCurrentPage(currentPage + 1)}
                               aria-label="Next"
                             >
                               <span aria-hidden="true">&raquo;</span>
