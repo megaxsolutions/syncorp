@@ -33,6 +33,7 @@ import SupervisorSchedule from "./pages/Supervisor/Schedule";
 import AdminProtectedLayout from "./pages/AdminProtectedLayout";
 import EmployeeProtectedLayout from "./pages/EmployeeProtectedLayout";
 import SupervisorProtectedLayout from "./pages/SupervisorProtectedLayout";
+import './App.css';
 
 function App() {
   return (

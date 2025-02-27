@@ -13,8 +13,11 @@ const SupervisorLeaveRequest = () => {
   const itemsPerPage = 15;
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredRequests, setFilteredRequests] = useState([]);
+  const [employees, setEmployees] = useState({});
 
-  // Update the fetchLeaveRequests function to map id to leave_request_id
+  // Update the fetchLeaveRequests function to include full name
   const fetchLeaveRequests = async () => {
     try {
       const emp_id = localStorage.getItem("X-EMP-ID");
@@ -31,18 +34,16 @@ const SupervisorLeaveRequest = () => {
       if (response.data?.data) {
         const formattedData = response.data.data.map(record => ({
           ...record,
-          leave_request_id: record.id, // Map id to leave_request_id
+          leave_request_id: record.id,
           date: moment(record.date).format('YYYY-MM-DD'),
-          date_approved: record.date_approved ? moment(record.date_approved).format('YYYY-MM-DD') : '-'
+          date_approved: record.date_approved ? moment(record.date_approved).format('YYYY-MM-DD') : '-',
+          fullName: employees[record.emp_ID] || `${record.fName || ''} ${record.mName ? record.mName + ' ' : ''}${record.lName || ''}`.trim()
         }));
 
         const sortedData = formattedData.sort((a, b) =>
           moment(b.date).valueOf() - moment(a.date).valueOf()
         );
 
-        console.log(123);
-        console.log(response.data?.data);
-        console.log(123);
         setLeaveRequests(sortedData);
       }
     } catch (error) {
@@ -51,15 +52,49 @@ const SupervisorLeaveRequest = () => {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/employees/get_all_employee`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      const employeeMap = {};
+      response.data.data.forEach(emp => {
+        employeeMap[emp.emp_ID] = `${emp.fName} ${emp.mName ? emp.mName + ' ' : ''}${emp.lName}`;
+      });
+      setEmployees(employeeMap);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    }
+  };
+
   useEffect(() => {
     fetchLeaveRequests();
+    fetchEmployees();
   }, []);
+
+  useEffect(() => {
+    setFilteredRequests(leaveRequests);
+  }, [leaveRequests]);
+
+  // Add useEffect to refresh leave requests when employees data changes
+  useEffect(() => {
+    if (Object.keys(employees).length > 0) {
+      fetchLeaveRequests();
+    }
+  }, [employees]);
 
   // Update pagination calculations to use all leave requests
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = leaveRequests.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(leaveRequests.length / itemsPerPage);
+  const currentItems = filteredRequests.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -195,6 +230,29 @@ const SupervisorLeaveRequest = () => {
     setShowImageModal(true);
   };
 
+  const handleSearch = () => {
+    const filtered = leaveRequests.filter(record => {
+      const empIdMatch = record.emp_ID ?
+        record.emp_ID.toString().toLowerCase().includes(searchTerm.toLowerCase()) :
+        false;
+
+      const nameMatch = record.fullName ?
+        record.fullName.toLowerCase().includes(searchTerm.toLowerCase()) :
+        false;
+
+      return empIdMatch || nameMatch;
+    });
+
+    setFilteredRequests(filtered);
+    setCurrentPage(1);
+  };
+
+  const handleReset = () => {
+    setSearchTerm('');
+    setFilteredRequests(leaveRequests);
+    setCurrentPage(1);
+  };
+
   return (
     <>
       <SupervisorNavbar />
@@ -222,6 +280,35 @@ const SupervisorLeaveRequest = () => {
                 </div>
               )}
               <div className="table-responsive">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <div className="d-flex gap-2">
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      style={{ width: '200px' }}
+                      placeholder="Search by ID or Name"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSearch();
+                        }
+                      }}
+                    />
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleSearch}
+                    >
+                      <i className="bi bi-search"></i> Search
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleReset}
+                    >
+                      <i className="bi bi-x-circle"></i> Reset
+                    </button>
+                  </div>
+                </div>
                 <div className="d-flex justify-content-start mb-3">
                   <span className="text-muted">
                     Showing {leaveRequests.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
@@ -233,6 +320,7 @@ const SupervisorLeaveRequest = () => {
                     <tr>
                       <th>Date Filed</th>
                       <th>Employee ID</th>
+                      <th>Employee Name</th>
                       <th>Leave Type</th>
                       <th>Details</th>
                       <th>Status</th>
@@ -247,6 +335,7 @@ const SupervisorLeaveRequest = () => {
                         <tr key={index}>
                           <td>{record.date}</td>
                           <td>{record.emp_ID}</td>
+                          <td>{employees[record.emp_ID] || record.fullName || record.emp_ID}</td>
                           <td>{record.leave_type}</td>
                           <td>{record.details}</td>
                           <td>
@@ -258,7 +347,7 @@ const SupervisorLeaveRequest = () => {
                             </span>
                           </td>
                           <td>{record.date_approved}</td>
-                          <td>{record.approved_by || '-'}</td>
+                          <td>{record.approved_by ? employees[record.approved_by] || record.approved_by : '-'}</td>
 
                           <td>
                             {(!record.status || record.status === 'pending') && (
@@ -290,7 +379,7 @@ const SupervisorLeaveRequest = () => {
                             )}
                             {record.status === 'approved' && (
                               <div className="d-flex align-items-center">
-                                <i className="bi bi-check-circle-fill text-success me-2" title="Approved"></i>
+                                <i className="bi bi-check-circle-fill text-success me-2" title="Approved"> Approved</i>
                                 {record.leave_type === 'SL' && record.file_uploaded && (
                                   <button
                                     className="btn btn-info btn-sm"
@@ -304,7 +393,7 @@ const SupervisorLeaveRequest = () => {
                             )}
                             {record.status === 'rejected' && (
                               <div className="d-flex align-items-center">
-                                <i className="bi bi-x-circle-fill text-danger me-2" title="Rejected"></i>
+                                <i className="bi bi-x-circle-fill text-danger me-2" title="Rejected"> Rejected</i>
                                 {record.leave_type === 'SL' && record.file_uploaded && (
                                   <button
                                     className="btn btn-info btn-sm"
@@ -321,8 +410,8 @@ const SupervisorLeaveRequest = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="8" className="text-center">
-                          No leave requests found for this date.
+                        <td colSpan="9" className="text-center">
+                          No leave requests found.
                         </td>
                       </tr>
                     )}

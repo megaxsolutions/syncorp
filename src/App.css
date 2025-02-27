@@ -115,6 +115,10 @@
   }
 }
 
+* {
+  font-family: "Poppins", sans-serif;
+}
+
 .card {
   margin-bottom: 30px;
   border: none;

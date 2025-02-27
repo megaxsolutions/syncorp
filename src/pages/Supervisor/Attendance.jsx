@@ -17,6 +17,8 @@ const SupervisorAttendance = () => {
     timeIN: '',
     timeOUT: ''
   });
+  const [filteredRecords, setFilteredRecords] = useState([]);
+  const [searchName, setSearchName] = useState('');
 
   const fetchAttendance = async () => {
     try {
@@ -60,11 +62,15 @@ const SupervisorAttendance = () => {
     fetchAttendance();
   }, []);
 
+  useEffect(() => {
+    setFilteredRecords(attendanceRecords);
+  }, [attendanceRecords]);
+
   // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = attendanceRecords.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(attendanceRecords.length / itemsPerPage);
+  const currentItems = filteredRecords.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -242,6 +248,21 @@ const SupervisorAttendance = () => {
     }
   };
 
+  const handleSearch = () => {
+    let filtered = [...attendanceRecords];
+
+    if (searchName.trim()) {
+      filtered = filtered.filter(record =>
+        record.fullName.toLowerCase().includes(searchName.trim().toLowerCase())
+      );
+    } else {
+      filtered = attendanceRecords;
+    }
+
+    setFilteredRecords(filtered);
+    setCurrentPage(1);
+  };
+
   return (
     <>
       <SupervisorNavbar />
@@ -269,6 +290,29 @@ const SupervisorAttendance = () => {
                 </div>
               )}
               <div className="table-responsive">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <div className="d-flex gap-2">
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      style={{ width: '200px' }}
+                      placeholder="Search by Name"
+                      value={searchName}
+                      onChange={(e) => setSearchName(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSearch();
+                        }
+                      }}
+                    />
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleSearch}
+                    >
+                      <i className="bi bi-search"></i> Search
+                    </button>
+                  </div>
+                </div>
                 <div className="d-flex justify-content-start mb-3">
                   <span className="text-muted">
                     Showing {attendanceRecords.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
@@ -325,7 +369,7 @@ const SupervisorAttendance = () => {
                   </tbody>
                 </table>
 
-                {attendanceRecords.length > 0 && (
+                {filteredRecords.length > 0 && (
                   <div className="d-flex justify-content-between align-items-center mt-3">
                     <nav aria-label="Page navigation">
                       <ul className="pagination mb-0">
