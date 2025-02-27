@@ -239,13 +239,12 @@ const LeaveRequest = () => {
                               </td>
                               <td>
                                 {record.status ? (
-                                  record.status === "Approved" ? (
-                                    <span className="badge bg-success">{record.status}</span>
-                                  ) : record.status === "Rejected" ? (
-                                    <span className="badge bg-danger">{record.status}</span>
-                                  ) : (
-                                    <span className="badge bg-warning text-dark">{record.status}</span>
-                                  )
+                                  <span className={`badge ${
+                                    record.status.toLowerCase() === "approved" ? 'bg-success' :
+                                    record.status.toLowerCase() === "rejected" ? 'bg-danger' : 'bg-warning'
+                                  }`}>
+                                    {record.status.charAt(0).toUpperCase() + record.status.slice(1).toLowerCase()}
+                                  </span>
                                 ) : (
                                   <span className="badge bg-warning text-dark">Pending</span>
                                 )}

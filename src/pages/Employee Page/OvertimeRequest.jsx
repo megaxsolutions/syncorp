@@ -84,7 +84,7 @@ const OvertimeRequest = () => {
       const response = await axios.post(
         `${config.API_BASE_URL}/overtime_requests/add_overtime_request`,
         {
-          ot_type: otType,  // Match the column name in your overtime_requests table
+          ot_type: parseInt(otType),  // Convert the ID to integer
           hrs: hours,
           date: selectedDate,
           emp_ID: empId,
@@ -160,16 +160,17 @@ const OvertimeRequest = () => {
                             <tr key={record.id}>
                               <td>{record.date}</td>
                               <td>{record.hrs}</td>
-                              <td>{record.ot_type}</td>
+                              <td>
+                                {otTypes.find(type => type.id === parseInt(record.ot_type))?.type || record.ot_type}
+                              </td>
                               <td>
                                 {record.status ? (
-                                  record.status === "Approved" ? (
-                                    <span className="badge bg-success">{record.status}</span>
-                                  ) : record.status === "Rejected" ? (
-                                    <span className="badge bg-danger">{record.status}</span>
-                                  ) : (
-                                    <span className="badge bg-warning text-dark">{record.status}</span>
-                                  )
+                                  <span className={`badge ${
+                                    record.status.toLowerCase() === "approved" ? 'bg-success' :
+                                    record.status.toLowerCase() === "rejected" ? 'bg-danger' : 'bg-warning text-dark'
+                                  }`}>
+                                    {record.status.charAt(0).toUpperCase() + record.status.slice(1).toLowerCase()}
+                                  </span>
                                 ) : (
                                   <span className="badge bg-warning text-dark">Pending</span>
                                 )}
@@ -227,7 +228,7 @@ const OvertimeRequest = () => {
                       <option value="">Select OT Type</option>
                       {otTypes && otTypes.length > 0 ? (
                         otTypes.map((type) => (
-                          <option key={type.id} value={type.type}>
+                          <option key={type.id} value={type.id}>
                             {type.type}
                           </option>
                         ))

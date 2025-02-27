@@ -169,13 +169,13 @@ const Department = () => {
           </div>
           <div class="mb-3">
             <label class="form-label">Site</label>
-            <select id="siteSelect" class="form-select">
-              ${sites.map(site => `
-                <option value="${site.id}" ${site.id === dept.siteID ? 'selected' : ''}>
-                  ${site.siteName}
-                </option>
-              `).join('')}
-            </select>
+          <select id="siteSelect2" class="form-select">
+            ${sites.map(site => `
+              <option value="${site.id}" ${site.id === dept.siteID ? 'selected' : ''}>
+                ${site.siteName}
+              </option>
+            `).join('')}
+          </select>
           </div>
         </form>
       `,
@@ -183,7 +183,14 @@ const Department = () => {
       confirmButtonText: 'Save Changes',
       preConfirm: () => {
         const newName = document.getElementById('deptName').value;
-        const newSiteId = document.getElementById('siteSelect').value;
+        const newSiteId = document.getElementById('siteSelect2').value;
+
+        console.log(321);
+        console.log(newSiteId);
+        console.log(newName);
+
+        console.log(321);
+
 
         if (!newName.trim()) {
           Swal.showValidationMessage('Department name cannot be empty');

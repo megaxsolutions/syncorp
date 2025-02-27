@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import config from "../../config";
 import moment from "moment";
+import Swal from "sweetalert2";
 import SupervisorNavbar from "../../components/SupervisorNavbar";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
 
@@ -10,6 +11,8 @@ const SupervisorOvertimeRequest = () => {
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+  const [employees, setEmployees] = useState({});
+  const [otTypes, setOtTypes] = useState([]);
 
   const fetchOvertimeRequests = async () => {
     try {
@@ -44,8 +47,53 @@ const SupervisorOvertimeRequest = () => {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/employees/get_all_employee`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      // Create a map of employee IDs to full names
+      const employeeMap = {};
+      response.data.data.forEach(emp => {
+        employeeMap[emp.emp_ID] = `${emp.fName} ${emp.mName ? emp.mName + ' ' : ''}${emp.lName}`;
+      });
+      setEmployees(employeeMap);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    }
+  };
+
+  const fetchOtTypes = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/overtime_types/get_all_overtime_type`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (response.data?.data) {
+        setOtTypes(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching OT types:", error);
+    }
+  };
+
   useEffect(() => {
     fetchOvertimeRequests();
+    fetchEmployees();
+    fetchOtTypes();
   }, []);
 
   // Pagination calculations
@@ -59,48 +107,63 @@ const SupervisorOvertimeRequest = () => {
   };
 
   const handleApprove = async (overtimeRequestId) => {
-
-    console.log(123);
-    console.log(overtimeRequestId);
-    console.log(123);
-
     if (!overtimeRequestId) {
       setError("Cannot approve: Invalid overtime request ID");
       return;
     }
 
     try {
-      await axios.put(
-        `${config.API_BASE_URL}/overtime_requests/update_status_overtime_request/${overtimeRequestId}`,
-        {
-          status: 'Approved'
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          }
-        }
-      );
+      const result = await Swal.fire({
+        title: 'Approve Overtime Request',
+        text: 'Are you sure you want to approve this overtime request?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, approve it!'
+      });
 
-      await axios.put(
-        `${config.API_BASE_URL}/overtime_requests/update_approval_overtime_request/${overtimeRequestId}`,
-        {
-          emp_id_approved_by: localStorage.getItem("X-EMP-ID")
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+      if (result.isConfirmed) {
+        await axios.put(
+          `${config.API_BASE_URL}/overtime_requests/update_status_overtime_request/${overtimeRequestId}`,
+          { status: 'Approved' },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            }
           }
-        }
-      );
+        );
 
-      setError('');
-      await fetchOvertimeRequests();
+        await axios.put(
+          `${config.API_BASE_URL}/overtime_requests/update_approval_overtime_request/${overtimeRequestId}`,
+          { emp_id_approved_by: localStorage.getItem("X-EMP-ID") },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            }
+          }
+        );
+
+        await Swal.fire({
+          icon: 'success',
+          title: 'Approved!',
+          text: 'Overtime request has been approved.',
+          timer: 1500,
+          showConfirmButton: false
+        });
+
+        setError('');
+        await fetchOvertimeRequests();
+      }
     } catch (error) {
       console.error("Error approving overtime request:", error);
-      setError("Failed to approve overtime request");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to approve overtime request'
+      });
     }
   };
 
@@ -111,24 +174,46 @@ const SupervisorOvertimeRequest = () => {
     }
 
     try {
-      await axios.put(
-        `${config.API_BASE_URL}/overtime_requests/update_status_overtime_request/${overtimeRequestId}`,
-        {
-          status: 'Rejected'
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          }
-        }
-      );
+      const result = await Swal.fire({
+        title: 'Reject Overtime Request',
+        text: 'Are you sure you want to reject this overtime request?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, reject it!'
+      });
 
-      setError('');
-      await fetchOvertimeRequests();
+      if (result.isConfirmed) {
+        await axios.put(
+          `${config.API_BASE_URL}/overtime_requests/update_status_overtime_request/${overtimeRequestId}`,
+          { status: 'Rejected' },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            }
+          }
+        );
+
+        await Swal.fire({
+          icon: 'success',
+          title: 'Rejected!',
+          text: 'Overtime request has been rejected.',
+          timer: 1500,
+          showConfirmButton: false
+        });
+
+        setError('');
+        await fetchOvertimeRequests();
+      }
     } catch (error) {
       console.error("Error rejecting overtime request:", error);
-      setError("Failed to reject overtime request");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to reject overtime request'
+      });
     }
   };
 
@@ -188,7 +273,9 @@ const SupervisorOvertimeRequest = () => {
                           <td>{record.date}</td>
                           <td>{record.emp_ID}</td>
                           <td>{record.hrs}</td>
-                          <td>{record.ot_type}</td>
+                          <td>
+                            {otTypes.find(type => type.id === parseInt(record.ot_type))?.type || record.ot_type}
+                          </td>
                           <td>
                             <span className={`badge ${
                               record.status === 'approved' ? 'bg-success' :
@@ -198,31 +285,31 @@ const SupervisorOvertimeRequest = () => {
                             </span>
                           </td>
                           <td>{record.date_approved}</td>
-                          <td>{record.approved_by || '-'}</td>
+                          <td>{record.approved_by ? employees[record.approved_by] || record.approved_by : '-'}</td>
                           <td>
-                            {(!record.status || record.status === 'Pending') && (
+                            {(!record.status || record.status.toLowerCase() === 'pending') && (
                               <div className="d-flex align-items-center">
                                 <button
                                   className="btn btn-success btn-sm me-2"
                                   onClick={() => handleApprove(record.overtime_request_id)}
                                   title="Approve"
                                 >
-                                  <i className="bi bi-check-circle-fill"></i>
+                                  <i className="bi bi-check-circle-fill"> Approve</i>
                                 </button>
                                 <button
                                   className="btn btn-danger btn-sm"
                                   onClick={() => handleReject(record.overtime_request_id)}
                                   title="Reject"
                                 >
-                                  <i className="bi bi-x-circle-fill"></i>
+                                  <i className="bi bi-x-circle-fill"> Reject</i>
                                 </button>
                               </div>
                             )}
-                            {record.status === 'Approved' && (
-                              <i className="bi bi-check-circle-fill text-success" title="Approved"></i>
+                            {record.status?.toLowerCase() === 'approved' && (
+                              <i className="bi bi-check-circle-fill text-success" title="Approved"> Approved</i>
                             )}
-                            {record.status === 'Rejected' && (
-                              <i className="bi bi-x-circle-fill text-danger" title="Rejected"></i>
+                            {record.status?.toLowerCase() === 'rejected' && (
+                              <i className="bi bi-x-circle-fill text-danger" title="Rejected"> Rejected</i>
                             )}
                           </td>
                         </tr>
