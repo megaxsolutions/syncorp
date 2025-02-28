@@ -27,6 +27,7 @@ const SupervisorSchedule = () => {
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [regularSchedules, setRegularSchedules] = useState([]);
   const [overtimeSchedules, setOvertimeSchedules] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Calendar Navigation
   const handlePrevMonth = () => {
@@ -109,27 +110,28 @@ const SupervisorSchedule = () => {
 
   const fetchSchedules = async () => {
     try {
-      // Fetch regular schedules
-      const regularResponse = await axios.get(
-        `${config.API_BASE_URL}/shift_schedules/get_shift_schedule_day`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          }
-        }
-      );
+      setError(null);
 
-      // Fetch overtime schedules
-      const overtimeResponse = await axios.get(
-        `${config.API_BASE_URL}/shift_schedules/get_shift_schedule_day_overtime`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+      const [regularResponse, overtimeResponse] = await Promise.all([
+        axios.get(
+          `${config.API_BASE_URL}/shift_schedules/get_shift_schedule_day`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            }
           }
-        }
-      );
+        ),
+        axios.get(
+          `${config.API_BASE_URL}/shift_schedules/get_shift_schedule_day_overtime`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            }
+          }
+        )
+      ]);
 
       setRegularSchedules(regularResponse.data.data || []);
       setOvertimeSchedules(overtimeResponse.data.data || []);
@@ -173,11 +175,27 @@ const SupervisorSchedule = () => {
   };
 
   const handleOTSchedule = () => {
+    if (selectedEmployees.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No Employees Selected',
+        text: 'Please select at least one employee'
+      });
+      return;
+    }
     setShowOTModal(true);
   };
 
   const handleRemoveSchedule = () => {
-    setShowRemoveModal(true);
+    if (selectedEmployees.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No Employees Selected',
+        text: 'Please select at least one employee'
+      });
+      return;
+    }
+    setShowDeleteModal(true);
   };
 
   const handleRemoveSubmit = () => {
@@ -188,7 +206,249 @@ const SupervisorSchedule = () => {
     setShowRemoveModal(false);
   };
 
-  const handleScheduleSubmit = async () => {
+  // Update the handleScheduleSubmit function
+const handleScheduleSubmit = async () => {
+  try {
+    // Validate selections
+    if (!selectedEmployees.length) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please select at least one employee'
+      });
+      return;
+    }
+
+    // Get selected days based on schedule types
+    const selectedDays = [];
+    const startOfWeek = moment(currentDate).startOf('week');
+    const startOfMonth = moment(currentDate).startOf('month');
+
+    if (scheduleTypes.currentDay) {
+      selectedDays.push(currentDate.format('YYYY-MM-DD'));
+    }
+
+    if (scheduleTypes.thisWeek) {
+      for (let i = 1; i <= 5; i++) { // Monday to Friday
+        selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
+      }
+    }
+
+    if (scheduleTypes.thisMonth) {
+      const daysInMonth = currentDate.daysInMonth();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const day = moment(startOfMonth).add(i - 1, 'days');
+        if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
+          selectedDays.push(day.format('YYYY-MM-DD'));
+        }
+      }
+    }
+
+    // Prepare request data
+    const requestData = {
+      array_employee_emp_id: selectedEmployees,
+      admin_emp_id: localStorage.getItem("X-EMP-ID"),
+      shift_in: shiftInTime,
+      shift_out: shiftOutTime,
+      array_selected_days: selectedDays,
+      schedule_type_id: 1 // Regular schedule type
+    };
+
+    // Show loading
+    Swal.fire({
+      title: 'Creating schedules...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    const response = await axios.post(
+      `${config.API_BASE_URL}/shift_schedules/add_shift_schedule_multiple_day`,
+      requestData,
+      {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+        }
+      }
+    );
+
+    // Close modal
+    setShowRegularModal(false);
+
+    // Fetch updated schedules
+    await fetchSchedules();
+
+    // Show success message
+    await Swal.fire({
+      icon: 'success',
+      title: 'Success',
+      text: response.data.success,
+      timer: 1500,
+      showConfirmButton: false
+    });
+
+    // Reset form
+    setScheduleTypes({
+      currentDay: false,
+      thisWeek: false,
+      thisMonth: false,
+      autoOffWeekend: false
+    });
+
+  } catch (error) {
+    console.error('Error creating schedules:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: error.response?.data?.error || 'Failed to create schedules'
+    });
+  }
+};
+
+  // Add handleOTSubmit function after handleScheduleSubmit
+const handleOTSubmit = async () => {
+  try {
+    // Validate selections
+    if (!selectedEmployees.length) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please select at least one employee'
+      });
+      return;
+    }
+
+    if (!otType) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please select an overtime type'
+      });
+      return;
+    }
+
+    // Prepare request data
+    const requestData = {
+      array_employee_emp_id: selectedEmployees,
+      admin_emp_id: localStorage.getItem("X-EMP-ID"),
+      shift_in: shiftInTime,
+      shift_out: shiftOutTime,
+      array_selected_days: [currentDate.format('YYYY-MM-DD')],
+      schedule_type_id: otType
+    };
+
+    // Show loading
+    Swal.fire({
+      title: 'Creating overtime schedule...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    // Make API call
+    const response = await axios.post(
+      `${config.API_BASE_URL}/shift_schedules/add_shift_schedule_multiple_day_overtime`,
+      requestData,
+      {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+        }
+      }
+    );
+
+    // Close modal and show success message
+    setShowOTModal(false);
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Success',
+      text: response.data.success,
+      timer: 1500,
+      showConfirmButton: false
+    });
+
+    // Refresh schedules
+    await fetchSchedules();
+
+  } catch (error) {
+    console.error('Error creating overtime schedule:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: error.response?.data?.error || 'Failed to create overtime schedule'
+    });
+  }
+};
+
+  // Update the handleDeleteSchedule function
+const handleDeleteSchedule = async (empId, day, scheduleType, isOvertime) => {
+  try {
+    // Show confirmation dialog
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      // Show loading
+      Swal.fire({
+        title: 'Deleting schedule...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      const endpoint = isOvertime
+        ? 'delete_shift_schedule_multiple_day_overtime'
+        : 'delete_shift_schedule_multiple_day';
+
+      const response = await axios.delete(
+        `${config.API_BASE_URL}/shift_schedules/${endpoint}/${scheduleType}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+          data: {
+            array_employee_emp_id: [empId],
+            array_selected_days: [day]
+          }
+        }
+      );
+
+      // Show success message
+      await Swal.fire({
+        icon: 'success',
+        title: 'Deleted!',
+        text: response.data.success,
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      // Refresh schedules
+      await fetchSchedules();
+    }
+  } catch (error) {
+    console.error('Error deleting schedule:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: error.response?.data?.error || 'Failed to delete schedule'
+    });
+  }
+};
+
+  const handleBulkDeleteSubmit = async () => {
     try {
       // Validate selections
       if (!selectedEmployees.length) {
@@ -210,7 +470,7 @@ const SupervisorSchedule = () => {
       }
 
       if (scheduleTypes.thisWeek) {
-        for (let i = 1; i <= 5; i++) { // Monday to Friday
+        for (let i = 1; i <= 5; i++) {
           selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
         }
       }
@@ -219,68 +479,74 @@ const SupervisorSchedule = () => {
         const daysInMonth = currentDate.daysInMonth();
         for (let i = 1; i <= daysInMonth; i++) {
           const day = moment(startOfMonth).add(i - 1, 'days');
-          if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
+          if (day.day() !== 0 && day.day() !== 6) {
             selectedDays.push(day.format('YYYY-MM-DD'));
           }
         }
       }
 
-      // Prepare request data
-      const requestData = {
-        array_employee_emp_id: selectedEmployees,
-        admin_emp_id: localStorage.getItem("X-EMP-ID"),
-        shift_in: shiftInTime,
-        shift_out: shiftOutTime,
-        array_selected_days: selectedDays,
-        schedule_type_id: 1 // Regular schedule type
-      };
-
-      // Show loading
-      Swal.fire({
-        title: 'Creating schedules...',
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        }
+      // Show confirmation dialog
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, delete them!'
       });
 
-      // Make API call
-      const response = await axios.post(
-        `${config.API_BASE_URL}/shift_schedules/add_shift_schedule_multiple_day`,
-        requestData,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+      if (result.isConfirmed) {
+        // Show loading
+        Swal.fire({
+          title: 'Deleting schedules...',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
           }
-        }
-      );
+        });
 
-      // Close modal and show success message
-      setShowRegularModal(false);
+        const response = await axios.delete(
+          `${config.API_BASE_URL}/shift_schedules/delete_shift_schedule_multiple_day/1`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+            data: {
+              array_employee_emp_id: selectedEmployees,
+              array_selected_days: selectedDays
+            }
+          }
+        );
 
-      await Swal.fire({
-        icon: 'success',
-        title: 'Success',
-        text: response.data.success,
-        timer: 1500,
-        showConfirmButton: false
-      });
+        setShowDeleteModal(false);
 
-      // Reset form
-      setScheduleTypes({
-        currentDay: false,
-        thisWeek: false,
-        thisMonth: false,
-        autoOffWeekend: false
-      });
+        await Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: response.data.success,
+          timer: 1500,
+          showConfirmButton: false
+        });
 
+        // Reset form
+        setScheduleTypes({
+          currentDay: false,
+          thisWeek: false,
+          thisMonth: false,
+          autoOffWeekend: false
+        });
+
+        // Refresh schedules
+        fetchSchedules();
+      }
     } catch (error) {
-      console.error('Error creating schedules:', error);
+      console.error('Error deleting schedules:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: error.response?.data?.error || 'Failed to create schedules'
+        text: error.response?.data?.error || 'Failed to delete schedules'
       });
     }
   };
@@ -300,6 +566,13 @@ const SupervisorSchedule = () => {
 
     return { regular, overtime };
   };
+
+  // Add resetOTForm function
+const resetOTForm = () => {
+  setShiftInTime('08:00');
+  setShiftOutTime('17:00');
+  setOtType('');
+};
 
   return (
     <>
@@ -440,11 +713,30 @@ const SupervisorSchedule = () => {
                                           className="schedule-item bg-primary text-white p-1 mb-1 rounded"
                                           style={{ fontSize: '0.7rem' }}
                                         >
-                                          <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID}</div>
-                                          <small>
-                                            {moment(schedule.shift_in).format('HH:mm')} -
-                                            {moment(schedule.shift_out).format('HH:mm')}
-                                          </small>
+                                          <div className="d-flex justify-content-between align-items-center">
+                                            <div>
+                                              <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID}</div>
+                                              <small>
+                                                {moment(schedule.shift_in).format('HH:mm')} -
+                                                {moment(schedule.shift_out).format('HH:mm')}
+                                              </small>
+                                            </div>
+                                            <button
+                                              className="btn btn-link text-white p-0 ms-2"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteSchedule(
+                                                  schedule.emp_ID,
+                                                  moment(schedule.day).format('YYYY-MM-DD'),
+                                                  schedule.schedule_type || 1,
+                                                  false // isOvertime = false
+                                                );
+                                              }}
+                                              title="Delete schedule"
+                                            >
+                                              <i className="bi bi-x-circle"></i>
+                                            </button>
+                                          </div>
                                         </div>
                                       ))}
                                       {getSchedulesForDay(day).overtime.map((schedule, idx) => (
@@ -453,11 +745,30 @@ const SupervisorSchedule = () => {
                                           className="schedule-item bg-warning text-dark p-1 mb-1 rounded"
                                           style={{ fontSize: '0.7rem' }}
                                         >
-                                          <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID} (OT)</div>
-                                          <small>
-                                            {moment(schedule.shift_in).format('HH:mm')} -
-                                            {moment(schedule.shift_out).format('HH:mm')}
-                                          </small>
+                                          <div className="d-flex justify-content-between align-items-center">
+                                            <div>
+                                              <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID} (OT)</div>
+                                              <small>
+                                                {moment(schedule.shift_in).format('HH:mm')} -
+                                                {moment(schedule.shift_out).format('HH:mm')}
+                                              </small>
+                                            </div>
+                                            <button
+                                              className="btn btn-link text-dark p-0 ms-2"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteSchedule(
+                                                  schedule.emp_ID,
+                                                  moment(schedule.day).format('YYYY-MM-DD'),
+                                                  schedule.schedule_type || 2,
+                                                  true // isOvertime = true
+                                                );
+                                              }}
+                                              title="Delete schedule"
+                                            >
+                                              <i className="bi bi-x-circle"></i>
+                                            </button>
+                                          </div>
                                         </div>
                                       ))}
                                     </div>
@@ -598,7 +909,14 @@ const SupervisorSchedule = () => {
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">Overtime Schedule</h5>
-                  <button type="button" className="btn-close" onClick={() => setShowOTModal(false)}></button>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => {
+                      setShowOTModal(false);
+                      resetOTForm();
+                    }}
+                  ></button>
                 </div>
                 <div className="modal-body">
                   <div className="row">
@@ -657,7 +975,16 @@ const SupervisorSchedule = () => {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowOTModal(false)}>Close</button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowOTModal(false);
+                      resetOTForm();
+                    }}
+                  >
+                    Close
+                  </button>
                   <button
                     type="button"
                     className="btn btn-primary"
@@ -669,7 +996,7 @@ const SupervisorSchedule = () => {
                         otType,
                         selectedEmployees
                       });
-                      setShowOTModal(false);
+                      handleOTSubmit();
                     }}
                   >
                     Set Schedule
@@ -755,6 +1082,88 @@ const SupervisorSchedule = () => {
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowRemoveModal(false)}>Close</button>
                   <button type="button" className="btn btn-danger" onClick={handleRemoveSubmit}>Remove Schedule</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {showDeleteModal && (
+          <div className="modal show d-block" tabIndex="-1">
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Remove Schedule</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowDeleteModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label d-block">Select Schedule to Remove</label>
+                    <div className="form-check mb-2">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id="removeCurrentDay"
+                        checked={scheduleTypes.currentDay}
+                        onChange={(e) => setScheduleTypes(prev => ({
+                          ...prev,
+                          currentDay: e.target.checked
+                        }))}
+                      />
+                      <label className="form-check-label" htmlFor="removeCurrentDay">
+                        Current Day Only
+                      </label>
+                    </div>
+                    <div className="form-check mb-2">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id="removeThisWeek"
+                        checked={scheduleTypes.thisWeek}
+                        onChange={(e) => setScheduleTypes(prev => ({
+                          ...prev,
+                          thisWeek: e.target.checked
+                        }))}
+                      />
+                      <label className="form-check-label" htmlFor="removeThisWeek">
+                        This Week (Mon-Fri)
+                      </label>
+                    </div>
+                    <div className="form-check">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id="removeThisMonth"
+                        checked={scheduleTypes.thisMonth}
+                        onChange={(e) => setScheduleTypes(prev => ({
+                          ...prev,
+                          thisMonth: e.target.checked
+                        }))}
+                      />
+                      <label className="form-check-label" htmlFor="removeThisMonth">
+                        This Month (Weekdays)
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => {
+                      if (!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth) {
+                        Swal.fire({
+                          icon: 'warning',
+                          title: 'No Schedule Type Selected',
+                          text: 'Please select at least one schedule type'
+                        });
+                        return;
+                      }
+                      handleBulkDeleteSubmit();
+                    }}
+                  >
+                    Remove Schedule
+                  </button>
                 </div>
               </div>
             </div>
