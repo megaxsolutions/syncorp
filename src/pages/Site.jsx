@@ -264,7 +264,7 @@ const Site = () => {
                               onClick={() => openEditModal(site)}
                               className="btn btn-warning btn-sm me-2"
                             >
-                              <i className="
+                              <i className="bi bi-pencil
                               "></i>
                             </button>
                             <button
