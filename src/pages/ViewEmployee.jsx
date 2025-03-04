@@ -308,7 +308,7 @@ function ViewEmployee() {
         setSelectedEmployee(updatedEmployeeData);
         setPreview(null); // Reset preview
         setShowModal(false);
-        
+
         // Replace alert with SweetAlert2
         Swal.fire({
           icon: 'success',
@@ -742,6 +742,26 @@ function ViewEmployee() {
                                   onChange={handleChange}
                                 />
                               </div>
+                              <div className="col-md-6">
+                                <label className="form-label">Email</label>
+                                <input
+                                  type="email"
+                                  className="form-control"
+                                  name="email"
+                                  value={selectedEmployee.email || ""}
+                                  onChange={handleChange}
+                                />
+                              </div>
+                              <div className="col-md-6">
+                                <label className="form-label">Phone</label>
+                                <input
+                                  type="tel"
+                                  className="form-control"
+                                  name="phone"
+                                  value={selectedEmployee.phone || ""}
+                                  onChange={handleChange}
+                                />
+                              </div>
                             </div>
                             <h5 className="mt-4">Government Mandatory</h5>
                             <hr />
@@ -1016,6 +1036,18 @@ function ViewEmployee() {
                                 </label>
                                 <p className="mb-0 disabled-info">
                                   {selectedEmployee.employee_status}
+                                </p>
+                              </div>
+                              <div className="col-md-6">
+                                <label className="form-label fw-bold">Email</label>
+                                <p className="mb-0 disabled-info">
+                                  {selectedEmployee.email || "N/A"}
+                                </p>
+                              </div>
+                              <div className="col-md-6">
+                                <label className="form-label fw-bold">Phone</label>
+                                <p className="mb-0 disabled-info">
+                                  {selectedEmployee.phone || "N/A"}
                                 </p>
                               </div>
                             </div>

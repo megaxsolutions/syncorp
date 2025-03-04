@@ -41,6 +41,7 @@ function App() {
       {/* Public Route */}
       <Route path="/" element={<Login />} />
 
+
       {/* Admin Routes */}
       <Route element={<AdminProtectedLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />

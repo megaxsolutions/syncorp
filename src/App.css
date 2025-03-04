@@ -1328,10 +1328,12 @@ ul li {
 
 .swal2-popup {
   border-radius: 10px;
+  font-size: 0.9rem !important;
 }
 
 .swal2-title {
   color: #333;
+  font-size: 1.5rem !important;
 }
 
 .swal2-html-container {
@@ -1342,6 +1344,7 @@ ul li {
   background-color: #198754 !important;
   border: none;
   box-shadow: none;
+  padding: 0.5rem 1.5rem !important;
 }
 
 .swal2-cancel.swal2-styled {
@@ -1568,4 +1571,15 @@ ul li {
 
 .schedule-item button {
   font-size: 0.8rem;
+}
+
+.btn-link {
+  text-decoration: none;
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
 }
