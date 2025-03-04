@@ -12,7 +12,7 @@ const SupervisorSidebar = () => {
   const isLeaveRequest = location.pathname === "/supervisor_leave_request";
   const isOvertimeRequest = location.pathname === "/supervisor_overtime_request";
   const isSchedule = location.pathname === "/supervisor_schedule";
-  const isCoaching = location.pathname === "/employee_coaching";
+  const isCoaching = location.pathname === "/supervisor_coaching";
 
   const [dateTime, setDateTime] = useState(
     moment().tz("Asia/Manila").format("ddd").substring(0, 4).toUpperCase() +
@@ -121,7 +121,7 @@ const SupervisorSidebar = () => {
         </li>
 
         <li className="nav-item">
-          <Link to="/employee_coaching" className={`nav-link ${isCoaching ? "active" : ""}`}>
+          <Link to="/supervisor_coaching" className={`nav-link ${isCoaching ? "active" : ""}`}>
             <i className="bi bi-person-workspace"></i>
             <span className="navs">Coaching</span>
           </Link>

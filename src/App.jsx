@@ -30,6 +30,7 @@ import SupervisorLeaveRequest from "./pages/Supervisor/LeaveRequest";
 import SupervisorOvertimeRequest from "./pages/Supervisor/OvertimeRequest";
 import SupervisorAttendance from "./pages/Supervisor/Attendance";
 import SupervisorSchedule from "./pages/Supervisor/Schedule";
+import Coaching from "./pages/Supervisor/Coaching";
 import AdminProtectedLayout from "./pages/AdminProtectedLayout";
 import EmployeeProtectedLayout from "./pages/EmployeeProtectedLayout";
 import SupervisorProtectedLayout from "./pages/SupervisorProtectedLayout";
@@ -79,6 +80,7 @@ function App() {
         <Route path="/supervisor_overtime_request" element={<SupervisorOvertimeRequest />} />
         <Route path="/supervisor_attendance" element={<SupervisorAttendance />} />
         <Route path="/supervisor_schedule" element={<SupervisorSchedule />} />
+        <Route path="/supervisor_coaching" element={<Coaching />} />
       </Route>
 
       {/* 404 Page */}
