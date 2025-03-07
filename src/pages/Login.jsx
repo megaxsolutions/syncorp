@@ -327,9 +327,9 @@ function Login() {
                               onClick={handleEmployeeLogin}
                             />
                           </div>
-                          <div className="text-center mt-2">
+                          <div className="mt-2">
                             <button
-                              className="btn btn-link text-primary"
+                              className="btn btn-link text-primary p-0"
                               onClick={() => setIsForgotPassword(true)}
                             >
                               Forgot Password?
@@ -373,6 +373,14 @@ function Login() {
                                       onClick={handleSendOtp}
                                       disabled={!selectedRole || !credentials.emp_ID}
                                     />
+                                  </div>
+                                  <div className="mt-2">
+                                    <button
+                                      className="btn btn-link text-primary p-0"
+                                      onClick={handleBackToLogin}
+                                    >
+                                      Back to Login
+                                    </button>
                                   </div>
                                 </>
                               ) : (

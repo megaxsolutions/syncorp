@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 import config from "../config";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
+import io from 'socket.io-client';
 
 const Bulletin = () => {
   const [selectedImage, setSelectedImage] = useState(null);
@@ -15,6 +16,7 @@ const Bulletin = () => {
   const [error, setError] = useState(null);
   const [editImage, setEditImage] = useState(null);
   const [editImagePreview, setEditImagePreview] = useState("");
+  const [socket, setSocket] = useState(null);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -101,7 +103,6 @@ const Bulletin = () => {
       formData.append('file_uploaded', selectedImage);
       formData.append('emp_id', localStorage.getItem('X-EMP-ID'));
 
-      // Show loading state
       Swal.fire({
         title: 'Uploading...',
         allowOutsideClick: false,
@@ -122,7 +123,6 @@ const Bulletin = () => {
         }
       );
 
-      // Show success message
       await Swal.fire({
         icon: 'success',
         title: 'Success',
@@ -131,9 +131,11 @@ const Bulletin = () => {
         showConfirmButton: false
       });
 
-      // Reset form and refresh bulletins
+      // Reset form
       setSelectedImage(null);
       setSelectedImagePreview('');
+
+      // Fetch the latest bulletins immediately after successful upload
       fetchBulletins();
 
     } catch (error) {
@@ -307,6 +309,25 @@ const Bulletin = () => {
     fetchBulletins();
   }, []);
 
+useEffect(() => {
+  const newSocket = io(config.API_BASE_URL);
+  setSocket(newSocket);
+
+  // Listen for bulletin updates
+  newSocket.on('bulletinUpdate', (updatedBulletins) => {
+    console.log('Received bulletin update:', updatedBulletins); // Debug log
+    setBulletins(updatedBulletins.data || []); // Ensure data structure is correct
+  });
+
+  // Cleanup function
+  return () => {
+    if (newSocket) {
+      newSocket.off('bulletinUpdate'); // Remove event listener
+      newSocket.disconnect(); // Properly disconnect socket
+    }
+  };
+}, []);
+
   return (
     <>
       <Navbar />
@@ -384,21 +405,19 @@ const Bulletin = () => {
                   <table className="table table-bordered">
                     <thead>
                       <tr>
-                        <th>File Name</th>
-                        <th>Action</th>
+                        <th>Image</th>
+                        <th style={{ width: "120px" }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {bulletins.map((bulletin) => (
                         <tr key={bulletin.id}>
-                          <td>
-                            {bulletin.file_name}
-                            <br />
+                          <td className="text-center">
                             <img
                               src={`${config.API_BASE_URL}/uploads/${bulletin.file_name}`}
-                              alt={bulletin.file_name}
-                              style={{ maxHeight: '50px', width: 'auto' }}
-                              className="mt-1"
+                              alt="Bulletin"
+                              style={{ maxHeight: '100px', width: 'auto' }}
+                              className="my-2"
                             />
                           </td>
                           <td>

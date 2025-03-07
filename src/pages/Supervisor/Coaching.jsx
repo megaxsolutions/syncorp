@@ -4,22 +4,27 @@ import Swal from 'sweetalert2';
 import config from '../../config';
 import SupervisorSidebar from '../../components/SupervisorSidebar';
 import SupervisorNavbar from '../../components/SupervisorNavbar';
+import Select from 'react-select'; // Add this import
 
 function Coaching() {
   const [employees, setEmployees] = useState([]);
   const [coachingData, setCoachingData] = useState([]);
   const [formData, setFormData] = useState({
-    employeeId: '',
-    coachingType: '',
-    matrix1: '',
-    matrix2: '',
-    matrix3: '',
-    matrix4: ''
+    emp_id: '',          // ID of employee being coached
+    coached_emp_id: '',  // ID of supervisor doing the coaching
+    coaching_type: '',   // ID of coaching type
+    metrix_1: '',
+    metrix_2: '',
+    metrix_3: '',
+    metrix_4: ''
   });
+  const [coachingTypes, setCoachingTypes] = useState([]);
+  const [employeeOptions, setEmployeeOptions] = useState([]); // Add this for React-Select options
 
   useEffect(() => {
     fetchEmployees();
     fetchCoachingData();
+    fetchCoachingTypes();
   }, []);
 
   const fetchEmployees = async () => {
@@ -44,7 +49,16 @@ function Coaching() {
           position: emp.positionID,
           status: emp.employee_status
         }));
+
         setEmployees(formattedEmployees);
+
+        // Create options for React-Select
+        const options = formattedEmployees.map(emp => ({
+          value: emp.emp_ID,
+          label: `${emp.emp_ID} - ${emp.fullName}`
+        }));
+
+        setEmployeeOptions(options);
       }
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -68,9 +82,17 @@ function Coaching() {
           },
         }
       );
-      setCoachingData(response.data);
+
+      // Make sure we're setting an array
+      if (response.data && Array.isArray(response.data.data)) {
+        setCoachingData(response.data.data);
+      } else {
+        setCoachingData([]); // Set empty array if no valid data
+        console.warn('Received invalid coaching data format:', response.data);
+      }
     } catch (error) {
       console.error('Error fetching coaching data:', error);
+      setCoachingData([]); // Set empty array on error
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -80,12 +102,11 @@ function Coaching() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Add this after other fetch functions
+  const fetchCoachingTypes = async () => {
     try {
-      const response = await axios.post(
-        `${config.API_BASE_URL}/coaching/add_coaching`,
-        formData,
+      const response = await axios.get(
+        `${config.API_BASE_URL}/coaching_types/get_all_coaching_type`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -94,31 +115,131 @@ function Coaching() {
         }
       );
 
-      if (response.status === 200) {
+      if (response.data && Array.isArray(response.data.data)) {
+        setCoachingTypes(response.data.data);
+      } else {
+        setCoachingTypes([]);
+        console.warn('Received invalid coaching types format:', response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching coaching types:', error);
+      setCoachingTypes([]);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to fetch coaching types',
+        confirmButtonColor: '#dc3545'
+      });
+    }
+  };
+
+  // Update the handleSubmit function
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Validate form data
+    if (!formData.emp_id) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please select an employee',
+        confirmButtonColor: '#dc3545'
+      });
+      return;
+    }
+
+    if (!formData.coaching_type) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please select a coaching type',
+        confirmButtonColor: '#dc3545'
+      });
+      return;
+    }
+
+    try {
+      // Get the supervisor's ID from localStorage
+      const supervisorId = localStorage.getItem("X-EMP-ID");
+
+      if (!supervisorId) {
         Swal.fire({
+          icon: 'error',
+          title: 'Authentication Error',
+          text: 'Unable to identify supervisor. Please log in again.',
+          confirmButtonColor: '#dc3545'
+        });
+        return;
+      }
+
+      // Format the data precisely as the backend expects, with correct data types
+      const requestData = {
+        emp_id: parseInt(formData.emp_id, 10),  // Convert to number to match emp_ID in database
+        coached_emp_id: parseInt(supervisorId, 10), // Convert to number to match coached_by in database
+        coaching_type: parseInt(formData.coaching_type, 10), // Convert to number
+        metrix_1: formData.metrix_1 || '',
+        metrix_2: formData.metrix_2 || '',
+        metrix_3: formData.metrix_3 || '',
+        metrix_4: formData.metrix_4 || ''
+      };
+
+      // Debug logging to inspect the request data
+      console.log('Sending coaching data:', requestData);
+
+      const response = await axios.post(
+        `${config.API_BASE_URL}/coaching/add_coaching`,
+        requestData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": supervisorId,
+          },
+        }
+      );
+
+      if (response.status === 200) {
+        await Swal.fire({
           icon: 'success',
           title: 'Success',
           text: 'Coaching record added successfully!',
           confirmButtonColor: '#198754'
         });
 
-        // Reset form and refresh data
+        // Reset form
         setFormData({
-          employeeId: '',
-          coachingType: '',
-          matrix1: '',
-          matrix2: '',
-          matrix3: '',
-          matrix4: ''
+          emp_id: '',
+          coaching_type: '',
+          metrix_1: '',
+          metrix_2: '',
+          metrix_3: '',
+          metrix_4: ''
         });
-        fetchCoachingData();
+
+        // Refresh coaching data
+        await fetchCoachingData();
       }
     } catch (error) {
       console.error('Error adding coaching record:', error);
+
+      // Log the actual error response for debugging
+      if (error.response) {
+        console.error('Server error details:', error.response.data);
+      }
+
+      // Show a more detailed error message
+      let errorMessage = 'Failed to add coaching record';
+      if (error.response?.data?.data?.sqlMessage) {
+        // If SQL error is available, show it (helpful during development)
+        errorMessage += `: ${error.response.data.data.sqlMessage}`;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: error.response?.data?.error || 'Failed to add coaching record',
+        text: errorMessage,
         confirmButtonColor: '#dc3545'
       });
     }
@@ -167,14 +288,19 @@ function Coaching() {
                         <i className="bi bi-person-badge me-2"></i>
                         Select Employee
                       </label>
-                      <select className="form-select" value={formData.employeeId} onChange={(e) => setFormData({...formData, employeeId: e.target.value})} required>
-                        <option value="">Choose employee...</option>
-                        {employees.map((emp) => (
-                          <option key={emp.emp_ID} value={emp.emp_ID}>
-                            {emp.firstName} {emp.lastName}
-                          </option>
-                        ))}
-                      </select>
+                      <Select
+                        className="basic-single"
+                        classNamePrefix="react-select"
+                        placeholder="Choose employee..."
+                        isClearable={true}
+                        isSearchable={true}
+                        options={employeeOptions}
+                        onChange={(selectedOption) => {
+                          setFormData({...formData, emp_id: selectedOption ? selectedOption.value : ''});
+                        }}
+                        value={employeeOptions.find(option => option.value === formData.emp_id) || null}
+                        required
+                      />
                     </div>
 
                     <div className="mb-3">
@@ -182,17 +308,28 @@ function Coaching() {
                         <i className="bi bi-list-check me-2"></i>
                         Coaching Type
                       </label>
-                      <select className="form-select" value={formData.coachingType} onChange={(e) => setFormData({...formData, coachingType: e.target.value})} required>
-                        <option value="">Select type...</option>
-                        <option value="Performance">Performance</option>
-                        <option value="Behavior">Behavior</option>
-                        <option value="Development">Development</option>
-                      </select>
+                      <Select
+                        className="basic-single"
+                        classNamePrefix="react-select"
+                        placeholder="Select coaching type..."
+                        isClearable={false}
+                        isSearchable={true}
+                        options={coachingTypes.map(type => ({
+                          value: type.id,
+                          label: type.coaching_type
+                        }))}
+                        onChange={(selectedOption) => {
+                          setFormData({...formData, coaching_type: selectedOption ? selectedOption.value : ''});
+                        }}
+                        value={coachingTypes
+                          .map(type => ({ value: type.id, label: type.coaching_type }))
+                          .find(option => option.value === Number(formData.coaching_type)) || null}
+                      />
                     </div>
 
                     {/* Matrix Fields */}
                     {[1, 2, 3, 4].map((num) => (
-                      <div className="mb-3" key={num}>
+                      <div className="mb-3" key={`matrix-${num}`}>
                         <label className="form-label">
                           <i className="bi bi-circle me-2"></i>
                           Matrix {num}
@@ -200,8 +337,8 @@ function Coaching() {
                         <textarea
                           className="form-control"
                           rows="3"
-                          value={formData[`matrix${num}`]}
-                          onChange={(e) => setFormData({...formData, [`matrix${num}`]: e.target.value})}
+                          value={formData[`metrix_${num}`]}
+                          onChange={(e) => setFormData({...formData, [`metrix_${num}`]: e.target.value})}
                           required
                         />
                       </div>
@@ -239,26 +376,48 @@ function Coaching() {
                         </tr>
                       </thead>
                       <tbody>
-                        {coachingData.map((record) => (
-                          <tr key={record.record_id}>
-                            <td>{record.record_id}</td>
-                            <td>{record.emp_ID}</td>
-                            <td>{record.employee_name}</td>
-                            <td>
-                              <span className={`badge bg-${record.coaching_type === 'Performance' ? 'primary' :
-                                record.coaching_type === 'Behavior' ? 'warning' : 'success'}`}>
-                                {record.coaching_type}
-                              </span>
-                            </td>
-                            <td>{new Date(record.date_coached).toLocaleDateString()}</td>
-                            <td>
-                              <button className="btn btn-info btn-sm" onClick={() => handleViewDetails(record.record_id)}>
-                                <i className="bi bi-eye me-1"></i>
-                                View
-                              </button>
+                        {coachingData.length > 0 ? (
+                          coachingData.map((record, index) => {
+                            // Find the employee data matching this record's emp_ID
+                            const employeeData = employees.find(emp => emp.emp_ID === record.emp_ID);
+
+                            // Ensure we use the correct property names from employeeData
+                            const employeeName = employeeData
+                              ? `${employeeData.firstName} ${employeeData.lastName}`
+                              : 'Unknown';
+
+                            // Use the coaching ID for the record ID display
+                            const recordId = record.coaching_ID || record.record_id || `#${index+1}`;
+
+                            return (
+                              <tr key={record.id || record.coaching_ID || `coaching-record-${index}`}>
+                                <td>{recordId}</td>
+                                <td>{record.emp_ID}</td>
+                                <td>{employeeName}</td>
+                                <td>
+                                  <span className={`badge bg-${
+                                    coachingTypes.find(type => type.type_name === record.coaching_type)?.color || 'secondary'
+                                  }`}>
+                                    {record.coaching_type}
+                                  </span>
+                                </td>
+                                <td>{new Date(record.date_coached).toLocaleDateString()}</td>
+                                <td>
+                                  <button className="btn btn-info btn-sm" onClick={() => handleViewDetails(recordId)}>
+                                    <i className="bi bi-eye me-1"></i>
+                                    View
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr key="no-records">
+                            <td colSpan="6" className="text-center">
+                              No coaching records found
                             </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>

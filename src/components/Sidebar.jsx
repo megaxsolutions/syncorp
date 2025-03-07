@@ -229,6 +229,17 @@ const Sidebar = () => {
                 <span>Bulletin</span>
               </Link>
             </li>
+             <li className="mt-2">
+              <Link
+                to="/settings/coaching"
+                className={`nav-link ${
+                  location.pathname === "/settings/coaching" ? "active" : ""
+                }`}
+              >
+                <i className="bi bi-person-workspace"></i>
+                <span>Coaching</span>
+              </Link>
+            </li>
           </ul>
         </li>
 

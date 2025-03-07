@@ -35,6 +35,7 @@ import AdminProtectedLayout from "./pages/AdminProtectedLayout";
 import EmployeeProtectedLayout from "./pages/EmployeeProtectedLayout";
 import SupervisorProtectedLayout from "./pages/SupervisorProtectedLayout";
 import './App.css';
+import AdminCoaching from "./pages/Coaching";
 
 function App() {
   return (
@@ -63,6 +64,7 @@ function App() {
         <Route path="/dtr" element={<DTR />} />
         <Route path="/settings/bulletin" element={<Bulletin />} />
         <Route path="/settings/admin-level" element={<AdminLevel />} />
+        <Route path="/settings/coaching" element={<AdminCoaching />} />
       </Route>
 
       {/* Employee Routes */}

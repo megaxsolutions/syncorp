@@ -448,108 +448,131 @@ const handleDeleteSchedule = async (empId, day, scheduleType, isOvertime) => {
   }
 };
 
-  const handleBulkDeleteSubmit = async () => {
-    try {
-      // Validate selections
-      if (!selectedEmployees.length) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Please select at least one employee'
-        });
-        return;
-      }
-
-      // Get selected days based on schedule types
-      const selectedDays = [];
-      const startOfWeek = moment(currentDate).startOf('week');
-      const startOfMonth = moment(currentDate).startOf('month');
-
-      if (scheduleTypes.currentDay) {
-        selectedDays.push(currentDate.format('YYYY-MM-DD'));
-      }
-
-      if (scheduleTypes.thisWeek) {
-        for (let i = 1; i <= 5; i++) {
-          selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
-        }
-      }
-
-      if (scheduleTypes.thisMonth) {
-        const daysInMonth = currentDate.daysInMonth();
-        for (let i = 1; i <= daysInMonth; i++) {
-          const day = moment(startOfMonth).add(i - 1, 'days');
-          if (day.day() !== 0 && day.day() !== 6) {
-            selectedDays.push(day.format('YYYY-MM-DD'));
-          }
-        }
-      }
-
-      // Show confirmation dialog
-      const result = await Swal.fire({
-        title: 'Are you sure?',
-        text: "You won't be able to revert this!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, delete them!'
-      });
-
-      if (result.isConfirmed) {
-        // Show loading
-        Swal.fire({
-          title: 'Deleting schedules...',
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
-
-        const response = await axios.delete(
-          `${config.API_BASE_URL}/shift_schedules/delete_shift_schedule_multiple_day/1`,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
-            data: {
-              array_employee_emp_id: selectedEmployees,
-              array_selected_days: selectedDays
-            }
-          }
-        );
-
-        setShowDeleteModal(false);
-
-        await Swal.fire({
-          icon: 'success',
-          title: 'Deleted!',
-          text: response.data.success,
-          timer: 1500,
-          showConfirmButton: false
-        });
-
-        // Reset form
-        setScheduleTypes({
-          currentDay: false,
-          thisWeek: false,
-          thisMonth: false,
-          autoOffWeekend: false
-        });
-
-        // Refresh schedules
-        fetchSchedules();
-      }
-    } catch (error) {
-      console.error('Error deleting schedules:', error);
+  // Update handleBulkDeleteSubmit function to handle both regular and overtime schedules
+const handleBulkDeleteSubmit = async () => {
+  try {
+    if (!selectedEmployees.length) {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: error.response?.data?.error || 'Failed to delete schedules'
+        text: 'Please select at least one employee'
       });
+      return;
     }
-  };
+
+    // Get selected days
+    const selectedDays = [];
+    const startOfWeek = moment(currentDate).startOf('week');
+    const startOfMonth = moment(currentDate).startOf('month');
+
+    if (scheduleTypes.currentDay) {
+      selectedDays.push(currentDate.format('YYYY-MM-DD'));
+    }
+
+    if (scheduleTypes.thisWeek) {
+      for (let i = 1; i <= 5; i++) {
+        selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
+      }
+    }
+
+    if (scheduleTypes.thisMonth) {
+      const daysInMonth = currentDate.daysInMonth();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const day = moment(startOfMonth).add(i - 1, 'days');
+        if (day.day() !== 0 && day.day() !== 6) {
+          selectedDays.push(day.format('YYYY-MM-DD'));
+        }
+      }
+    }
+
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "This will remove both regular and overtime schedules!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, delete them!'
+    });
+
+    if (result.isConfirmed) {
+      Swal.fire({
+        title: 'Deleting schedules...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      // Delete overtime schedules for each overtime type
+      const overtimePromises = overtimeTypes.map(async (type) => {
+        try {
+          return await axios.delete(
+            `${config.API_BASE_URL}/shift_schedules/delete_shift_schedule_multiple_day_overtime/${type.id}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
+              data: {
+                array_employee_emp_id: selectedEmployees,
+                array_selected_days: selectedDays
+              }
+            }
+          );
+        } catch (error) {
+          console.error(`Error deleting overtime type ${type.id}:`, error);
+          return null;
+        }
+      });
+
+      // Delete regular schedules
+      const regularPromise = axios.delete(
+        `${config.API_BASE_URL}/shift_schedules/delete_shift_schedule_multiple_day/1`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+          data: {
+            array_employee_emp_id: selectedEmployees,
+            array_selected_days: selectedDays
+          }
+        }
+      );
+
+      // Wait for all delete operations to complete
+      await Promise.all([...overtimePromises, regularPromise]);
+
+      setShowDeleteModal(false);
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Deleted!',
+        text: 'All schedules have been removed successfully',
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      // Reset form and refresh schedules
+      setScheduleTypes({
+        currentDay: false,
+        thisWeek: false,
+        thisMonth: false,
+        autoOffWeekend: false
+      });
+
+      fetchSchedules();
+    }
+  } catch (error) {
+    console.error('Error deleting schedules:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: error.response?.data?.error || 'Failed to delete schedules'
+    });
+  }
+};
 
   const getSchedulesForDay = (day) => {
     if (!day) return [];
@@ -1092,12 +1115,16 @@ const resetOTForm = () => {
             <div className="modal-dialog">
               <div className="modal-content">
                 <div className="modal-header">
-                  <h5 className="modal-title">Remove Schedule</h5>
+                  <h5 className="modal-title">Remove Schedules</h5>
                   <button type="button" className="btn-close" onClick={() => setShowDeleteModal(false)}></button>
                 </div>
                 <div className="modal-body">
+                  <div className="alert alert-warning">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    This action will remove both regular and overtime schedules for the selected period.
+                  </div>
                   <div className="mb-3">
-                    <label className="form-label d-block">Select Schedule to Remove</label>
+                    <label className="form-label d-block">Select Period to Remove</label>
                     <div className="form-check mb-2">
                       <input
                         type="checkbox"
@@ -1154,15 +1181,15 @@ const resetOTForm = () => {
                       if (!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth) {
                         Swal.fire({
                           icon: 'warning',
-                          title: 'No Schedule Type Selected',
-                          text: 'Please select at least one schedule type'
+                          title: 'No Period Selected',
+                          text: 'Please select at least one period'
                         });
                         return;
                       }
                       handleBulkDeleteSubmit();
                     }}
                   >
-                    Remove Schedule
+                    Remove All Schedules
                   </button>
                 </div>
               </div>

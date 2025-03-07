@@ -1,3 +1,43 @@
+.slider-container {
+  width: 100%;
+  height: 100vh;
+  max-height: 600px;
+  overflow: hidden;
+  position: relative;
+}
+
+.slider-item {
+  width: 100%;
+  height: 100vh;
+  max-height: 600px;
+  position: relative;
+}
+
+.slider-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.slick-slider, .slick-list, .slick-track {
+  height: 100%;
+}
+
+.slick-slide > div {
+  height: 100%;
+}
+
+.carousel-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 20px;
+}
+
 .register {
   background: -webkit-linear-gradient(right, #3931af, #00c6ff);
   margin-top: 3%;
@@ -125,6 +165,7 @@
   border-radius: 15px;
   box-shadow: 0px 0 30px rgba(1, 41, 112, 0.1);
   overflow: hidden;
+  transition: transform 0.2s ease-in-out;
 }
 
 .card-header,
@@ -1218,46 +1259,6 @@ ul li {
 
 .btn-group .btn-outline-info:hover:not([disabled]) {
   background-color: #0dcaf0;
-  color: white;
-}
-
-.pagination .page-link {
-  color: #3949ab;
-  padding: 0.5rem 0.75rem;
-}
-
-.pagination .page-item.active .page-link {
-  background-color: #3949ab;
-  border-color: #3949ab;
-  color: white;
-}
-
-.pagination .page-link:hover {
-  background-color: #e8eaf6;
-}
-
-.pagination .page-item.disabled .page-link {
-  color: #6c757d;
-}
-
-.badge {
-  font-size: 0.85rem;
-  padding: 0.5em 0.8em;
-  font-weight: 500;
-}
-
-.badge i {
-  font-size: 0.8rem;
-}
-
-.bg-warning {
-  background-color: #ffc107 !important;
-  color: #000 !important;
-}
-
-.bg-success {
-  background-color: #198754 !important;
-  color: #fff !important;
 }
 
 .bg-danger {
@@ -1582,4 +1583,160 @@ ul li {
 
 .btn-link:hover {
   text-decoration: underline;
+}
+
+.basic-single .select__control {
+      border-radius: 0.25rem;
+      border: 1px solid #ced4da;
+      min-height: 31px;
+    }
+    .basic-single .select__control--is-focused {
+      border-color: #86b7fe;
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    .basic-single .select__value-container {
+      padding: 0 8px;
+    }
+    .basic-single .select__placeholder {
+      font-size: 0.875rem;
+    }
+    .basic-single .select__input-container {
+      margin: 0;
+      padding: 0;
+    }
+
+.slider-container {
+  margin: 0 -15px;
+  position: relative;
+}
+
+.slider-item {
+  position: relative;
+}
+
+.slick-prev,
+.slick-next {
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+}
+
+.slick-prev {
+  left: 20px;
+}
+
+.slick-next {
+  right: 20px;
+}
+
+.slick-dots {
+  bottom: 20px;
+}
+
+.slick-dots li button:before {
+  color: white;
+  opacity: 0.8;
+}
+
+.slick-dots li.slick-active button:before {
+  color: white;
+  opacity: 1;
+}
+
+.icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.slider-container {
+  width: 100%;
+  height: 100%;
+  max-height: 600px;
+  overflow: hidden;
+  position: relative;
+}
+
+.slider-item {
+  width: 100%;
+  height: 100vh;
+  max-height: 100vh;
+  position: relative;
+}
+
+.slider-item img {
+  width: 100%;
+  height: 100%;
+  object-position: center;
+}
+
+.slick-slider, .slick-list, .slick-track {
+  height: 100%;
+}
+
+.slick-slide > div {
+  height: 100%;
+}
+
+.carousel-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 20px;
+}
+
+/* React-Select Custom Styling */
+.react-select__control {
+  border-color: #ced4da;
+  font-size: 0.875rem;
+  min-height: calc(1.5em + 0.5rem + 2px);
+  box-shadow: none;
+}
+
+.react-select__control:hover {
+  border-color: #86b7fe;
+}
+
+.react-select__control--is-focused {
+  border-color: #86b7fe !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+.react-select__menu {
+  z-index: 9999;
+}
+
+.react-select__option--is-focused {
+  background-color: #e9ecef !important;
+  color: #212529 !important;
+}
+
+.react-select__option--is-selected {
+  background-color: #0d6efd !important;
+  color: white !important;
+}
+
+.react-select__indicator {
+  color: #6c757d;
+}
+
+.react-select__indicator-separator {
+  background-color: #ced4da;
+}
+
+.react-select__placeholder {
+  color: #6c757d;
+}
+
+/* Fix for the dateRange section in the filters dropdown */
+.date-range-container {
+  display: flex;
+  gap: 0.5rem;
 }

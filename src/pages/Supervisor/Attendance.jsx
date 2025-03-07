@@ -5,6 +5,7 @@ import moment from "moment";
 import SupervisorNavbar from "../../components/SupervisorNavbar";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
 import Swal from 'sweetalert2';
+import Select from 'react-select'; // Add this import
 
 const SupervisorAttendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
@@ -18,7 +19,6 @@ const SupervisorAttendance = () => {
     timeOUT: ''
   });
   const [filteredRecords, setFilteredRecords] = useState([]);
-  const [searchName, setSearchName] = useState('');
   const [employees, setEmployees] = useState({});
 
   // Add new state for filters
@@ -28,6 +28,8 @@ const SupervisorAttendance = () => {
     endDate: ''
   });
   const [selectedEmployee, setSelectedEmployee] = useState('');
+  // Add this state for react-select options
+  const [employeeOptions, setEmployeeOptions] = useState([]);
 
   const fetchAttendance = async () => {
     try {
@@ -80,13 +82,24 @@ const SupervisorAttendance = () => {
       );
 
       const employeeMap = {};
+      const options = []; // Add this for react-select options
+
       response.data.data.forEach(emp => {
+        const fullName = `${emp.fName} ${emp.mName ? emp.mName + ' ' : ''}${emp.lName}`;
         employeeMap[emp.emp_ID] = {
-          fullName: `${emp.fName} ${emp.mName ? emp.mName + ' ' : ''}${emp.lName}`,
+          fullName: fullName,
           emp_ID: emp.emp_ID
         };
+
+        // Create options for react-select
+        options.push({
+          value: emp.emp_ID,
+          label: `${emp.emp_ID} - ${fullName}`
+        });
       });
+
       setEmployees(employeeMap);
+      setEmployeeOptions(options); // Set the options
     } catch (error) {
       console.error("Error fetching employees:", error);
     }
@@ -287,18 +300,12 @@ const SupervisorAttendance = () => {
   const handleSearch = () => {
     let filtered = [...attendanceRecords];
 
-    if (searchName.trim()) {
-      filtered = filtered.filter(record => {
-        const nameMatch = record.fullName?.toLowerCase().includes(searchName.trim().toLowerCase()) || false;
-        const idMatch = record.employeeID?.toString().toLowerCase().includes(searchName.trim().toLowerCase()) || false;
-        return nameMatch || idMatch;
-      });
-    }
-
+    // Filter by selected employee
     if (selectedEmployee) {
       filtered = filtered.filter(record => record.employeeID === selectedEmployee);
     }
 
+    // Filter by date range
     if (dateRange.startDate && dateRange.endDate) {
       filtered = filtered.filter(record => {
         const recordDate = moment(record.date);
@@ -312,7 +319,6 @@ const SupervisorAttendance = () => {
 
   // Add handleReset function
   const handleReset = () => {
-    setSearchName('');
     setSelectedEmployee('');
     setDateRange({ startDate: '', endDate: '' });
     setFilteredRecords(attendanceRecords);
@@ -359,36 +365,27 @@ const SupervisorAttendance = () => {
                       <div className={`dropdown-menu p-3 ${showFilters ? 'show' : ''}`} style={{ width: '300px' }}>
                         <div className="mb-3">
                           <label className="form-label">
-                            <i className="bi bi-search"></i> Search
+                            <i className="bi bi-search"></i> Search Employee
                           </label>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="Search by ID or Name"
-                            value={searchName}
-                            onChange={(e) => setSearchName(e.target.value)}
+                          <Select
+                            className="basic-single"
+                            classNamePrefix="react-select"
+                            placeholder="Search by name or ID"
+                            isClearable={true}
+                            isSearchable={true}
+                            name="employee"
+                            options={employeeOptions}
+                            onChange={(selectedOption) => {
+                              setSelectedEmployee(selectedOption ? selectedOption.value : '');
+                            }}
+                            value={employeeOptions.find(option => option.value === selectedEmployee) || null}
                           />
-                        </div>
-                        <div className="mb-3">
-                          <label className="form-label">
-                            <i className="bi bi-people"></i> Employee
-                          </label>
-                          <select
-                            className="form-select form-select-sm"
-                            value={selectedEmployee}
-                            onChange={(e) => setSelectedEmployee(e.target.value)}
-                          >
-                            <option value="">All Employees</option>
-                            {Object.entries(employees).map(([id, emp]) => (
-                              <option key={id} value={id}>{emp.fullName}</option>
-                            ))}
-                          </select>
                         </div>
                         <div className="mb-3">
                           <label className="form-label">
                             <i className="bi bi-calendar-range"></i> Date Range
                           </label>
-                          <div className="d-flex gap-2">
+                          <div className="date-range-container">
                             <input
                               type="date"
                               className="form-control form-control-sm"
@@ -426,7 +423,7 @@ const SupervisorAttendance = () => {
                       </div>
                     </div>
                     {/* Show active filter indicators */}
-                    {(searchName || selectedEmployee || dateRange.startDate || dateRange.endDate) && (
+                    {(selectedEmployee || dateRange.startDate || dateRange.endDate) && (
                       <div className="d-flex gap-1 align-items-center">
                         <span className="badge bg-info">
                           <i className="bi bi-funnel-fill"></i> Active Filters

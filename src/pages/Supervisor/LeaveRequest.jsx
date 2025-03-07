@@ -5,6 +5,7 @@ import moment from "moment";
 import Swal from "sweetalert2";
 import SupervisorNavbar from "../../components/SupervisorNavbar";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
+import Select from 'react-select';
 
 const SupervisorLeaveRequest = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
@@ -13,7 +14,6 @@ const SupervisorLeaveRequest = () => {
   const itemsPerPage = 15;
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [employees, setEmployees] = useState({});
   const [selectedEmployee, setSelectedEmployee] = useState('');
@@ -22,6 +22,7 @@ const SupervisorLeaveRequest = () => {
     endDate: ''
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [employeeOptions, setEmployeeOptions] = useState([]);
 
   // Update the fetchLeaveRequests function to include full name
   const fetchLeaveRequests = async () => {
@@ -46,6 +47,7 @@ const SupervisorLeaveRequest = () => {
           fullName: employees[record.emp_ID] || `${record.fName || ''} ${record.mName ? record.mName + ' ' : ''}${record.lName || ''}`.trim()
         }));
 
+        // Sort by date in descending order (newest first)
         const sortedData = formattedData.sort((a, b) =>
           moment(b.date).valueOf() - moment(a.date).valueOf()
         );
@@ -71,10 +73,21 @@ const SupervisorLeaveRequest = () => {
       );
 
       const employeeMap = {};
+      const options = [];
+
       response.data.data.forEach(emp => {
-        employeeMap[emp.emp_ID] = `${emp.fName} ${emp.mName ? emp.mName + ' ' : ''}${emp.lName}`;
+        const fullName = `${emp.fName} ${emp.lName}`;
+        employeeMap[emp.emp_ID] = fullName;
+
+        // Create options for react-select
+        options.push({
+          value: emp.emp_ID,
+          label: `${emp.emp_ID} - ${fullName}`
+        });
       });
+
       setEmployees(employeeMap);
+      setEmployeeOptions(options);
     } catch (error) {
       console.error("Error fetching employees:", error);
     }
@@ -186,7 +199,6 @@ const SupervisorLeaveRequest = () => {
     }
 
     try {
-      // Show confirmation dialog first
       const result = await Swal.fire({
         title: 'Reject Leave Request',
         text: 'Are you sure you want to reject this leave request?',
@@ -198,10 +210,22 @@ const SupervisorLeaveRequest = () => {
       });
 
       if (result.isConfirmed) {
-        // Update the status
+        // First update the status
         await axios.put(
           `${config.API_BASE_URL}/leave_requests/update_status_leave_request/${leaveRequestId}`,
           { status: 'rejected' },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            }
+          }
+        );
+
+        // Then update the approval information (same as approve, but for rejection)
+        await axios.put(
+          `${config.API_BASE_URL}/leave_requests/update_approval_leave_request/${leaveRequestId}`,
+          { emp_id_approved_by: localStorage.getItem("X-EMP-ID") },
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -236,48 +260,36 @@ const SupervisorLeaveRequest = () => {
     setShowImageModal(true);
   };
 
-  const handleSearch = () => {
-    let filtered = [...leaveRequests];
+  // Update handleSearch function to remove searchTerm filtering
 
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(record => {
-        const empIdMatch = record.emp_ID ?
-          record.emp_ID.toString().toLowerCase().includes(searchTerm.toLowerCase()) :
-          false;
+const handleSearch = () => {
+  let filtered = [...leaveRequests];
 
-        const nameMatch = record.fullName ?
-          record.fullName.toLowerCase().includes(searchTerm.toLowerCase()) :
-          false;
+  // Filter by selected employee
+  if (selectedEmployee) {
+    filtered = filtered.filter(record => record.emp_ID === selectedEmployee);
+  }
 
-        return empIdMatch || nameMatch;
-      });
-    }
+  // Filter by date range
+  if (dateRange.startDate && dateRange.endDate) {
+    filtered = filtered.filter(record => {
+      const recordDate = moment(record.date);
+      return recordDate.isBetween(dateRange.startDate, dateRange.endDate, 'day', '[]');
+    });
+  }
 
-    // Filter by selected employee
-    if (selectedEmployee) {
-      filtered = filtered.filter(record => record.emp_ID === selectedEmployee);
-    }
+  setFilteredRequests(filtered);
+  setCurrentPage(1);
+};
 
-    // Filter by date range
-    if (dateRange.startDate && dateRange.endDate) {
-      filtered = filtered.filter(record => {
-        const recordDate = moment(record.date);
-        return recordDate.isBetween(dateRange.startDate, dateRange.endDate, 'day', '[]');
-      });
-    }
+// Update handleReset to remove searchTerm reset
 
-    setFilteredRequests(filtered);
-    setCurrentPage(1);
-  };
-
-  const handleReset = () => {
-    setSearchTerm('');
-    setSelectedEmployee('');
-    setDateRange({ startDate: '', endDate: '' });
-    setFilteredRequests(leaveRequests);
-    setCurrentPage(1);
-  };
+const handleReset = () => {
+  setSelectedEmployee('');
+  setDateRange({ startDate: '', endDate: '' });
+  setFilteredRequests(leaveRequests);
+  setCurrentPage(1);
+};
 
   return (
     <>
@@ -319,36 +331,27 @@ const SupervisorLeaveRequest = () => {
                       <div className={`dropdown-menu p-3 ${showFilters ? 'show' : ''}`} style={{ width: '300px' }}>
                         <div className="mb-3">
                           <label className="form-label">
-                            <i className="bi bi-search"></i> Search
+                            <i className="bi bi-search"></i> Search Employee
                           </label>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="Search by ID or Name"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                          <Select
+                            className="basic-single"
+                            classNamePrefix="react-select"
+                            placeholder="Search by name or ID"
+                            isClearable={true}
+                            isSearchable={true}
+                            name="employee"
+                            options={employeeOptions}
+                            onChange={(selectedOption) => {
+                              setSelectedEmployee(selectedOption ? selectedOption.value : '');
+                            }}
+                            value={employeeOptions.find(option => option.value === selectedEmployee) || null}
                           />
-                        </div>
-                        <div className="mb-3">
-                          <label className="form-label">
-                            <i className="bi bi-people"></i> Employee
-                          </label>
-                          <select
-                            className="form-select form-select-sm"
-                            value={selectedEmployee}
-                            onChange={(e) => setSelectedEmployee(e.target.value)}
-                          >
-                            <option value="">All Employees</option>
-                            {Object.entries(employees).map(([id, name]) => (
-                              <option key={id} value={id}>{name}</option>
-                            ))}
-                          </select>
                         </div>
                         <div className="mb-3">
                           <label className="form-label">
                             <i className="bi bi-calendar-range"></i> Date Range
                           </label>
-                          <div className="d-flex gap-2">
+                          <div className="date-range-container">
                             <input
                               type="date"
                               className="form-control form-control-sm"
@@ -386,7 +389,7 @@ const SupervisorLeaveRequest = () => {
                       </div>
                     </div>
                     {/* Show active filter indicators */}
-                    {(searchTerm || selectedEmployee || dateRange.startDate || dateRange.endDate) && (
+                    {(selectedEmployee || dateRange.startDate || dateRange.endDate) && (
                       <div className="d-flex gap-1 align-items-center">
                         <span className="badge bg-info">
                           <i className="bi bi-funnel-fill"></i> Active Filters
@@ -418,7 +421,7 @@ const SupervisorLeaveRequest = () => {
                       <th>Details</th>
                       <th>Status</th>
                       <th>Date Approved</th>
-                      <th>Approved By</th>
+                      <th>Approved By/Rejected By</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -440,8 +443,15 @@ const SupervisorLeaveRequest = () => {
                             </span>
                           </td>
                           <td>{record.date_approved}</td>
-                          <td>{record.approved_by ? employees[record.approved_by] || record.approved_by : '-'}</td>
-
+                          <td>
+                            {(record.status === 'approved' || record.status === 'rejected') && (
+                              record.approved_by ? (
+                                employees[record.approved_by] || record.approved_by
+                              ) : (
+                                '-'
+                              )
+                            )}
+                          </td>
                           <td>
                             {(!record.status || record.status === 'pending') && (
                               <div className="d-flex align-items-center">
