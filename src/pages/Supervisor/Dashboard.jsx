@@ -51,8 +51,8 @@ const SupervisorDashboard = () => {
         // Set a sample value if none found (FOR TESTING)
         // Remove this in production
         if (pendingRequests.length === 0) {
-          console.log("No pending requests found, adding test value");
-          setPendingLeaveRequests(1); // Force display for testing
+          console.log("No pending requests found");
+          setPendingLeaveRequests(0); // Force display for testing
         } else {
           setPendingLeaveRequests(pendingRequests.length);
         }
@@ -96,8 +96,8 @@ const SupervisorDashboard = () => {
 
         // For testing: set a sample value if none found
         if (pendingRequests.length === 0) {
-          console.log("No pending overtime requests found, adding test value");
-          setPendingOvertimeRequests(2); // Force display for testing
+          console.log("No pending overtime requests found");
+          setPendingOvertimeRequests(0); // Force display for testing
         } else {
           setPendingOvertimeRequests(pendingRequests.length);
         }
