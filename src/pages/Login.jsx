@@ -299,34 +299,38 @@ function Login() {
                     <div className="col-md-12">
                       {!isForgotPassword ? (
                         <>
-                          <div className="form-group">
-                            <input
-                              type="text"
-                              onChange={handleChange}
-                              name="emp_ID"
-                              className="form-control"
-                              placeholder="ID Number"
-                              value={credentials.emp_ID}
-                            />
-                          </div>
-                          <div className="form-group mt-2">
-                            <input
-                              type="password"
-                              onChange={handleChange}
-                              className="form-control"
-                              name="password"
-                              placeholder="Password"
-                              value={credentials.password}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <input
-                              type="submit"
-                              className="btnRegister"
-                              value="Login"
-                              onClick={handleEmployeeLogin}
-                            />
-                          </div>
+                          <form onSubmit={(e) => {
+                            e.preventDefault();
+                            handleEmployeeLogin();
+                          }}>
+                            <div className="form-group">
+                              <input
+                                type="text"
+                                onChange={handleChange}
+                                name="emp_ID"
+                                className="form-control"
+                                placeholder="ID Number"
+                                value={credentials.emp_ID}
+                              />
+                            </div>
+                            <div className="form-group mt-2">
+                              <input
+                                type="password"
+                                onChange={handleChange}
+                                className="form-control"
+                                name="password"
+                                placeholder="Password"
+                                value={credentials.password}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <input
+                                type="submit"
+                                className="btnRegister"
+                                value="Login"
+                              />
+                            </div>
+                          </form>
                           <div className="mt-2">
                             <button
                               className="btn btn-link text-primary p-0"
@@ -485,34 +489,38 @@ function Login() {
                   <h3 className="register-heading">Login as Admin</h3>
                   <div className="row register-form">
                     <div className="col-md-12">
-                      <div className="form-group">
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="Admin ID Number"
-                          name="emp_ID"
-                          onChange={handleAdminChange}
-                          value={adminCredentials.emp_ID}
-                        />
-                      </div>
-                      <div className="form-group mt-2">
-                        <input
-                          type="password"
-                          className="form-control"
-                          placeholder="Password"
-                          name="password"
-                          onChange={handleAdminChange}
-                          value={adminCredentials.password}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <input
-                          type="submit"
-                          className="btnRegister"
-                          value="Login"
-                          onClick={handleAdminLogin}
-                        />
-                      </div>
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        handleAdminLogin();
+                      }}>
+                        <div className="form-group">
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Admin ID Number"
+                            name="emp_ID"
+                            onChange={handleAdminChange}
+                            value={adminCredentials.emp_ID}
+                          />
+                        </div>
+                        <div className="form-group mt-2">
+                          <input
+                            type="password"
+                            className="form-control"
+                            placeholder="Password"
+                            name="password"
+                            onChange={handleAdminChange}
+                            value={adminCredentials.password}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <input
+                            type="submit"
+                            className="btnRegister"
+                            value="Login"
+                          />
+                        </div>
+                      </form>
                       {error && <p style={{ color: "red" }}>{alertText}</p>}
                     </div>
                   </div>

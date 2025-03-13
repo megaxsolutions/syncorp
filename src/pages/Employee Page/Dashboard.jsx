@@ -4,12 +4,10 @@ import Slider from 'react-slick';
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { Link, useLocation } from 'react-router-dom';
-import { io } from 'socket.io-client';
+import axios from 'axios'; // Replace socket.io with axios
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import EmployeeNavbar from '../../components/EmployeeNavbar';
 import config from '../../config';
-
-const socket = io(`${config.API_BASE_URL}`);
 
 const EmployeeDashboard = () => {
   const location = useLocation();
@@ -21,16 +19,39 @@ const EmployeeDashboard = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [latestLeaveStatus, setLatestLeaveStatus] = useState(null);
 
+  // Replace WebSocket with Axios for bulletins
   useEffect(() => {
-    socket.on('get_all_bulletins', (data) => {
-      setBulletins(data || []);
-    });
+    const fetchBulletins = async () => {
+      try {
+        const response = await axios.get(
+          `${config.API_BASE_URL}/bulletins/get_all_bulletin`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+          }
+        );
+
+        if (response.data && response.data.data) {
+          setBulletins(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching bulletins:', error);
+      }
+    };
+
+    fetchBulletins();
+
+    // Set up an interval to refresh bulletins (optional)
+    const intervalId = setInterval(fetchBulletins, 60000); // Refresh every minute
 
     return () => {
-      socket.off('get_all_bulletins');
+      clearInterval(intervalId); // Clean up the interval on unmount
     };
   }, []);
 
+  // Keep the existing leave requests code
   useEffect(() => {
     const empId = localStorage.getItem('X-EMP-ID');
 

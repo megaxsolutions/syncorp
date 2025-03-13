@@ -13,6 +13,9 @@ const Sidebar = () => {
   const isDTR = location.pathname === "/dtr";
   const isPayroll = location.pathname === "/payroll";
   const isLeaveType = location.pathname === "/settings/leave-type";
+  const isApprovalsActive = location.pathname.startsWith("/approvals");
+  const isLeaveRequest = location.pathname === "/approvals/leave-request";
+  const isOvertimeRequest = location.pathname === "/approvals/overtime-request";
 
   const handleDropdownClick = (event, targetId) => {
     event.preventDefault();
@@ -238,6 +241,43 @@ const Sidebar = () => {
               >
                 <i className="bi bi-person-workspace"></i>
                 <span>Coaching</span>
+              </Link>
+            </li>
+          </ul>
+        </li>
+
+        {/* Approvals dropdown */}
+        <li className="nav-item">
+          <button
+            className={`nav-link ${isApprovalsActive ? "" : "collapsed"}`}
+            onClick={(e) => handleDropdownClick(e, "#approvals-nav")}
+            style={{ background: "none", border: "none" }}
+          >
+            <i className="bi bi-check2-square"></i>
+            <span>Approvals</span>
+            <i className="bi bi-chevron-down ms-auto"></i>
+          </button>
+          <ul
+            id="approvals-nav"
+            className={`nav-content collapse ${isApprovalsActive ? "show" : ""}`}
+            data-bs-parent="#sidebar-nav"
+          >
+            <li className="mt-2">
+              <Link
+                to="/approvals/leave-request"
+                className={`nav-link ${isLeaveRequest ? "active" : ""}`}
+              >
+                <i className="bi bi-calendar2-x"></i>
+                <span>Leave Request</span>
+              </Link>
+            </li>
+            <li className="mt-2">
+              <Link
+                to="/approvals/overtime-request"
+                className={`nav-link ${isOvertimeRequest ? "active" : ""}`}
+              >
+                <i className="bi bi-clock-history"></i>
+                <span>Overtime Request</span>
               </Link>
             </li>
           </ul>

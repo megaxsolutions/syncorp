@@ -119,7 +119,7 @@ const SupervisorLeaveRequest = () => {
     setCurrentPage(pageNumber);
   };
 
-  // Update the handleApprove function
+  // Updated handleApprove function to merge status and approval in one call
   const handleApprove = async (leaveRequestId) => {
     if (!leaveRequestId) {
       Swal.fire({
@@ -143,22 +143,13 @@ const SupervisorLeaveRequest = () => {
       });
 
       if (result.isConfirmed) {
-        // First update the status
-        await axios.put(
-          `${config.API_BASE_URL}/leave_requests/update_status_leave_request/${leaveRequestId}`,
-          { status: 'approved' },
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            }
-          }
-        );
-
-        // Then update the approval information
+        // Use the merged endpoint that handles both status and approval info
         await axios.put(
           `${config.API_BASE_URL}/leave_requests/update_approval_leave_request/${leaveRequestId}`,
-          { emp_id_approved_by: localStorage.getItem("X-EMP-ID") },
+          {
+            emp_id_approved_by: localStorage.getItem("X-EMP-ID"),
+            status: 'approved'
+          },
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -188,6 +179,7 @@ const SupervisorLeaveRequest = () => {
     }
   };
 
+  // Updated handleReject function to merge status and approval in one call
   const handleReject = async (leaveRequestId) => {
     if (!leaveRequestId) {
       Swal.fire({
@@ -210,22 +202,13 @@ const SupervisorLeaveRequest = () => {
       });
 
       if (result.isConfirmed) {
-        // First update the status
-        await axios.put(
-          `${config.API_BASE_URL}/leave_requests/update_status_leave_request/${leaveRequestId}`,
-          { status: 'rejected' },
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            }
-          }
-        );
 
-        // Then update the approval information (same as approve, but for rejection)
         await axios.put(
           `${config.API_BASE_URL}/leave_requests/update_approval_leave_request/${leaveRequestId}`,
-          { emp_id_approved_by: localStorage.getItem("X-EMP-ID") },
+          {
+            emp_id_approved_by: localStorage.getItem("X-EMP-ID"),
+            status: 'rejected'
+          },
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),

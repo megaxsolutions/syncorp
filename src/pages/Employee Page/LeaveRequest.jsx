@@ -17,6 +17,21 @@ const LeaveRequest = () => {
 
   const empId = localStorage.getItem("X-EMP-ID");
 
+  // Add these states for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // Show 10 items per page
+
+  // Calculate current items to display
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = leaveHistory.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(leaveHistory.length / itemsPerPage);
+
+  // Function to handle page changes
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
   // Fetch leave requests for the logged in employee
   const fetchLeaveRequests = async () => {
     try {
@@ -229,9 +244,10 @@ const LeaveRequest = () => {
                           <th>Details</th>
                         </tr>
                       </thead>
+                      {/* Update the table body to use currentItems instead of leaveHistory */}
                       <tbody>
-                        {leaveHistory.length > 0 ? (
-                          leaveHistory.map((record, index) => (
+                        {currentItems.length > 0 ? (
+                          currentItems.map((record, index) => (
                             <tr key={index}>
                               <td>{moment(record.date).format("YYYY-MM-DD")}</td>
                               <td>
@@ -262,6 +278,46 @@ const LeaveRequest = () => {
                       </tbody>
                     </table>
                   </div>
+                  {/* Add pagination controls after the table */}
+                  {leaveHistory.length > itemsPerPage && (
+                    <nav aria-label="Page navigation" className="mt-3">
+                      <ul className="pagination justify-content-center">
+                        <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                          <button
+                            className="page-link"
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                          >
+                            Previous
+                          </button>
+                        </li>
+
+                        {[...Array(totalPages)].map((_, index) => (
+                          <li
+                            key={index + 1}
+                            className={`page-item ${currentPage === index + 1 ? 'active' : ''}`}
+                          >
+                            <button
+                              className="page-link"
+                              onClick={() => handlePageChange(index + 1)}
+                            >
+                              {index + 1}
+                            </button>
+                          </li>
+                        ))}
+
+                        <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                          <button
+                            className="page-link"
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                          >
+                            Next
+                          </button>
+                        </li>
+                      </ul>
+                    </nav>
+                  )}
                 </div>
               </div>
             </div>

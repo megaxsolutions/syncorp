@@ -1,62 +1,96 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import config from "../../config";
+import config from "../config";
 import moment from "moment";
 import Swal from "sweetalert2";
-import SupervisorNavbar from "../../components/SupervisorNavbar";
-import SupervisorSidebar from "../../components/SupervisorSidebar";
-import Select from 'react-select'; // Add this import
+import Navbar from "../components/Navbar";
+import Sidebar from "../components/Sidebar";
+import Select from 'react-select';
 
-const SupervisorOvertimeRequest = () => {
+const ApproveOvertime = () => {
   const [overtimeRequests, setOvertimeRequests] = useState([]);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+  const [filteredRequests, setFilteredRequests] = useState([]);
   const [employees, setEmployees] = useState({});
-  const [otTypes, setOtTypes] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: ''
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [filteredRequests, setFilteredRequests] = useState([]);
-  const [employeeOptions, setEmployeeOptions] = useState([]); // Add this state for employee options
+  const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [otTypes, setOtTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Pagination calculations
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredRequests.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
 
   const fetchOvertimeRequests = async () => {
+    setLoading(true);
     try {
-      const emp_id = localStorage.getItem("X-EMP-ID");
+      console.log("Fetching overtime requests...");
       const response = await axios.get(
         `${config.API_BASE_URL}/overtime_requests/get_all_overtime_request`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id,
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
           },
         }
       );
 
+      console.log("Response data:", response.data);
+
       if (response.data?.data) {
+        // Log sample data for debugging
+        if (response.data.data.length > 0) {
+          console.log('Sample overtime record:', response.data.data[0]);
+          console.log('Available fields:', Object.keys(response.data.data[0]));
+        }
+
         const formattedData = response.data.data.map(record => ({
           ...record,
           overtime_request_id: record.id,
           date: moment(record.date).format('YYYY-MM-DD'),
-          date_approved: record.date_approved ? moment(record.date_approved).format('YYYY-MM-DD') : '-'
+          date_approved: record.date_approved ? moment(record.date_approved).format('YYYY-MM-DD') : '-',
+          final_status: record.status2 || null, // Map status2 to final_status for consistency
         }));
 
-        const sortedData = formattedData.sort((a, b) =>
+        // Filter only records with status 'approved' (initial approval) that need final approval
+        const pendingFinalApproval = formattedData.filter(record =>
+          record.status === 'approved' &&
+          (!record.status2 || record.status2 === '')
+        );
+
+        const sortedData = pendingFinalApproval.sort((a, b) =>
           moment(b.date).valueOf() - moment(a.date).valueOf()
         );
 
+        console.log(`Total overtime requests: ${formattedData.length}`);
+        console.log(`Pending final approval: ${pendingFinalApproval.length}`);
+
         setOvertimeRequests(sortedData);
+        setFilteredRequests(sortedData);
+      } else {
+        console.log("No overtime request data found in response");
+        setOvertimeRequests([]);
+        setFilteredRequests([]);
       }
     } catch (error) {
       console.error("Error fetching overtime requests:", error);
       setError("Failed to load overtime requests");
+      setOvertimeRequests([]);
+      setFilteredRequests([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Update your fetchEmployees function to create options for react-select
   const fetchEmployees = async () => {
     try {
       const response = await axios.get(
@@ -69,15 +103,12 @@ const SupervisorOvertimeRequest = () => {
         }
       );
 
-      // Create a map of employee IDs to full names
       const employeeMap = {};
       const options = [];
 
       response.data.data.forEach(emp => {
-        const fullName = `${emp.fName} ${emp.mName ? emp.mName + ' ' : ''}${emp.lName}`;
+        const fullName = `${emp.fName} ${emp.lName}`;
         employeeMap[emp.emp_ID] = fullName;
-
-        // Create options for react-select
         options.push({
           value: emp.emp_ID,
           label: `${emp.emp_ID} - ${fullName}`
@@ -112,145 +143,178 @@ const SupervisorOvertimeRequest = () => {
   };
 
   useEffect(() => {
-    fetchOvertimeRequests();
-    fetchEmployees();
-    fetchOtTypes();
+    const initializeData = async () => {
+      await fetchEmployees();
+      await fetchOtTypes();
+      await fetchOvertimeRequests();
+    };
+
+    initializeData();
   }, []);
-
-  useEffect(() => {
-    setFilteredRequests(overtimeRequests);
-  }, [overtimeRequests]);
-
-  // Pagination calculations
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredRequests.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
   };
 
-  // Updated handleApprove function for the consolidated API endpoint
-  const handleApprove = async (overtimeRequestId) => {
-    if (!overtimeRequestId) {
-      setError("Cannot approve: Invalid overtime request ID");
-      return;
-    }
+  // Update the handleApprove function to use the correct endpoint
+const handleApprove = async (overtimeRequestId) => {
+  if (!overtimeRequestId) {
+    setError("Cannot approve: Invalid overtime request ID");
+    return;
+  }
 
-    try {
-      const result = await Swal.fire({
-        title: 'Approve Overtime Request',
-        text: 'Are you sure you want to approve this overtime request?',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#198754',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, approve it!'
+  try {
+    const result = await Swal.fire({
+      title: 'Final Approval of Overtime Request',
+      text: 'Are you sure you want to give final approval for this overtime request?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      cancelButtonColor: '#dc3545',
+      confirmButtonText: 'Yes, approve it!'
+    });
+
+    if (result.isConfirmed) {
+      // Show loading state
+      Swal.fire({
+        title: 'Processing',
+        text: 'Updating overtime request status...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
       });
 
-      if (result.isConfirmed) {
-        // Use the consolidated endpoint that handles both status and approval
-        await axios.put(
-          `${config.API_BASE_URL}/overtime_requests/update_approval_overtime_request/${overtimeRequestId}`,
-          {
-            emp_id_approved_by: localStorage.getItem("X-EMP-ID"),
-            status: 'Approved'
-          },
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            }
-          }
-        );
+      const emp_id = localStorage.getItem("X-EMP-ID");
 
+      // Use the correct endpoint from your backend
+      const response = await axios.put(
+        `${config.API_BASE_URL}/overtime_requests/update_approval_overtime_request_admin/${overtimeRequestId}`,
+        {
+          emp_id_approved_by: emp_id,
+          status: 'Approved'
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          }
+        }
+      );
+
+      if (response.data && response.data.success) {
         await Swal.fire({
           icon: 'success',
-          title: 'Approved!',
-          text: 'Overtime request has been approved.',
+          title: 'Finally Approved!',
+          text: 'Overtime request has been finally approved.',
           timer: 1500,
           showConfirmButton: false
         });
 
         setError('');
         await fetchOvertimeRequests();
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Operation Failed',
+          text: response.data?.error || 'Failed to update overtime request status',
+        });
       }
-    } catch (error) {
-      console.error("Error approving overtime request:", error);
+    }
+  } catch (error) {
+    console.error("Error approving overtime request:", error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Failed to approve overtime request',
+      footer: error.response?.data?.error || error.message
+    });
+  }
+};
+
+// Update the handleReject function to use the correct endpoint
+const handleReject = async (overtimeRequestId) => {
+  if (!overtimeRequestId) {
+    setError("Cannot reject: Invalid overtime request ID");
+    return;
+  }
+
+  try {
+    const result = await Swal.fire({
+      title: 'Final Rejection of Overtime Request',
+      text: 'Are you sure you want to reject this overtime request?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, reject it!'
+    });
+
+    if (result.isConfirmed) {
+      // Show loading state
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to approve overtime request'
-      });
-    }
-  };
-
-  // Updated handleReject function for the consolidated API endpoint
-  const handleReject = async (overtimeRequestId) => {
-    if (!overtimeRequestId) {
-      setError("Cannot reject: Invalid overtime request ID");
-      return;
-    }
-
-    try {
-      const result = await Swal.fire({
-        title: 'Reject Overtime Request',
-        text: 'Are you sure you want to reject this overtime request?',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, reject it!'
+        title: 'Processing',
+        text: 'Updating overtime request status...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
       });
 
-      if (result.isConfirmed) {
-        // Use the consolidated endpoint that handles both status and approval
-        await axios.put(
-          `${config.API_BASE_URL}/overtime_requests/update_approval_overtime_request/${overtimeRequestId}`,
-          {
-            emp_id_approved_by: localStorage.getItem("X-EMP-ID"),
-            status: 'Rejected'
-          },
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            }
+      const emp_id = localStorage.getItem("X-EMP-ID");
+
+      // Use the same endpoint but with 'Rejected' status
+      const response = await axios.put(
+        `${config.API_BASE_URL}/overtime_requests/update_approval_overtime_request_admin/${overtimeRequestId}`,
+        {
+          emp_id_approved_by: emp_id,
+          status: 'Rejected'
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
           }
-        );
+        }
+      );
 
+      if (response.data && response.data.success) {
         await Swal.fire({
           icon: 'success',
-          title: 'Rejected!',
-          text: 'Overtime request has been rejected.',
+          title: 'Finally Rejected!',
+          text: 'Overtime request has been finally rejected.',
           timer: 1500,
           showConfirmButton: false
         });
 
         setError('');
         await fetchOvertimeRequests();
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Operation Failed',
+          text: response.data?.error || 'Failed to update overtime request status',
+        });
       }
-    } catch (error) {
-      console.error("Error rejecting overtime request:", error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to reject overtime request'
-      });
     }
-  };
+  } catch (error) {
+    console.error("Error rejecting overtime request:", error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Failed to reject overtime request',
+      footer: error.response?.data?.error || error.message
+    });
+  }
+};
 
-  // Update the handleSearch function to work without searchTerm
   const handleSearch = () => {
     let filtered = [...overtimeRequests];
 
-    // Filter by selected employee
     if (selectedEmployee) {
       filtered = filtered.filter(record => record.emp_ID === selectedEmployee);
     }
 
-    // Filter by date range
     if (dateRange.startDate && dateRange.endDate) {
       filtered = filtered.filter(record => {
         const recordDate = moment(record.date);
@@ -262,7 +326,6 @@ const SupervisorOvertimeRequest = () => {
     setCurrentPage(1);
   };
 
-  // Update handleReset to remove searchTerm reset
   const handleReset = () => {
     setSelectedEmployee('');
     setDateRange({ startDate: '', endDate: '' });
@@ -270,17 +333,99 @@ const SupervisorOvertimeRequest = () => {
     setCurrentPage(1);
   };
 
+  // Modify the tbody section to include loading state:
+  const renderTableBody = () => {
+    if (loading) {
+      return (
+        <tr>
+          <td colSpan="10" className="text-center py-4">
+            <div className="spinner-border text-primary mb-2" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p>Loading overtime requests...</p>
+          </td>
+        </tr>
+      );
+    }
+
+    if (currentItems.length === 0) {
+      return (
+        <tr>
+          <td colSpan="10" className="text-center">
+            No overtime requests pending final approval.
+          </td>
+        </tr>
+      );
+    }
+
+    return currentItems.map((record, index) => (
+      <tr key={index}>
+        <td>{record.date}</td>
+        <td>{record.emp_ID}</td>
+        <td>{employees[record.emp_ID] || record.emp_ID}</td>
+        <td>{record.hrs}</td>
+        <td>
+          {otTypes.find(type => type.id === parseInt(record.ot_type))?.type || record.ot_type}
+        </td>
+        <td>
+          <span className="badge bg-success">
+            Approved
+          </span>
+        </td>
+        <td>{record.approved_by ? employees[record.approved_by] || record.approved_by : '-'}</td>
+        <td>{record.date_approved}</td>
+        <td>
+          <span className={`badge ${
+            record.status2 === 'Approved' ? 'bg-success' :
+            record.status2 === 'Rejected' ? 'bg-danger' : 'bg-warning'
+          }`}>
+            {record.status2 ?
+              record.status2 === 'Approved' ? 'Finally Approved' :
+              record.status2 === 'Rejected' ? 'Finally Rejected' : 'Pending'
+              : 'Pending Final Approval'}
+          </span>
+        </td>
+        <td>
+          {(!record.status2) && (
+            <div className="d-flex align-items-center">
+              <button
+                className="btn btn-success btn-sm me-2"
+                onClick={() => handleApprove(record.overtime_request_id)}
+                title="Final Approve"
+              >
+                <i className="bi bi-check-square"></i> Final Approve
+              </button>
+              <button
+                className="btn btn-danger btn-sm"
+                onClick={() => handleReject(record.overtime_request_id)}
+                title="Final Reject"
+              >
+                <i className="bi bi-x-circle-fill"></i> Final Reject
+              </button>
+            </div>
+          )}
+          {record.status2 === 'Approved' && (
+            <i className="bi bi-check-circle-fill text-success" title="Finally Approved"> Finally Approved</i>
+          )}
+          {record.status2 === 'Rejected' && (
+            <i className="bi bi-x-circle-fill text-danger" title="Finally Rejected"> Finally Rejected</i>
+          )}
+        </td>
+      </tr>
+    ));
+  };
+
   return (
     <>
-      <SupervisorNavbar />
-      <SupervisorSidebar />
+      <Navbar />
+      <Sidebar />
       <main id="main" className="main">
         <div className="pagetitle mb-4">
-          <h1>Overtime Requests</h1>
+          <h1>Final Overtime Approval</h1>
           <nav aria-label="breadcrumb">
             <ol className="breadcrumb">
               <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
-              <li className="breadcrumb-item active">Overtime Requests</li>
+              <li className="breadcrumb-item active">Final Overtime Approval</li>
             </ol>
           </nav>
         </div>
@@ -288,7 +433,7 @@ const SupervisorOvertimeRequest = () => {
         <div className="container-fluid mt-4">
           <div className="card shadow-sm">
             <div className="card-header">
-              <h5 className="mb-0">All Overtime Requests</h5>
+              <h5 className="mb-0">Approved Overtime Requests Pending Final Approval</h5>
             </div>
             <div className="card-body">
               {error && (
@@ -367,7 +512,6 @@ const SupervisorOvertimeRequest = () => {
                         </div>
                       </div>
                     </div>
-                    {/* Show active filter indicators */}
                     {(selectedEmployee || dateRange.startDate || dateRange.endDate) && (
                       <div className="d-flex gap-1 align-items-center">
                         <span className="badge bg-info">
@@ -385,6 +529,13 @@ const SupervisorOvertimeRequest = () => {
                   </div>
                 </div>
 
+                <div className="d-flex justify-content-start mb-3">
+                  <span className="text-muted">
+                    Showing {filteredRequests.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
+                    {Math.min(indexOfLastItem, filteredRequests.length)} of {filteredRequests.length} entries
+                  </span>
+                </div>
+
                 <table className="table table-hover table-bordered">
                   <thead className="table-light">
                     <tr>
@@ -393,71 +544,15 @@ const SupervisorOvertimeRequest = () => {
                       <th>Employee Name</th>
                       <th>Hours</th>
                       <th>OT Type</th>
-                      <th>Status</th>
-                      <th>Date Approved</th>
-                      <th>Approved By</th>
+                      <th>Initial Status</th>
+                      <th>Initial Approved By</th>
+                      <th>Initial Approved Date</th>
+                      <th>Final Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {currentItems.length > 0 ? (
-                      currentItems.map((record, index) => (
-                        <tr
-                          key={index}
-                          className={record.status === 'Approved' ? 'table-success' : ''}
-                        >
-                          <td>{record.date}</td>
-                          <td>{record.emp_ID}</td>
-                          <td>{employees[record.emp_ID] || record.emp_ID}</td>
-                          <td>{record.hrs}</td>
-                          <td>
-                            {otTypes.find(type => type.id === parseInt(record.ot_type))?.type || record.ot_type}
-                          </td>
-                          <td>
-                            <span className={`badge ${
-                              record.status === 'approved' ? 'bg-success' :
-                              record.status === 'Rejected' ? 'bg-danger' : 'bg-warning'
-                            }`}>
-                              {record.status ? record.status.charAt(0).toUpperCase() + record.status.slice(1).toLowerCase() : 'Pending'}
-                            </span>
-                          </td>
-                          <td>{record.date_approved}</td>
-                          <td>{record.approved_by ? employees[record.approved_by] || record.approved_by : '-'}</td>
-                          <td>
-                            {(!record.status || record.status.toLowerCase() === 'pending') && (
-                              <div className="d-flex align-items-center">
-                                <button
-                                  className="btn btn-success btn-sm me-2"
-                                  onClick={() => handleApprove(record.overtime_request_id)}
-                                  title="Approve"
-                                >
-                                  <i className="bi bi-check-circle-fill"> Approve</i>
-                                </button>
-                                <button
-                                  className="btn btn-danger btn-sm"
-                                  onClick={() => handleReject(record.overtime_request_id)}
-                                  title="Reject"
-                                >
-                                  <i className="bi bi-x-circle-fill"> Reject</i>
-                                </button>
-                              </div>
-                            )}
-                            {record.status?.toLowerCase() === 'approved' && (
-                              <i className="bi bi-check-circle-fill text-success" title="Approved"> Approved</i>
-                            )}
-                            {record.status?.toLowerCase() === 'rejected' && (
-                              <i className="bi bi-x-circle-fill text-danger" title="Rejected"> Rejected</i>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="8" className="text-center">
-                          No overtime requests found.
-                        </td>
-                      </tr>
-                    )}
+                    {renderTableBody()}
                   </tbody>
                 </table>
 
@@ -507,6 +602,7 @@ const SupervisorOvertimeRequest = () => {
       </main>
     </>
   );
+
 };
 
-export default SupervisorOvertimeRequest;
+export default ApproveOvertime;
