@@ -127,40 +127,72 @@ const AdminUser = () => {
       return;
     }
 
-    // Check password only if admin level
-    if (isAdminLevel(formData.user_level) && !formData.password) {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Password is required for admin level"
-      });
-      return;
-    }
-
     try {
-      const response = await axios.post(
-        `${config.API_BASE_URL}/admins/add_admin`,
-        {
-          emp_id: formData.emp_id,
-          password: formData.password || null, // Send null if no password
-          user_level: Number(formData.user_level)
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          },
+      let response;
+
+      // Different logic based on role type
+      if (isAdminLevel(formData.user_level)) {
+        // For admin roles, require password and use the add_admin endpoint
+        if (!formData.password) {
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Password is required for admin level"
+          });
+          return;
         }
-      );
+
+        // Use add_admin endpoint for admin roles
+        response = await axios.post(
+          `${config.API_BASE_URL}/admins/add_admin`,
+          {
+            emp_id: formData.emp_id,
+            password: formData.password,
+            user_level: Number(formData.user_level)
+          },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+          }
+        );
+      } else {
+        // For non-admin roles (supervisor, HR, trainee), use update_admin_user_level endpoint
+        // which doesn't require a password
+        response = await axios.post(
+          `${config.API_BASE_URL}/admins/update_admin_user_level`,
+          {
+            emp_id: formData.emp_id,
+            user_level: Number(formData.user_level)
+          },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+          }
+        );
+      }
 
       if (response.data.success) {
-        Swal.fire({ icon: "success", title: "Success", text: response.data.success });
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: response.data.success
+        });
         setFormData({ emp_id: "", password: "", user_level: "" });
         fetchAdmins();
       }
     } catch (error) {
-      console.error("Create admin error:", error);
-      Swal.fire({ icon: "error", title: "Error", text: error.response?.data?.error || "Failed to create admin entry" });
+      console.error("Operation error:", error);
+      const errorMessage = error.response?.data?.error || "Failed to assign role";
+
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: errorMessage
+      });
     }
   };
 
@@ -172,7 +204,7 @@ const AdminUser = () => {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Please select an admin level"
+        text: "Please select a level"
       });
       return;
     }
@@ -202,7 +234,7 @@ const AdminUser = () => {
         fetchAdmins(); // Refresh the admin list
       }
     } catch (error) {
-      const errorMsg = error.response?.data?.error || "Failed to update admin level";
+      const errorMsg = error.response?.data?.error || "Failed to update level";
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -302,7 +334,13 @@ const AdminUser = () => {
 
   // Add this function to check if selected level is admin
   const isAdminLevel = (levelId) => {
-    return !!levelId; // Since we only show admin levels, any selected level is an admin level
+    if (!levelId) return false;
+
+    const selectedLevel = adminLevels.find(level => level.id === Number(levelId));
+    if (!selectedLevel) return false;
+
+    // Check if the level name contains "admin" (case-insensitive)
+    return selectedLevel.level.toLowerCase().includes('admin');
   };
 
   // Render employees in dropdown
@@ -328,24 +366,16 @@ const AdminUser = () => {
     );
   };
 
-  // Update the renderAdminLevelOptions function to only show admin levels
+  // Update the renderAdminLevelOptions function to show all levels, not just admin levels
   const renderAdminLevelOptions = () => {
     if (!adminLevels || adminLevels.length === 0) {
-      return <option value="">No admin levels available</option>;
-    }
-
-    const adminOnlyLevels = adminLevels.filter(level =>
-      level.level.toLowerCase().includes('admin')
-    );
-
-    if (adminOnlyLevels.length === 0) {
-      return <option value="">No admin levels available</option>;
+      return <option value="">No levels available</option>;
     }
 
     return (
       <>
         <option value="">Select Level</option>
-        {adminOnlyLevels.map((level) => (
+        {adminLevels.map((level) => (
           <option key={level.id} value={level.id}>
             {level.level}
           </option>
@@ -444,7 +474,7 @@ const AdminUser = () => {
             <div className="col-md-4">
               <div className="card shadow-sm mb-3">
                 <div className="card-header">
-                  <h5 className="mb-0">Admin User Form</h5>
+                  <h5 className="mb-0">User Role Assignment</h5>
                 </div>
                 <div className="card-body">
                   <form onSubmit={handleSubmit}>
@@ -478,10 +508,11 @@ const AdminUser = () => {
                         {renderAdminLevelOptions()}
                       </select>
                     </div>
-                    {isAdminLevel(formData.user_level) && (
+                    {/* Replace the password form field section with this conditional rendering */}
+                    {isAdminLevel(formData.user_level) ? (
                       <div className="mb-3">
                         <label htmlFor="password" className="form-label">
-                          Password
+                          Password <span className="text-danger">*</span>
                         </label>
                         <input
                           type="password"
@@ -493,10 +524,20 @@ const AdminUser = () => {
                           placeholder="Enter password"
                           required
                         />
+                        <small className="form-text text-muted">
+                          Password is required for admin level access only.
+                        </small>
+                      </div>
+                    ) : (
+                      <div className="mb-3">
+                        <small className="form-text text-muted">
+                          Password is not required for this level.
+                        </small>
                       </div>
                     )}
+                    {/* Update the submit button text to be more appropriate */}
                     <button type="submit" className="btn btn-primary w-100">
-                      Add Admin
+                      {isAdminLevel(formData.user_level) ? "Add Admin" : "Assign Role"}
                     </button>
                   </form>
                 </div>
