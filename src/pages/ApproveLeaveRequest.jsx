@@ -184,7 +184,7 @@ const submitApprovalStatus = async (leaveRequestId, status) => {
     });
 
     // Map frontend status terms to what the backend expects for status2 column
-    const backendStatus = status === 'Approved' ? 'Approved' : 'Rejected';
+    const backendStatus = status === 'Approved' ? 'Approved' : 'Approved';
 
     const response = await axios.put(
       `${config.API_BASE_URL}/leave_requests/update_approval_leave_request_admin/${leaveRequestId}`,

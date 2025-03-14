@@ -23,6 +23,7 @@ const ApproveOvertime = () => {
   const [employeeOptions, setEmployeeOptions] = useState([]);
   const [otTypes, setOtTypes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('');
 
   // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -30,66 +31,61 @@ const ApproveOvertime = () => {
   const currentItems = filteredRequests.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
 
-  const fetchOvertimeRequests = async () => {
-    setLoading(true);
-    try {
-      console.log("Fetching overtime requests...");
-      const response = await axios.get(
-        `${config.API_BASE_URL}/overtime_requests/get_all_overtime_request`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          },
-        }
+  // Update the fetchOvertimeRequests function to include all statuses
+const fetchOvertimeRequests = async () => {
+  setLoading(true);
+  try {
+    console.log("Fetching overtime requests...");
+    const response = await axios.get(
+      `${config.API_BASE_URL}/overtime_requests/get_all_overtime_request`,
+      {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+        },
+      }
+    );
+
+    if (response.data?.data) {
+      // Format the data
+      const formattedData = response.data.data.map(record => ({
+        ...record,
+        overtime_request_id: record.id,
+        date: moment(record.date).format('YYYY-MM-DD'),
+        date_approved: record.date_approved ? moment(record.date_approved).format('YYYY-MM-DD') : '-',
+        date_approved_by2: record.date_approved_by2 ? moment(record.date_approved_by2).format('YYYY-MM-DD') : '-',
+        status2: record.status2 || null
+      }));
+
+      console.log("All overtime requests:", formattedData.length);
+
+      // Only filter for initially approved requests (but now show all final statuses)
+      const approvedRequests = formattedData.filter(record => record.status === 'approved');
+
+      console.log("Initially approved requests:", approvedRequests.length);
+
+      // Sort by date, newest first
+      const sortedData = approvedRequests.sort((a, b) =>
+        moment(b.date).valueOf() - moment(a.date).valueOf()
       );
 
-      console.log("Response data:", response.data);
-
-      if (response.data?.data) {
-        // Log sample data for debugging
-        if (response.data.data.length > 0) {
-          console.log('Sample overtime record:', response.data.data[0]);
-          console.log('Available fields:', Object.keys(response.data.data[0]));
-        }
-
-        const formattedData = response.data.data.map(record => ({
-          ...record,
-          overtime_request_id: record.id,
-          date: moment(record.date).format('YYYY-MM-DD'),
-          date_approved: record.date_approved ? moment(record.date_approved).format('YYYY-MM-DD') : '-',
-          final_status: record.status2 || null, // Map status2 to final_status for consistency
-        }));
-
-        // Filter only records with status 'approved' (initial approval) that need final approval
-        const pendingFinalApproval = formattedData.filter(record =>
-          record.status === 'approved' &&
-          (!record.status2 || record.status2 === '')
-        );
-
-        const sortedData = pendingFinalApproval.sort((a, b) =>
-          moment(b.date).valueOf() - moment(a.date).valueOf()
-        );
-
-        console.log(`Total overtime requests: ${formattedData.length}`);
-        console.log(`Pending final approval: ${pendingFinalApproval.length}`);
-
-        setOvertimeRequests(sortedData);
-        setFilteredRequests(sortedData);
-      } else {
-        console.log("No overtime request data found in response");
-        setOvertimeRequests([]);
-        setFilteredRequests([]);
-      }
-    } catch (error) {
-      console.error("Error fetching overtime requests:", error);
-      setError("Failed to load overtime requests");
+      // Update state
+      setOvertimeRequests(sortedData);
+      setFilteredRequests(sortedData);
+    } else {
+      console.log("No overtime request data found in response");
       setOvertimeRequests([]);
       setFilteredRequests([]);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching overtime requests:", error);
+    setError("Failed to load overtime requests");
+    setOvertimeRequests([]);
+    setFilteredRequests([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchEmployees = async () => {
     try {
@@ -156,7 +152,7 @@ const ApproveOvertime = () => {
     setCurrentPage(pageNumber);
   };
 
-  // Update the handleApprove function to use the correct endpoint
+  // Update the handleApprove function to ensure proper refresh after approval
 const handleApprove = async (overtimeRequestId) => {
   if (!overtimeRequestId) {
     setError("Cannot approve: Invalid overtime request ID");
@@ -187,7 +183,6 @@ const handleApprove = async (overtimeRequestId) => {
 
       const emp_id = localStorage.getItem("X-EMP-ID");
 
-      // Use the correct endpoint from your backend
       const response = await axios.put(
         `${config.API_BASE_URL}/overtime_requests/update_approval_overtime_request_admin/${overtimeRequestId}`,
         {
@@ -211,7 +206,11 @@ const handleApprove = async (overtimeRequestId) => {
           showConfirmButton: false
         });
 
-        setError('');
+        // Immediate client-side update for better UX
+        setFilteredRequests(prev => prev.filter(item => item.overtime_request_id !== overtimeRequestId));
+        setOvertimeRequests(prev => prev.filter(item => item.overtime_request_id !== overtimeRequestId));
+
+        // Then refetch data from server
         await fetchOvertimeRequests();
       } else {
         Swal.fire({
@@ -232,7 +231,7 @@ const handleApprove = async (overtimeRequestId) => {
   }
 };
 
-// Update the handleReject function to use the correct endpoint
+// Same update for handleReject
 const handleReject = async (overtimeRequestId) => {
   if (!overtimeRequestId) {
     setError("Cannot reject: Invalid overtime request ID");
@@ -263,7 +262,6 @@ const handleReject = async (overtimeRequestId) => {
 
       const emp_id = localStorage.getItem("X-EMP-ID");
 
-      // Use the same endpoint but with 'Rejected' status
       const response = await axios.put(
         `${config.API_BASE_URL}/overtime_requests/update_approval_overtime_request_admin/${overtimeRequestId}`,
         {
@@ -287,7 +285,11 @@ const handleReject = async (overtimeRequestId) => {
           showConfirmButton: false
         });
 
-        setError('');
+        // Immediate client-side update for better UX
+        setFilteredRequests(prev => prev.filter(item => item.overtime_request_id !== overtimeRequestId));
+        setOvertimeRequests(prev => prev.filter(item => item.overtime_request_id !== overtimeRequestId));
+
+        // Then refetch data from server
         await fetchOvertimeRequests();
       } else {
         Swal.fire({
@@ -322,6 +324,15 @@ const handleReject = async (overtimeRequestId) => {
       });
     }
 
+    if (statusFilter) {
+      filtered = filtered.filter(record => {
+        if (statusFilter === 'pending') return !record.status2 || record.status2 === '';
+        if (statusFilter === 'approved') return record.status2 === 'Approved';
+        if (statusFilter === 'rejected') return record.status2 === 'Rejected';
+        return true;
+      });
+    }
+
     setFilteredRequests(filtered);
     setCurrentPage(1);
   };
@@ -329,91 +340,100 @@ const handleReject = async (overtimeRequestId) => {
   const handleReset = () => {
     setSelectedEmployee('');
     setDateRange({ startDate: '', endDate: '' });
+    setStatusFilter('');
     setFilteredRequests(overtimeRequests);
     setCurrentPage(1);
   };
 
-  // Modify the tbody section to include loading state:
-  const renderTableBody = () => {
-    if (loading) {
-      return (
-        <tr>
-          <td colSpan="10" className="text-center py-4">
-            <div className="spinner-border text-primary mb-2" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p>Loading overtime requests...</p>
-          </td>
-        </tr>
-      );
-    }
-
-    if (currentItems.length === 0) {
-      return (
-        <tr>
-          <td colSpan="10" className="text-center">
-            No overtime requests pending final approval.
-          </td>
-        </tr>
-      );
-    }
-
-    return currentItems.map((record, index) => (
-      <tr key={index}>
-        <td>{record.date}</td>
-        <td>{record.emp_ID}</td>
-        <td>{employees[record.emp_ID] || record.emp_ID}</td>
-        <td>{record.hrs}</td>
-        <td>
-          {otTypes.find(type => type.id === parseInt(record.ot_type))?.type || record.ot_type}
-        </td>
-        <td>
-          <span className="badge bg-success">
-            Approved
-          </span>
-        </td>
-        <td>{record.approved_by ? employees[record.approved_by] || record.approved_by : '-'}</td>
-        <td>{record.date_approved}</td>
-        <td>
-          <span className={`badge ${
-            record.status2 === 'Approved' ? 'bg-success' :
-            record.status2 === 'Rejected' ? 'bg-danger' : 'bg-warning'
-          }`}>
-            {record.status2 ?
-              record.status2 === 'Approved' ? 'Finally Approved' :
-              record.status2 === 'Rejected' ? 'Finally Rejected' : 'Pending'
-              : 'Pending Final Approval'}
-          </span>
-        </td>
-        <td>
-          {(!record.status2) && (
-            <div className="d-flex align-items-center">
-              <button
-                className="btn btn-success btn-sm me-2"
-                onClick={() => handleApprove(record.overtime_request_id)}
-                title="Final Approve"
-              >
-                <i className="bi bi-check-square"></i> Final Approve
-              </button>
-              <button
-                className="btn btn-danger btn-sm"
-                onClick={() => handleReject(record.overtime_request_id)}
-                title="Final Reject"
-              >
-                <i className="bi bi-x-circle-fill"></i> Final Reject
-              </button>
-            </div>
-          )}
-          {record.status2 === 'Approved' && (
-            <i className="bi bi-check-circle-fill text-success" title="Finally Approved"> Finally Approved</i>
-          )}
-          {record.status2 === 'Rejected' && (
-            <i className="bi bi-x-circle-fill text-danger" title="Finally Rejected"> Finally Rejected</i>
-          )}
+  // Modify the renderTableBody function to display all statuses properly
+const renderTableBody = () => {
+  if (loading) {
+    return (
+      <tr>
+        <td colSpan="10" className="text-center py-4">
+          <div className="spinner-border text-primary mb-2" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading overtime requests...</p>
         </td>
       </tr>
-    ));
-  };
+    );
+  }
+
+  if (currentItems.length === 0) {
+    return (
+      <tr>
+        <td colSpan="10" className="text-center">
+          No overtime requests found.
+        </td>
+      </tr>
+    );
+  }
+
+  return currentItems.map((record, index) => (
+    <tr key={index}>
+      <td>{record.date}</td>
+      <td>{record.emp_ID}</td>
+      <td>{employees[record.emp_ID] || record.emp_ID}</td>
+      <td>{record.hrs}</td>
+      <td>
+        {otTypes.find(type => type.id === parseInt(record.ot_type))?.type || record.ot_type}
+      </td>
+      <td>
+        <span className="badge bg-success">
+          Approved
+        </span>
+      </td>
+      <td>{record.approved_by ? employees[record.approved_by] || record.approved_by : '-'}</td>
+      <td>{record.date_approved}</td>
+      <td>
+        <span className={`badge ${
+          record.status2 === 'Approved' ? 'bg-success' :
+          record.status2 === 'Rejected' ? 'bg-danger' : 'bg-warning'
+        }`}>
+          {record.status2 ?
+            record.status2 === 'Approved' ? 'Finally Approved' :
+            record.status2 === 'Rejected' ? 'Finally Rejected' : 'Pending'
+            : 'Pending Final Approval'}
+        </span>
+      </td>
+      <td>
+        {(!record.status2) && (
+          <div className="d-flex align-items-center">
+            <button
+              className="btn btn-success btn-sm me-2"
+              onClick={() => handleApprove(record.overtime_request_id)}
+              title="Final Approve"
+            >
+              <i className="bi bi-check-square"></i> Final Approve
+            </button>
+            <button
+              className="btn btn-danger btn-sm"
+              onClick={() => handleReject(record.overtime_request_id)}
+              title="Final Reject"
+            >
+              <i className="bi bi-x-circle-fill"></i> Final Reject
+            </button>
+          </div>
+        )}
+        {record.status2 === 'Approved' && (
+          <div className="d-flex align-items-center">
+            <i className="bi bi-check-circle-fill text-success" title="Finally Approved"> Finally Approved</i>
+            <span className="ms-2">by {record.approved_by2 ? employees[record.approved_by2] || record.approved_by2 : '-'}</span>
+            {record.date_approved_by2 && <span className="ms-2">on {record.date_approved_by2}</span>}
+          </div>
+        )}
+        {record.status2 === 'Rejected' && (
+          <div className="d-flex align-items-center">
+            <i className="bi bi-x-circle-fill text-danger" title="Finally Rejected"> Finally Rejected</i>
+            <span className="ms-2">by {record.approved_by2 ? employees[record.approved_by2] || record.approved_by2 : '-'}</span>
+            {record.date_approved_by2 && <span className="ms-2">on {record.date_approved_by2}</span>}
+          </div>
+        )}
+      </td>
+    </tr>
+  ));
+};
 
   return (
     <>
@@ -433,7 +453,7 @@ const handleReject = async (overtimeRequestId) => {
         <div className="container-fluid mt-4">
           <div className="card shadow-sm">
             <div className="card-header">
-              <h5 className="mb-0">Approved Overtime Requests Pending Final Approval</h5>
+              <h5 className="mb-0">All Approved Overtime Requests</h5>
             </div>
             <div className="card-body">
               {error && (
@@ -490,6 +510,21 @@ const handleReject = async (overtimeRequestId) => {
                             />
                           </div>
                         </div>
+                        <div className="mb-3">
+                          <label className="form-label">
+                            <i className="bi bi-filter"></i> Status Filter
+                          </label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                          >
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending Final Approval</option>
+                            <option value="approved">Finally Approved</option>
+                            <option value="rejected">Finally Rejected</option>
+                          </select>
+                        </div>
                         <div className="d-flex gap-2">
                           <button
                             className="btn btn-primary btn-sm w-50"
@@ -512,7 +547,7 @@ const handleReject = async (overtimeRequestId) => {
                         </div>
                       </div>
                     </div>
-                    {(selectedEmployee || dateRange.startDate || dateRange.endDate) && (
+                    {(selectedEmployee || dateRange.startDate || dateRange.endDate || statusFilter) && (
                       <div className="d-flex gap-1 align-items-center">
                         <span className="badge bg-info">
                           <i className="bi bi-funnel-fill"></i> Active Filters
