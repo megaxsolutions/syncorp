@@ -95,7 +95,7 @@ const Payslip = () => {
 
       // Use the correct endpoint from your backend
       const response = await axios.get(
-        `${config.API_BASE_URL}/payslip/get_all_payslip`, // Changed to match your backend route
+        `${config.API_BASE_URL}/payslips/get_all_payslip`, // Changed to match your backend route
         {
           headers: {
             'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
@@ -192,7 +192,7 @@ const Payslip = () => {
 
       // If no stored data or wrong employee, fetch from API
       const response = await axios.get(
-        `${config.API_BASE_URL}/employees/get_employee/${empId}`, // Try different endpoint format
+        `${config.API_BASE_URL}/employees/get_all_employee_supervisor/${empId}`, // Try different endpoint format
         {
           headers: {
             'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
