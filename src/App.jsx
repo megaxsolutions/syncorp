@@ -19,6 +19,7 @@ import DTR from "./pages/DTR";
 import Bulletin from "./pages/Bulletin";
 import ApproveLeaveRequest from "./pages/ApproveLeaveRequest";
 import ApproveOvertime from "./pages/ApproveOvertime";
+import ApproveBonus from "./pages/ApproveBonus";
 import EmployeeDashboard from "./pages/Employee Page/Dashboard";
 import EmployeeAttendance from "./pages/Employee Page/Attendance";
 import EmployeePayslip from "./pages/Employee Page/Payslip";
@@ -33,7 +34,7 @@ import SupervisorOvertimeRequest from "./pages/Supervisor/OvertimeRequest";
 import SupervisorAttendance from "./pages/Supervisor/Attendance";
 import SupervisorSchedule from "./pages/Supervisor/Schedule";
 import Coaching from "./pages/Supervisor/Coaching";
-import Bonus from "./pages/Employee Page/Bonus";
+import Bonus from "./pages/Supervisor/Bonus";
 import AdminProtectedLayout from "./pages/AdminProtectedLayout";
 import EmployeeProtectedLayout from "./pages/EmployeeProtectedLayout";
 import SupervisorProtectedLayout from "./pages/SupervisorProtectedLayout";
@@ -70,6 +71,7 @@ function App() {
         <Route path="/settings/coaching" element={<AdminCoaching />} />
         <Route path="/approvals/leave-request" element={<ApproveLeaveRequest />} />
         <Route path="/approvals/overtime-request" element={<ApproveOvertime />} />
+        <Route path="/approvals/bonus" element={<ApproveBonus />} />
       </Route>
 
       {/* Employee Routes */}

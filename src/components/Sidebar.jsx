@@ -16,6 +16,7 @@ const Sidebar = () => {
   const isApprovalsActive = location.pathname.startsWith("/approvals");
   const isLeaveRequest = location.pathname === "/approvals/leave-request";
   const isOvertimeRequest = location.pathname === "/approvals/overtime-request";
+  const isBonusRequest = location.pathname === "/approvals/bonus-request";
 
   const handleDropdownClick = (event, targetId) => {
     event.preventDefault();
@@ -278,6 +279,15 @@ const Sidebar = () => {
               >
                 <i className="bi bi-clock-history"></i>
                 <span>Overtime Request</span>
+              </Link>
+            </li>
+            <li className="mt-2">
+              <Link
+                to="/approvals/bonus"
+                className={`nav-link ${isBonusRequest ? "active" : ""}`}
+              >
+                <i className="bi bi-cash"></i>
+                <span>Bonus Request</span>
               </Link>
             </li>
           </ul>

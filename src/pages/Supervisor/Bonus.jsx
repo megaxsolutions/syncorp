@@ -31,11 +31,18 @@ export default function Bonus() {
   const currentItems = filteredBonuses.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredBonuses.length / itemsPerPage);
 
-  // Fetch cut-off periods
+  // Update the useEffect for proper loading sequence
   useEffect(() => {
-    fetchCutOffPeriods();
-    fetchEmployees();
-    fetchBonuses();
+    const initializeData = async () => {
+      // First fetch employees and cut-off periods
+      await fetchEmployees();
+      await fetchCutOffPeriods();
+
+      // Then fetch bonuses after employees data is available
+      await fetchBonuses();
+    };
+
+    initializeData();
   }, []);
 
   // Filter bonuses when search term changes
@@ -64,13 +71,20 @@ export default function Bonus() {
         }
       );
 
-      if (response.data?.data) {
-        // Format cut-off periods for the select component
-        const options = response.data.data.map(cutOff => ({
+      // Access the cutoff array inside the data object
+      if (response.data?.data?.cutoff && Array.isArray(response.data.data.cutoff)) {
+        const cutOffData = response.data.data.cutoff;
+
+        const options = cutOffData.map(cutOff => ({
           value: cutOff.id,
-          label: `${moment(cutOff.start_date).format('MMM DD, YYYY')} - ${moment(cutOff.end_date).format('MMM DD, YYYY')}`
+          // Use the correct property names as shown in your data (startDate and endDate)
+          label: `${moment(cutOff.startDate).format('MMM DD, YYYY')} - ${moment(cutOff.endDate).format('MMM DD, YYYY')}`
         }));
+
         setCutOffOptions(options);
+      } else {
+        console.warn("Cut-off periods not found in response data");
+        setCutOffOptions([]);
       }
     } catch (error) {
       console.error("Error fetching cut-off periods:", error);
@@ -80,49 +94,123 @@ export default function Bonus() {
 
   const fetchEmployees = async () => {
     try {
+      setIsLoading(true);
+      const supervisorEmpId = localStorage.getItem("X-EMP-ID");
+
+      console.log("Fetching employees for supervisor ID:", supervisorEmpId);
+
       const response = await axios.get(
         `${config.API_BASE_URL}/employees/get_all_employee`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "X-EMP-ID": supervisorEmpId,
           },
         }
       );
 
-      if (response.data?.data) {
-        const options = response.data.data.map(employee => ({
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        console.log("Successfully fetched employees:", response.data.data.length);
+
+        const filteredEmployees = response.data.data.filter(emp =>
+          emp.emp_ID && emp.fName && emp.lName && emp.employee_status === 'Active'
+        );
+
+        const options = filteredEmployees.map(employee => ({
           value: employee.emp_ID,
           label: `${employee.emp_ID} - ${employee.fName} ${employee.lName}`
         }));
+
+        console.log("Processed employee options:", options.length);
         setEmployeeOptions(options);
+      } else {
+        console.warn("No employee data found or invalid format");
+        setEmployeeOptions([]);
       }
     } catch (error) {
       console.error("Error fetching employees:", error);
       setError("Failed to load employees");
+      setEmployeeOptions([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchBonuses = async () => {
     setIsLoading(true);
     try {
+      // Get the supervisor's employee ID from localStorage
+      const supervisorEmpId = localStorage.getItem("X-EMP-ID");
+
+      if (!supervisorEmpId) {
+        throw new Error("Employee ID not found in local storage");
+      }
+
+      console.log("Fetching bonuses for supervisor ID:", supervisorEmpId);
+
+      // Use the correct endpoint with the supervisor's employee ID
       const response = await axios.get(
-        `${config.API_BASE_URL}/bonuses/get_all_bonuses`,
+        `${config.API_BASE_URL}/bonus/get_all_bonus_supervisor/${supervisorEmpId}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "X-EMP-ID": supervisorEmpId,
           },
         }
       );
 
-      if (response.data?.data) {
-        setBonuses(response.data.data);
-        setFilteredBonuses(response.data.data);
+      console.log("Bonus API response:", response.data);
+
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        // Log the raw data first
+        console.log("Raw bonus data:", response.data.data);
+
+        if (response.data.data.length === 0) {
+          console.log("No bonuses found for this supervisor");
+          setBonuses([]);
+          setFilteredBonuses([]);
+          return;
+        }
+
+        // Process and format the bonus data
+        const formattedBonuses = response.data.data.map(bonus => {
+          // Find employee name from employee options
+          const employee = employeeOptions.find(emp => emp.value === bonus.emp_ID);
+          console.log("Processing bonus for emp ID:", bonus.emp_ID, "Found employee:", employee);
+
+          return {
+            id: bonus.id,
+            empId: bonus.emp_ID,
+            employeeName: employee ? employee.label.split(' - ')[1] : (bonus.emp_ID || 'Unknown'),
+            perfAmount: bonus.perf_bonus ? parseFloat(bonus.perf_bonus).toFixed(2) : "0.00",
+            clientFundedAmount: bonus.client_funded ? parseFloat(bonus.client_funded).toFixed(2) : "0.00",
+            submittedBy: bonus.plotted_by || 'N/A',
+            approvedBy: bonus.approved_by || 'Pending',
+            approvedBy2: bonus.approved_by2 || 'Pending',
+            dateApproved: bonus.datetime_approved || 'Pending',
+            dateApproved2: bonus.datetime_approved2 || 'Pending',
+            // For now use a generic label for cutoff period
+            cutOffPeriod: "Current Period",
+          };
+        });
+
+        console.log("Formatted bonuses:", formattedBonuses);
+        setBonuses(formattedBonuses);
+        setFilteredBonuses(formattedBonuses);
+      } else {
+        console.warn("No bonus data found in response or invalid format");
+        setBonuses([]);
+        setFilteredBonuses([]);
       }
     } catch (error) {
       console.error("Error fetching bonuses:", error);
-      setError("Failed to load bonus data");
+      if (error.response) {
+        console.error("Response data:", error.response.data);
+        console.error("Response status:", error.response.status);
+      }
+      setError("Failed to load bonus data: " + (error.response?.data?.error || error.message));
+      setBonuses([]);
+      setFilteredBonuses([]);
     } finally {
       setIsLoading(false);
     }
@@ -159,50 +247,58 @@ export default function Bonus() {
     }
 
     setIsLoading(true);
+    const supervisor_emp_id = localStorage.getItem("X-EMP-ID");
 
     try {
       // Create bonus requests for each selected employee
       const promises = selectedEmployees.map(employee =>
         axios.post(
-          `${config.API_BASE_URL}/bonuses/create_bonus`,
+          `${config.API_BASE_URL}/bonus/add_bonus`,  // Updated endpoint
           {
-            emp_ID: employee.value,
-            cut_off_id: cutOff.value,
-            perf_amount: perfAmount || 0,
-            client_funded_amount: clientFundedAmount || 0,
-            submitted_by: localStorage.getItem("X-EMP-ID")
+            // Match the parameter names expected by your backend
+            perf_bonus: perfAmount || 0,
+            client_funded: clientFundedAmount || 0,
+            supervisor_emp_id: supervisor_emp_id,
+            emp_id: employee.value
           },
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              "X-EMP-ID": supervisor_emp_id,
             },
           }
         )
       );
 
-      await Promise.all(promises);
+      const results = await Promise.all(promises);
 
-      Swal.fire({
-        icon: 'success',
-        title: 'Success',
-        text: 'Bonus requests submitted successfully',
-      });
+      // Check if all requests were successful
+      const allSuccessful = results.every(res => res.data && res.data.success);
 
-      // Reset form fields
-      setCutOff(null);
-      setSelectedEmployees([]);
-      setPerfAmount('');
-      setClientFundedAmount('');
+      if (allSuccessful) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: 'Bonus requests submitted successfully',
+        });
 
-      // Refresh the bonus list
-      fetchBonuses();
+        // Reset form fields
+        setCutOff(null);
+        setSelectedEmployees([]);
+        setPerfAmount('');
+        setClientFundedAmount('');
+
+        // Refresh the bonus list
+        fetchBonuses();
+      } else {
+        throw new Error('Some bonus requests failed');
+      }
     } catch (error) {
       console.error("Error submitting bonus requests:", error);
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: error.response?.data?.message || 'Failed to submit bonus requests',
+        text: error.response?.data?.error || 'Failed to submit bonus requests',
       });
     } finally {
       setIsLoading(false);
@@ -346,11 +442,21 @@ export default function Bonus() {
                             <tbody>
                               {currentItems.map((bonus, index) => (
                                 <tr key={index}>
-                                  <td>{bonus.employeeName}</td>
-                                  <td>{bonus.cutOffPeriod}</td>
-                                  <td>{bonus.perfAmount}</td>
-                                  <td>{bonus.clientFundedAmount}</td>
-                                  <td>{bonus.submittedBy}</td>
+                                  <td>{bonus.employeeName || 'Unknown'}</td>
+                                  <td>{bonus.cutOffPeriod || 'N/A'}</td>
+                                  <td>
+                                    ₱{parseFloat(bonus.perfAmount).toLocaleString('en-US', {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2
+                                    })}
+                                  </td>
+                                  <td>
+                                    ₱{parseFloat(bonus.clientFundedAmount).toLocaleString('en-US', {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2
+                                    })}
+                                  </td>
+                                  <td>{bonus.submittedBy || 'N/A'}</td>
                                 </tr>
                               ))}
                             </tbody>
