@@ -20,6 +20,17 @@ function Coaching() {
   });
   const [coachingTypes, setCoachingTypes] = useState([]);
   const [employeeOptions, setEmployeeOptions] = useState([]); // Add this for React-Select options
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    id: '',
+    emp_id: '',
+    coaching_type: '',
+    coached_by: '',
+    metrix_1: '',
+    metrix_2: '',
+    metrix_3: '',
+    metrix_4: ''
+  });
 
   useEffect(() => {
     fetchEmployees();
@@ -116,6 +127,8 @@ function Coaching() {
       );
 
       if (response.data && Array.isArray(response.data.data)) {
+        console.log(response.data.data);
+
         setCoachingTypes(response.data.data);
       } else {
         setCoachingTypes([]);
@@ -245,15 +258,119 @@ function Coaching() {
     }
   };
 
-  const handleViewDetails = (recordId) => {
-    // Implement view details functionality
+  const handleViewDetails = (record) => {
+    // Populate local state with record data
+    setEditFormData({
+      id: record.id || record.coaching_ID,
+      emp_id: record.emp_ID,
+      coaching_type: record.coaching_type, // Ensure this matches your DB column
+      coached_by: record.coached_by,
+      metrix_1: record.metrix_1,
+      metrix_2: record.metrix_2,
+      metrix_3: record.metrix_3,
+      metrix_4: record.metrix_4
+    });
+    setShowEditModal(true);
+  };
+
+  // 2. Handle submitting updates to the server
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const supervisorId = localStorage.getItem("X-EMP-ID");
+      if (!supervisorId) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Supervisor not found.' });
+        return;
+      }
+
+      await axios.put(
+        `${config.API_BASE_URL}/coaching/update_coaching/${editFormData.id}`,
+        {
+          emp_id: parseInt(editFormData.emp_id, 10),
+          coaching_type: parseInt(editFormData.coaching_type, 10),
+          coached_emp_id: parseInt(supervisorId, 10),
+          metrix_1: editFormData.metrix_1,
+          metrix_2: editFormData.metrix_2,
+          metrix_3: editFormData.metrix_3,
+          metrix_4: editFormData.metrix_4
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": supervisorId
+          }
+        }
+      );
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: 'Coaching record updated successfully!',
+      });
+      setShowEditModal(false);
+      fetchCoachingData(); // Refresh your table
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error updating',
+        text: 'Failed to update coaching record.'
+      });
+      console.error(error);
+    }
+  };
+
+  // Add this new function to handle delete
+  const handleDeleteCoaching = (record) => {
+    // Show confirmation dialog before deleting
     Swal.fire({
-      title: 'Coaching Details',
-      text: `Viewing details for record ${recordId}`,
-      icon: 'info',
-      confirmButtonColor: '#0dcaf0'
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const supervisorId = localStorage.getItem("X-EMP-ID");
+          // Call the delete API
+          await axios.delete(
+            `${config.API_BASE_URL}/coaching/delete_coaching/${record.id || record.coaching_ID}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": supervisorId
+              }
+            }
+          );
+
+          // Show success message
+          Swal.fire(
+            'Deleted!',
+            'Coaching record has been deleted.',
+            'success'
+          );
+
+          // Refresh the data
+          fetchCoachingData();
+        } catch (error) {
+          console.error('Error deleting coaching record:', error);
+          Swal.fire(
+            'Error!',
+            'Failed to delete coaching record.',
+            'error'
+          );
+        }
+      }
     });
   };
+
+  // Make sure to map “value” to the name (type.coaching_type) instead of the ID
+  const coachingTypeOptions = coachingTypes.map((type) => ({
+    value: type.id,        // store the ID
+    label: type.coaching_type // display the name
+  }));
 
   return (
     <>
@@ -275,7 +392,7 @@ function Coaching() {
             {/* Left Side - Coaching Form */}
             <div className="col-md-4">
               <div className="card shadow">
-                <div className="card-header bg-primary text-white">
+                <div className="card-header">
                   <h4 className="card-title mb-0">
                     <i className="bi bi-journal-text me-2"></i>
                     Add Coaching Record
@@ -314,16 +431,13 @@ function Coaching() {
                         placeholder="Select coaching type..."
                         isClearable={false}
                         isSearchable={true}
-                        options={coachingTypes.map(type => ({
-                          value: type.id,
-                          label: type.coaching_type
-                        }))}
+                        options={coachingTypeOptions} // uses the name for value
                         onChange={(selectedOption) => {
-                          setFormData({...formData, coaching_type: selectedOption ? selectedOption.value : ''});
+                          setFormData({ ...formData, coaching_type: selectedOption ? selectedOption.value : '' });
                         }}
-                        value={coachingTypes
-                          .map(type => ({ value: type.id, label: type.coaching_type }))
-                          .find(option => option.value === Number(formData.coaching_type)) || null}
+                        value={
+                          coachingTypeOptions.find(option => option.value === formData.coaching_type) || null
+                        }
                       />
                     </div>
 
@@ -356,7 +470,7 @@ function Coaching() {
             {/* Right Side - Coaching Records Table */}
             <div className="col-md-8">
               <div className="card shadow">
-                <div className="card-header bg-primary text-white">
+                <div className="card-header">
                   <h4 className="card-title mb-0">
                     <i className="bi bi-table me-2"></i>
                     Coaching Records
@@ -378,16 +492,18 @@ function Coaching() {
                       <tbody>
                         {coachingData.length > 0 ? (
                           coachingData.map((record, index) => {
-                            // Find the employee data matching this record's emp_ID
                             const employeeData = employees.find(emp => emp.emp_ID === record.emp_ID);
-
-                            // Ensure we use the correct property names from employeeData
                             const employeeName = employeeData
                               ? `${employeeData.firstName} ${employeeData.lastName}`
                               : 'Unknown';
 
-                            // Use the coaching ID for the record ID display
-                            const recordId = record.coaching_ID || record.record_id || `#${index+1}`;
+                            const recordId = record.coaching_ID || record.record_id || `#${index + 1}`;
+
+                            // Look up the matching coaching type by its ID if the DB stores an int
+                            const matchingType = coachingTypes.find(ct => ct.id === Number(record.coaching_type));
+
+                            // If your DB already stores the string name in record.coaching_type, just use that
+                            const displayedTypeName = matchingType?.coaching_type || record.coaching_type || 'Unknown';
 
                             return (
                               <tr key={record.id || record.coaching_ID || `coaching-record-${index}`}>
@@ -395,18 +511,25 @@ function Coaching() {
                                 <td>{record.emp_ID}</td>
                                 <td>{employeeName}</td>
                                 <td>
-                                  <span className={`badge bg-${
-                                    coachingTypes.find(type => type.type_name === record.coaching_type)?.color || 'secondary'
-                                  }`}>
-                                    {record.coaching_type}
+                                  <span className="badge bg-secondary">
+                                    {displayedTypeName}
                                   </span>
                                 </td>
                                 <td>{new Date(record.date_coached).toLocaleDateString()}</td>
                                 <td>
-                                  <button className="btn btn-info btn-sm" onClick={() => handleViewDetails(recordId)}>
-                                    <i className="bi bi-eye me-1"></i>
-                                    View
-                                  </button>
+                                  <div className="d-flex gap-1">
+                                    <button className="btn btn-info btn-sm" onClick={() => handleViewDetails(record)}>
+                                      <i className="bi bi-eye me-1"></i>
+                                      View/Edit
+                                    </button>
+                                    <button
+                                      className="btn btn-danger btn-sm"
+                                      onClick={() => handleDeleteCoaching(record)}
+                                    >
+                                      <i className="bi bi-trash me-1"></i>
+                                      Delete
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -426,6 +549,84 @@ function Coaching() {
             </div>
           </div>
         </div>
+
+        {/* Edit (View) Modal */}
+        {showEditModal && (
+          <div className="modal show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-lg">
+              <div className="modal-content">
+                <div className="modal-header bg-info text-white">
+                  <h5 className="modal-title">View / Edit Coaching</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowEditModal(false)}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {/* Simple edit form */}
+                  <form onSubmit={handleEditSubmit}>
+                    <div className="mb-3">
+                      <label className="form-label">Employee</label>
+                      <Select
+                        className="basic-single"
+                        classNamePrefix="react-select"
+                        placeholder="Choose employee..."
+                        options={employeeOptions}
+                        value={employeeOptions.find(option => option.value === editFormData.emp_id) || null}
+                        onChange={(selectedOption) => {
+                          setEditFormData({...editFormData, emp_id: selectedOption ? selectedOption.value : ''});
+                        }}
+                      />
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label">Coaching Type</label>
+                      <Select
+                        className="basic-single"
+                        classNamePrefix="react-select"
+                        placeholder="Select coaching type..."
+                        options={coachingTypeOptions}
+                        value={coachingTypeOptions.find(option => option.value === Number(editFormData.coaching_type)) || null}
+                        onChange={(selectedOption) => {
+                          setEditFormData({
+                            ...editFormData,
+                            coaching_type: selectedOption ? selectedOption.value : ''
+                          });
+                        }}
+                      />
+                    </div>
+
+                    {[1, 2, 3, 4].map(num => (
+                      <div className="mb-3" key={`edit-matrix-${num}`}>
+                        <label className="form-label">Matrix {num}</label>
+                        <textarea
+                          className="form-control"
+                          rows="3"
+                          value={editFormData[`metrix_${num}`] || ''}
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              [`metrix_${num}`]: e.target.value
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
+                    <div className="d-flex justify-content-end">
+                      <button type="button" className="btn btn-secondary me-2" onClick={() => setShowEditModal(false)}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn btn-primary">
+                        Save Changes
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );

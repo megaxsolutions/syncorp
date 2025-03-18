@@ -33,12 +33,13 @@ const SupervisorAttendance = () => {
 
   const fetchAttendance = async () => {
     try {
+      const supervisor_emp_id = localStorage.getItem("X-EMP-ID");
       const response = await axios.get(
-        `${config.API_BASE_URL}/attendances/get_all_attendance`,
+        `${config.API_BASE_URL}/attendances/get_all_attendance_supervisor/${supervisor_emp_id}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "X-EMP-ID": supervisor_emp_id,
           },
         }
       );
@@ -50,7 +51,7 @@ const SupervisorAttendance = () => {
           fullName: record.fullName,
           clusterID: record.clusterID,
           date: moment(record.date).format('YYYY-MM-DD'),
-          timeIN: moment(record.timeIN).format('YYYY-MM-DD HH:mm:ss'),
+          timeIN: record.timeIN ? moment(record.timeIN).format('YYYY-MM-DD HH:mm:ss') : '-',
           timeOUT: record.timeOUT ? moment(record.timeOUT).format('YYYY-MM-DD HH:mm:ss') : '-'
         }));
 

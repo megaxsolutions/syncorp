@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import config from "../config";
 import Swal from "sweetalert2"; // Add this import at the top
 
+
 // Add this helper function at the top of your component
 const formatDateForInput = (dateString) => {
   if (!dateString) return "";
@@ -38,6 +39,15 @@ function ViewEmployee() {
   const [hasSearchResults, setHasSearchResults] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [selectedEmployee, setSelectedEmployee] = useState({
+    // Ensure these fields exist so they can be viewed & edited
+    nbi: false,
+    medicalCert: false,
+    xray: false,
+    drugTest: false,
+  });
+  const [showModal, setShowModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const getValidEmployees = (employees) => {
     // Create a Map to store unique employees by emp_ID
@@ -97,9 +107,6 @@ function ViewEmployee() {
     fetchEmployees();
   }, []);
 
-  const [showModal, setShowModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState({});
   const [preview, setPreview] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [dropdownData, setDropdownData] = useState({
@@ -159,13 +166,25 @@ function ViewEmployee() {
   };
 
   const handleEditClick = (emp) => {
-    setSelectedEmployee(emp);
+    setSelectedEmployee({
+      ...emp,
+      nbi: emp.nbi || false,
+      medicalCert: emp.medicalCert || false,
+      xray: emp.xray || false,
+      drugTest: emp.drugTest || false,
+    });
     setPreview(emp.file_uploaded);
     setShowModal(true);
   };
 
   const handleViewDetailsClick = (emp) => {
-    setSelectedEmployee(emp);
+    setSelectedEmployee({
+      ...emp,
+      nbi: emp.nbi || false,
+      medicalCert: emp.medicalCert || false,
+      xray: emp.xray || false,
+      drugTest: emp.drugTest || false,
+    });
     setShowDetailsModal(true);
   };
 
@@ -178,28 +197,11 @@ function ViewEmployee() {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    // Handle special cases for select inputs that need numeric values
-    if (
-      [
-        "departmentID",
-        "clusterID",
-        "siteID",
-        "positionID",
-        "employee_level",
-      ].includes(name)
-    ) {
-      setSelectedEmployee((prev) => ({
-        ...prev,
-        [name]: value === "" ? "" : Number(value),
-      }));
-    } else {
-      setSelectedEmployee((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
+    const { name, value, type, checked } = e.target;
+    setSelectedEmployee((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   // Update the handleFileChange function
@@ -258,6 +260,10 @@ function ViewEmployee() {
         positionID: selectedEmployee.positionID,
         employee_level: selectedEmployee.employee_level,
         healthcare: selectedEmployee.healthcare,
+        nbi: selectedEmployee.nbi,
+        medicalCert: selectedEmployee.medicalCert,
+        xray: selectedEmployee.xray,
+        drugTest: selectedEmployee.drugTest,
       };
 
       // Append all mapped data to formData
@@ -502,385 +508,421 @@ function ViewEmployee() {
 
                   {/* Edit Modal */}
                   {showModal && (
-                    <div className="modal d-block" tabIndex={-1}>
-                      <div className="modal-dialog modal-lg">
-                        <div className="modal-content">
-                          <div className="modal-header bg-primary text-white">
-                            <h5 className="modal-title">Edit Employee</h5>
-                            <button
-                              type="button"
-                              className="btn-close"
-                              onClick={handleCloseModal}
+                    <Modal show={showModal} onHide={handleCloseModal}>
+                      <Modal.Header>
+                        <Modal.Title>Edit Employee</Modal.Title>
+                      </Modal.Header>
+                      <Modal.Body>
+                        <h5>Profile</h5>
+                        <hr />
+                        <div className="row g-3">
+                          {/* Update the edit modal photo preview section */}
+                          <div className="col-12 text-start mb-3 d-flex align-items-center">
+                            <div className="position-relative photo-preview">
+                              {preview ? (
+                                <img
+                                  src={preview}
+                                  alt="Preview"
+                                  style={{
+                                    width: "150px",
+                                    height: "150px",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                              ) : selectedEmployee.photo ? (
+                                <img
+                                  src={`${config.API_BASE_URL}/uploads/${selectedEmployee.photo}`}
+                                  alt="Employee"
+                                  style={{
+                                    width: "150px",
+                                    height: "150px",
+                                    objectFit: "cover",
+                                  }}
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src =
+                                      "https://via.placeholder.com/150?text=No+Photo";
+                                  }}
+                                />
+                              ) : (
+                                <label
+                                  htmlFor="photo"
+                                  className="mb-0 pointer-label"
+                                >
+                                  Choose File
+                                </label>
+                              )}
+                              <input
+                                type="file"
+                                name="file_uploaded"
+                                id="photo"
+                                onChange={handleFileChange}
+                                className="file-input"
+                                accept="image/*"
+                              />
+                            </div>
+                            <label className="form-label ms-3 mb-0 pointer-label">
+                              Upload a Photo
+                            </label>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">First Name</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="fName"
+                              value={selectedEmployee.fName || ""}
+                              onChange={handleChange}
                             />
                           </div>
-                          <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                            <h5>Profile</h5>
-                            <hr />
-                            <div className="row g-3">
-                              {/* Update the edit modal photo preview section */}
-                              <div className="col-12 text-start mb-3 d-flex align-items-center">
-                                <div className="position-relative photo-preview">
-                                  {preview ? (
-                                    <img
-                                      src={preview}
-                                      alt="Preview"
-                                      style={{
-                                        width: "150px",
-                                        height: "150px",
-                                        objectFit: "cover",
-                                      }}
-                                    />
-                                  ) : selectedEmployee.photo ? (
-                                    <img
-                                      src={`${config.API_BASE_URL}/uploads/${selectedEmployee.photo}`}
-                                      alt="Employee"
-                                      style={{
-                                        width: "150px",
-                                        height: "150px",
-                                        objectFit: "cover",
-                                      }}
-                                      onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src =
-                                          "https://via.placeholder.com/150?text=No+Photo";
-                                      }}
-                                    />
-                                  ) : (
-                                    <label
-                                      htmlFor="photo"
-                                      className="mb-0 pointer-label"
-                                    >
-                                      Choose File
-                                    </label>
-                                  )}
-                                  <input
-                                    type="file"
-                                    name="file_uploaded"
-                                    id="photo"
-                                    onChange={handleFileChange}
-                                    className="file-input"
-                                    accept="image/*"
-                                  />
-                                </div>
-                                <label className="form-label ms-3 mb-0 pointer-label">
-                                  Upload a Photo
-                                </label>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">First Name</label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="fName"
-                                  value={selectedEmployee.fName || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">
-                                  Middle Name
-                                </label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="mName"
-                                  value={selectedEmployee.mName || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Last Name</label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="lName"
-                                  value={selectedEmployee.lName || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-6">
-                                <label className="form-label">Birth Date</label>
-                                <input
-                                  type="date"
-                                  className="form-control"
-                                  name="bDate"
-                                  value={
-                                    formatDateForInput(
-                                      selectedEmployee.bDate
-                                    ) || ""
-                                  }
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-6">
-                                <label className="form-label">Date Hired</label>
-                                <input
-                                  type="date"
-                                  className="form-control"
-                                  name="date_hired"
-                                  value={
-                                    formatDateForInput(
-                                      selectedEmployee.date_hired
-                                    ) || ""
-                                  }
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Position</label>
-                                <select
-                                  name="positionID" // Changed from position to positionID
-                                  className="form-select"
-                                  value={selectedEmployee.positionID || ""}
-                                  onChange={handleChange}
-                                >
-                                  <option value="">Choose...</option>
-                                  {dropdownData.positions.map((position) => (
-                                    <option
-                                      key={position.id}
-                                      value={position.id}
-                                    >
-                                      {position.position}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Department</label>
-                                <select
-                                  name="departmentID" // Changed from department to departmentID
-                                  className="form-select"
-                                  value={selectedEmployee.departmentID || ""}
-                                  onChange={handleChange}
-                                >
-                                  <option value="">Choose...</option>
-                                  {dropdownData.departments.map(
-                                    (department) => (
-                                      <option
-                                        key={department.id}
-                                        value={department.id}
-                                      >
-                                        {department.departmentName}
-                                      </option>
-                                    )
-                                  )}
-                                </select>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Cluster</label>
-                                <select
-                                  name="clusterID"
-                                  className="form-select"
-                                  value={selectedEmployee.clusterID || ""}
-                                  onChange={handleChange}
-                                >
-                                  <option value="">Choose...</option>
-                                  {dropdownData.clusters.map((cluster) => (
-                                    <option key={cluster.id} value={cluster.id}>
-                                      {cluster.clusterName}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Site</label>
-                                <select
-                                  name="siteID"
-                                  className="form-select"
-                                  value={selectedEmployee.siteID || ""}
-                                  onChange={handleChange}
-                                >
-                                  <option value="">Choose Site...</option>
-                                  {dropdownData.sites.map((site) => (
-                                    <option key={site.id} value={site.id}>
-                                      {site.siteName}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">
-                                  Employee Level
-                                </label>
-                                <select
-                                  name="employee_level"
-                                  className="form-select"
-                                  value={selectedEmployee.employee_level || ""}
-                                  onChange={handleChange}
-                                >
-                                  <option value="">Choose Level...</option>
-                                  {dropdownData.employee_levels.map((level) => (
-                                    <option key={level.id} value={level.id}>
-                                      {level.e_level}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">
-                                  Account Status
-                                </label>
-                                <select
-                                  name="employee_status" // Changed from status to employee_status
-                                  className="form-select"
-                                  value={selectedEmployee.employee_status || ""}
-                                  onChange={handleChange}
-                                >
-                                  <option value="">Choose...</option>
-                                  <option value="Active">Active</option>
-                                  <option value="Inactive">Inactive</option>
-                                  <option value="Terminated">Terminated</option>
-                                </select>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Basic Pay</label>
-                                <input
-                                  type="number"
-                                  className="form-control"
-                                  name="basicPay"
-                                  value={selectedEmployee.basic_pay || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-6">
-                                <label className="form-label">Email</label>
-                                <input
-                                  type="email"
-                                  className="form-control"
-                                  name="email"
-                                  value={selectedEmployee.email || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-6">
-                                <label className="form-label">Phone</label>
-                                <input
-                                  type="tel"
-                                  className="form-control"
-                                  name="phone"
-                                  value={selectedEmployee.phone || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                            </div>
-                            <h5 className="mt-4">Government Mandatory</h5>
-                            <hr />
-                            <div className="row g-3">
-                              <div className="col-md-4">
-                                <label className="form-label">Healthcare</label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="healthcare"
-                                  value={selectedEmployee.healthcare || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">SSS</label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="sss"
-                                  value={selectedEmployee.sss || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Pagibig</label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="pagibig"
-                                  value={selectedEmployee.pagibig || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Philhealth</label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="philhealth"
-                                  value={selectedEmployee.philhealth || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Tin</label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="tin"
-                                  value={selectedEmployee.tin || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                            </div>
-                            <h5 className="mt-4">Contacts</h5>
-                            <hr />
-                            <div className="row g-3">
-                              <div className="col-md-4">
-                                <label className="form-label">Address</label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="address"
-                                  value={selectedEmployee.address || ""}
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">
-                                  Emergency Person
-                                </label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="emergencyPerson"
-                                  value={
-                                    selectedEmployee.emergency_contact_person ||
-                                    ""
-                                  }
-                                  onChange={handleChange}
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">
-                                  Emergency Contact Number
-                                </label>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  name="emergencyContactNumber"
-                                  value={
-                                    selectedEmployee.emergency_contact_number ||
-                                    ""
-                                  }
-                                  onChange={handleChange}
-                                />
-                              </div>
-                            </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Middle Name</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="mName"
+                              value={selectedEmployee.mName || ""}
+                              onChange={handleChange}
+                            />
                           </div>
-                          <div className="modal-footer">
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              onClick={handleCloseModal}
+                          <div className="col-md-4">
+                            <label className="form-label">Last Name</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="lName"
+                              value={selectedEmployee.lName || ""}
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label">Birth Date</label>
+                            <input
+                              type="date"
+                              className="form-control"
+                              name="bDate"
+                              value={
+                                formatDateForInput(selectedEmployee.bDate) || ""
+                              }
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label">Date Hired</label>
+                            <input
+                              type="date"
+                              className="form-control"
+                              name="date_hired"
+                              value={
+                                formatDateForInput(
+                                  selectedEmployee.date_hired
+                                ) || ""
+                              }
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Position</label>
+                            <select
+                              name="positionID" // Changed from position to positionID
+                              className="form-select"
+                              value={selectedEmployee.positionID || ""}
+                              onChange={handleChange}
                             >
-                              Close
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-primary"
-                              onClick={handleUpdate}
+                              <option value="">Choose...</option>
+                              {dropdownData.positions.map((position) => (
+                                <option key={position.id} value={position.id}>
+                                  {position.position}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Department</label>
+                            <select
+                              name="departmentID" // Changed from department to departmentID
+                              className="form-select"
+                              value={selectedEmployee.departmentID || ""}
+                              onChange={handleChange}
                             >
-                              Save Changes
-                            </button>
+                              <option value="">Choose...</option>
+                              {dropdownData.departments.map((department) => (
+                                <option key={department.id} value={department.id}>
+                                  {department.departmentName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Cluster</label>
+                            <select
+                              name="clusterID"
+                              className="form-select"
+                              value={selectedEmployee.clusterID || ""}
+                              onChange={handleChange}
+                            >
+                              <option value="">Choose...</option>
+                              {dropdownData.clusters.map((cluster) => (
+                                <option key={cluster.id} value={cluster.id}>
+                                  {cluster.clusterName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Site</label>
+                            <select
+                              name="siteID"
+                              className="form-select"
+                              value={selectedEmployee.siteID || ""}
+                              onChange={handleChange}
+                            >
+                              <option value="">Choose Site...</option>
+                              {dropdownData.sites.map((site) => (
+                                <option key={site.id} value={site.id}>
+                                  {site.siteName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Employee Level</label>
+                            <select
+                              name="employee_level"
+                              className="form-select"
+                              value={selectedEmployee.employee_level || ""}
+                              onChange={handleChange}
+                            >
+                              <option value="">Choose Level...</option>
+                              {dropdownData.employee_levels.map((level) => (
+                                <option key={level.id} value={level.id}>
+                                  {level.e_level}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Account Status</label>
+                            <select
+                              name="employee_status" // Changed from status to employee_status
+                              className="form-select"
+                              value={selectedEmployee.employee_status || ""}
+                              onChange={handleChange}
+                            >
+                              <option value="">Choose...</option>
+                              <option value="Active">Active</option>
+                              <option value="Inactive">Inactive</option>
+                              <option value="Terminated">Terminated</option>
+                            </select>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Basic Pay</label>
+                            <input
+                              type="number"
+                              className="form-control"
+                              name="basicPay"
+                              value={selectedEmployee.basic_pay || ""}
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label">Email</label>
+                            <input
+                              type="email"
+                              className="form-control"
+                              name="email"
+                              value={selectedEmployee.email || ""}
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label">Phone</label>
+                            <input
+                              type="tel"
+                              className="form-control"
+                              name="phone"
+                              value={selectedEmployee.phone || ""}
+                              onChange={handleChange}
+                            />
                           </div>
                         </div>
-                      </div>
-                    </div>
+                        <h5 className="mt-4">Government Mandatory</h5>
+                        <hr />
+                        <div className="row g-3">
+                          <div className="col-md-4">
+                            <label className="form-label">Healthcare</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="healthcare"
+                              value={selectedEmployee.healthcare || ""}
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">SSS</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="sss"
+                              value={selectedEmployee.sss || ""}
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Pagibig</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="pagibig"
+                              value={selectedEmployee.pagibig || ""}
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Philhealth</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="philhealth"
+                              value={selectedEmployee.philhealth || ""}
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Tin</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="tin"
+                              value={selectedEmployee.tin || ""}
+                              onChange={handleChange}
+                            />
+                          </div>
+                        </div>
+                        <h5 className="mt-4">Contacts</h5>
+                        <hr />
+                        <div className="row g-3">
+                          <div className="col-md-4">
+                            <label className="form-label">Address</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="address"
+                              value={selectedEmployee.address || ""}
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Emergency Person</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="emergencyPerson"
+                              value={
+                                selectedEmployee.emergency_contact_person || ""
+                              }
+                              onChange={handleChange}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">
+                              Emergency Contact Number
+                            </label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              name="emergencyContactNumber"
+                              value={
+                                selectedEmployee.emergency_contact_number || ""
+                              }
+                              onChange={handleChange}
+                            />
+                          </div>
+                        </div>
+                        {/* Pre Employment Requirements in a card */}
+                        <div className="card mb-4 mt-3">
+                          <div className="card-header">
+                            <h5>Pre Employment Requirements</h5>
+                          </div>
+                          <div className="card-body">
+                            <div className="row g-3">
+                              <div className="col-md-3 form-check">
+                                <input
+                                  type="checkbox"
+                                  id="nbi"
+                                  name="nbi"
+                                  className="form-check-input"
+                                  checked={selectedEmployee.nbi}
+                                  onChange={handleChange}
+                                />
+                                <label htmlFor="nbi" className="form-check-label">
+                                  NBI
+                                </label>
+                              </div>
+                              <div className="col-md-3 form-check">
+                                <input
+                                  type="checkbox"
+                                  id="medicalCert"
+                                  name="medicalCert"
+                                  className="form-check-input"
+                                  checked={selectedEmployee.medicalCert}
+                                  onChange={handleChange}
+                                />
+                                <label
+                                  htmlFor="medicalCert"
+                                  className="form-check-label"
+                                >
+                                  Medical Certificate
+                                </label>
+                              </div>
+                              <div className="col-md-3 form-check">
+                                <input
+                                  type="checkbox"
+                                  id="xray"
+                                  name="xray"
+                                  className="form-check-input"
+                                  checked={selectedEmployee.xray}
+                                  onChange={handleChange}
+                                />
+                                <label htmlFor="xray" className="form-check-label">
+                                  X-ray
+                                </label>
+                              </div>
+                              <div className="col-md-3 form-check">
+                                <input
+                                  type="checkbox"
+                                  id="drugTest"
+                                  name="drugTest"
+                                  className="form-check-input"
+                                  checked={selectedEmployee.drugTest}
+                                  onChange={handleChange}
+                                />
+                                <label htmlFor="drugTest" className="form-check-label">
+                                  Drug Test
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Modal.Body>
+                      <Modal.Footer>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={handleCloseModal}
+                        >
+                          Close
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={handleUpdate}
+                        >
+                          Save Changes
+                        </button>
+                      </Modal.Footer>
+                    </Modal>
                   )}
                   {/* End of Edit Modal */}
                   {showDetailsModal && (
@@ -1125,6 +1167,41 @@ function ViewEmployee() {
                                 <p className="mb-0 disabled-info">
                                   {selectedEmployee.emergency_contact_number}
                                 </p>
+                              </div>
+                            </div>
+                            <div className="mb-3 mt-4">
+                              <h5 className="mb-3 border-bottom pb-2">Pre Employment Requirements</h5>
+                              <div className="row g-3">
+                                <div className="col-md-4">
+                                  <label className="form-label fw-bold">
+                                    NBI:
+                                  </label>
+                                  <p className="mb-0 disabled-info">{selectedEmployee.nbi ? "Yes" : "No"}</p>
+                                </div>
+
+
+                                <div className="col-md-4">
+                                  <label className="form-label fw-bold">
+                                    Medical Certificate
+                                  </label>
+                                  <p className="mb-0 disabled-info">{selectedEmployee.medicalCert ? "Yes" : "No"}</p>
+                                </div>
+
+
+                                <div className="col-md-4">
+                                  <label className="form-label fw-bold">
+                                    X-Ray:
+                                  </label>
+                                  <p className="mb-0 disabled-info">{selectedEmployee.xray ? "Yes" : "No"}</p>
+                                </div>
+
+
+                                <div className="col-md-4">
+                                  <label className="form-label fw-bold">
+                                    Drug Test:
+                                  </label>
+                                  <p className="mb-0 disabled-info">{selectedEmployee.drugTest ? "Yes" : "No"}</p>
+                                </div>
                               </div>
                             </div>
                           </div>

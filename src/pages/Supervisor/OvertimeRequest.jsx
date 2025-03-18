@@ -25,27 +25,30 @@ const SupervisorOvertimeRequest = () => {
 
   const fetchOvertimeRequests = async () => {
     try {
-      const emp_id = localStorage.getItem("X-EMP-ID");
+      const supervisor_emp_id = localStorage.getItem("X-EMP-ID");
       const response = await axios.get(
-        `${config.API_BASE_URL}/overtime_requests/get_all_overtime_request`,
+        `${config.API_BASE_URL}/overtime_requests/get_all_overtime_request_supervisor/${supervisor_emp_id}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id,
+            "X-EMP-ID": supervisor_emp_id,
           },
         }
       );
 
       if (response.data?.data) {
-        const formattedData = response.data.data.map(record => ({
+        const formattedData = response.data.data.map((record) => ({
           ...record,
           overtime_request_id: record.id,
-          date: moment(record.date).format('YYYY-MM-DD'),
-          date_approved: record.date_approved ? moment(record.date_approved).format('YYYY-MM-DD') : '-'
+          date: moment(record.date).format("YYYY-MM-DD"),
+          date_approved: record.date_approved
+            ? moment(record.date_approved).format("YYYY-MM-DD")
+            : "-",
         }));
 
-        const sortedData = formattedData.sort((a, b) =>
-          moment(b.date).valueOf() - moment(a.date).valueOf()
+        // Sort by date (newest first)
+        const sortedData = formattedData.sort(
+          (a, b) => moment(b.date).valueOf() - moment(a.date).valueOf()
         );
 
         setOvertimeRequests(sortedData);

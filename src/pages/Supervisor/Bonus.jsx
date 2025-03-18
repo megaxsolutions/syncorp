@@ -250,16 +250,15 @@ export default function Bonus() {
     const supervisor_emp_id = localStorage.getItem("X-EMP-ID");
 
     try {
-      // Create bonus requests for each selected employee
       const promises = selectedEmployees.map(employee =>
         axios.post(
-          `${config.API_BASE_URL}/bonus/add_bonus`,  // Updated endpoint
+          `${config.API_BASE_URL}/bonus/add_bonus`,
           {
-            // Match the parameter names expected by your backend
             perf_bonus: perfAmount || 0,
             client_funded: clientFundedAmount || 0,
             supervisor_emp_id: supervisor_emp_id,
-            emp_id: employee.value
+            emp_id: employee.value,
+            status: 'Pending', // ← New field for default status
           },
           {
             headers: {
@@ -271,8 +270,6 @@ export default function Bonus() {
       );
 
       const results = await Promise.all(promises);
-
-      // Check if all requests were successful
       const allSuccessful = results.every(res => res.data && res.data.success);
 
       if (allSuccessful) {
@@ -281,20 +278,15 @@ export default function Bonus() {
           title: 'Success',
           text: 'Bonus requests submitted successfully',
         });
-
-        // Reset form fields
         setCutOff(null);
         setSelectedEmployees([]);
         setPerfAmount('');
         setClientFundedAmount('');
-
-        // Refresh the bonus list
         fetchBonuses();
       } else {
         throw new Error('Some bonus requests failed');
       }
     } catch (error) {
-      console.error("Error submitting bonus requests:", error);
       Swal.fire({
         icon: 'error',
         title: 'Error',

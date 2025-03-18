@@ -5,9 +5,14 @@ import SupervisorNavbar from "../../components/SupervisorNavbar";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
 import moment from 'moment';
 import Swal from 'sweetalert2';
+import Select from 'react-select';
 
 const SupervisorSchedule = () => {
   const [employees, setEmployees] = useState([]);
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
+  const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [searchSelection, setSearchSelection] = useState(null);
+
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [currentDate, setCurrentDate] = useState(moment());
   const [error, setError] = useState("");
@@ -61,25 +66,31 @@ const SupervisorSchedule = () => {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
+        const supervisorId = localStorage.getItem("X-EMP-ID");
         const response = await axios.get(
-          `${config.API_BASE_URL}/employees/get_all_employee`,
+          `${config.API_BASE_URL}/employees/get_all_employee_supervisor/${supervisorId}`,
           {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              "X-EMP-ID": supervisorId,
             },
           }
         );
-
         if (response.data?.data) {
           setEmployees(response.data.data);
+          setFilteredEmployees(response.data.data);
+          setEmployeeOptions(
+            response.data.data.map((emp) => ({
+              value: emp.emp_ID,
+              label: `${emp.fName} ${emp.lName}`,
+            }))
+          );
         }
-      } catch (error) {
-        console.error("Error fetching employees:", error);
+      } catch (err) {
+        console.error("Error fetching employees:", err);
         setError("Failed to load employees");
       }
     };
-
     fetchEmployees();
   }, []);
 
@@ -155,10 +166,10 @@ const SupervisorSchedule = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedEmployees.length === employees.length) {
+    if (selectedEmployees.length === filteredEmployees.length) {
       setSelectedEmployees([]);
     } else {
-      setSelectedEmployees(employees.map(emp => emp.emp_ID));
+      setSelectedEmployees(filteredEmployees.map(emp => emp.emp_ID));
     }
   };
 
@@ -597,6 +608,33 @@ const resetOTForm = () => {
   setOtType('');
 };
 
+  // Add a handleBreaks function:
+  const handleBreaks = () => {
+    // You can replace this with whatever logic you need.
+    // For now, show a placeholder message or open a "Breaks" modal.
+    Swal.fire({
+      icon: 'info',
+      title: 'Breaks',
+      text: 'This feature is under construction.',
+    });
+  };
+
+  // Handle the React Select search button
+  const handleSearch = () => {
+    if (searchSelection) {
+      // Filter for just that one employee
+      const filtered = employees.filter(
+        (emp) => emp.emp_ID === searchSelection.value
+      );
+      setFilteredEmployees(filtered);
+      setSelectedEmployees([]);
+    } else {
+      // No item selected, show all
+      setFilteredEmployees(employees);
+      setSelectedEmployees([]);
+    }
+  };
+
   return (
     <>
       <SupervisorNavbar />
@@ -623,30 +661,65 @@ const resetOTForm = () => {
                     className="btn btn-sm btn-outline-primary"
                     onClick={handleSelectAll}
                   >
-                    {selectedEmployees.length === employees.length ? 'Unselect All' : 'Select All'}
+                    {selectedEmployees.length === filteredEmployees.length
+                      ? 'Unselect All'
+                      : 'Select All'}
                   </button>
                 </div>
-                <div className="card-body" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                <div className="card-body">
                   {error && (
                     <div className="alert alert-danger" role="alert">
                       {error}
                     </div>
                   )}
-                  <div className="list-group">
-                    {employees.map((employee) => (
-                      <label
-                        key={employee.emp_ID}
-                        className="list-group-item"
-                      >
-                        <input
-                          type="checkbox"
-                          className="form-check-input me-2"
-                          checked={selectedEmployees.includes(employee.emp_ID)}
-                          onChange={() => handleEmployeeSelect(employee.emp_ID)}
-                        />
-                        {employee.fName} {employee.lName}
-                      </label>
-                    ))}
+                  {/* Search Field Using React Select */}
+                  <div className="mb-3">
+                    <label className="form-label">Search Employee</label>
+                    <Select
+                      isClearable
+                      placeholder="Find an employee..."
+                      options={employeeOptions}
+                      value={searchSelection}
+                      onChange={(selected) => setSearchSelection(selected)}
+                    />
+                    <button
+                      className="btn btn-primary btn-sm mt-2"
+                      onClick={handleSearch}
+                    >
+                      Search
+                    </button>
+                  </div>
+
+                  {/* Scrollable area for checkboxes */}
+                  <div
+                    style={{
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      border: '1px solid #ddd',
+                      padding: '0.5rem',
+                    }}
+                  >
+                    <ul className="list-group list-group-flush">
+                      {filteredEmployees.map((emp) => (
+                        <li className="list-group-item" key={emp.emp_ID}>
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id={`checkbox-${emp.emp_ID}`}
+                              checked={selectedEmployees.includes(emp.emp_ID)}
+                              onChange={() => handleEmployeeSelect(emp.emp_ID)}
+                            />
+                            <label
+                              className="form-check-label"
+                              htmlFor={`checkbox-${emp.emp_ID}`}
+                            >
+                              {`${emp.fName} ${emp.lName}`} (ID: {emp.emp_ID})
+                            </label>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               </div>
@@ -683,6 +756,15 @@ const resetOTForm = () => {
                       >
                         <i className="bi bi-calendar2-x me-1"></i>
                         Remove
+                      </button>
+
+                      {/* New Breaks button */}
+                      <button
+                        className="btn btn-info"
+                        onClick={handleBreaks}
+                        disabled={selectedEmployees.length === 0}
+                      >
+                        <i className="bi bi-pause-circle me-1"></i> Breaks
                       </button>
                     </div>
                   </div>

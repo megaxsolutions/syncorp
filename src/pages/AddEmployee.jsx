@@ -11,17 +11,15 @@ const AddEmployee = () => {
     fname: "",
     mname: "",
     lname: "",
-    bdate: "",
-    date_hired: "",
-    email: "",
-    phone: "",
+    birthdate: "",
+    date_added: "",
     position: "",
-    department: "",
-    cluster: "",
-    site: "",
-    emp_level: "",
-    status: "",
-    basicPay: "",
+    department_id: "",
+    cluster_id: "",
+    site_id: "",
+    employee_level: "",
+    employee_status: "",
+    basic_pay: "",
     sss: "",
     pagibig: "",
     philhealth: "",
@@ -30,6 +28,13 @@ const AddEmployee = () => {
     address: "",
     emergencyPerson: "",
     emergencyContactNumber: "",
+    email: "",
+    phone: "",
+    // New fields for pre-employment requirements
+    nbi: false,
+    medicalCert: false,
+    xray: false,
+    drugTest: false,
   });
 
   // Add these state variables after the existing employee state
@@ -57,10 +62,10 @@ const AddEmployee = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setEmployee((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -149,6 +154,11 @@ const AddEmployee = () => {
           emergencyContactNumber: "",
           email: "",
           phone: "",
+          // New fields for pre-employment requirements
+          nbi: false,
+          medicalCert: false,
+          xray: false,
+          drugTest: false,
         });
         setPreview(null);
       }
@@ -609,6 +619,71 @@ const AddEmployee = () => {
               </div>
             </div>
 
+            {/* New "Pre Employment Requirements" container */}
+            <div className="col-12">
+              <div className="card mb-4">
+                <div className="card-header">
+                  <h5>Pre Employment Requirements</h5>
+                </div>
+                <div className="card-body">
+                  <div className="row g-3">
+                    <div className="col-md-3 form-check">
+                      <input
+                        type="checkbox"
+                        name="nbi"
+                        className="form-check-input"
+                        id="nbi"
+                        checked={employee.nbi}
+                        onChange={handleChange}
+                      />
+                      <label htmlFor="nbi" className="form-check-label">
+                        NBI
+                      </label>
+                    </div>
+                    <div className="col-md-3 form-check">
+                      <input
+                        type="checkbox"
+                        name="medicalCert"
+                        className="form-check-input"
+                        id="medicalCert"
+                        checked={employee.medicalCert}
+                        onChange={handleChange}
+                      />
+                      <label htmlFor="medicalCert" className="form-check-label">
+                        Medical Certificate
+                      </label>
+                    </div>
+                    <div className="col-md-3 form-check">
+                      <input
+                        type="checkbox"
+                        name="xray"
+                        className="form-check-input"
+                        id="xray"
+                        checked={employee.xray}
+                        onChange={handleChange}
+                      />
+                      <label htmlFor="xray" className="form-check-label">
+                        X-ray
+                      </label>
+                    </div>
+                    <div className="col-md-3 form-check">
+                      <input
+                        type="checkbox"
+                        name="drugTest"
+                        className="form-check-input"
+                        id="drugTest"
+                        checked={employee.drugTest}
+                        onChange={handleChange}
+                      />
+                      <label htmlFor="drugTest" className="form-check-label">
+                        Drug Test
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Contacts Section */}
             <div className="col-12">
               <div className="card mb-4">
@@ -717,6 +792,11 @@ const AddEmployee = () => {
                     emergencyContactNumber: "",
                     email: "",
                     phone: "",
+                    // New fields for pre-employment requirements
+                    nbi: false,
+                    medicalCert: false,
+                    xray: false,
+                    drugTest: false,
                   });
                   setPreview(null);
                 }}
