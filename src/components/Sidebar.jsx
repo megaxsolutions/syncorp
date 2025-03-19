@@ -17,6 +17,7 @@ const Sidebar = () => {
   const isLeaveRequest = location.pathname === "/approvals/leave-request";
   const isOvertimeRequest = location.pathname === "/approvals/overtime-request";
   const isBonusRequest = location.pathname === "/approvals/bonus-request";
+  const isAccounts = location.pathname === "/settings/accounts";
 
   const handleDropdownClick = (event, targetId) => {
     event.preventDefault();
@@ -128,6 +129,15 @@ const Sidebar = () => {
               >
                 <i className="bi bi-diagram-3"></i>
                 <span>Cluster</span>
+              </Link>
+            </li>
+            <li className="mt-2">
+              <Link
+                to="/settings/accounts"
+                className={`nav-link ${isAccounts ? "active" : ""}`}
+              >
+                <i className="bi bi-person-badge-fill"></i>
+                <span>Accounts</span>
               </Link>
             </li>
             <li className="mt-2">

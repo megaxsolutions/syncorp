@@ -7,6 +7,47 @@ import moment from 'moment';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 
+// Add this at the beginning of your component
+const calendarStyles = {
+  '.calendar-today': {
+    backgroundColor: 'rgba(13, 202, 240, 0.1)',
+  },
+  '.calendar-date': {
+    position: 'absolute',
+    top: '2px',
+    left: '4px',
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
+  },
+  '.current-date': {
+    backgroundColor: '#0dcaf0',
+    color: 'white',
+    borderRadius: '50%',
+    width: '25px',
+    height: '25px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    top: '2px',
+    left: '4px',
+  },
+  '.calendar-table td': {
+    transition: 'all 0.2s',
+  },
+  '.calendar-table td:hover': {
+    backgroundColor: 'rgba(13, 110, 253, 0.05)',
+  },
+  '.schedule-item': {
+    transition: 'all 0.2s',
+    cursor: 'default',
+  },
+  '.schedule-item:hover': {
+    opacity: 0.9,
+    transform: 'translateY(-1px)',
+  },
+};
+
 const SupervisorSchedule = () => {
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
@@ -33,6 +74,19 @@ const SupervisorSchedule = () => {
   const [regularSchedules, setRegularSchedules] = useState([]);
   const [overtimeSchedules, setOvertimeSchedules] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const [showBreaksModal, setShowBreaksModal] = useState(false);
+  const [firstBreakStart, setFirstBreakStart] = useState('10:00');
+  const [firstBreakEnd, setFirstBreakEnd] = useState('10:15');
+  const [secondBreakStart, setSecondBreakStart] = useState('15:00');
+  const [secondBreakEnd, setSecondBreakEnd] = useState('15:15');
+  const [lunchBreakStart, setLunchBreakStart] = useState('12:00');
+  const [lunchBreakEnd, setLunchBreakEnd] = useState('13:00');
+  const [breakScheduleTypes, setBreakScheduleTypes] = useState({
+    currentDay: false,
+    thisWeek: false,
+    thisMonth: false
+  });
 
   // Calendar Navigation
   const handlePrevMonth = () => {
@@ -610,14 +664,148 @@ const resetOTForm = () => {
 
   // Add a handleBreaks function:
   const handleBreaks = () => {
-    // You can replace this with whatever logic you need.
-    // For now, show a placeholder message or open a "Breaks" modal.
-    Swal.fire({
-      icon: 'info',
-      title: 'Breaks',
-      text: 'This feature is under construction.',
-    });
+    if (selectedEmployees.length === 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No Employees Selected',
+        text: 'Please select at least one employee'
+      });
+      return;
+    }
+    setShowBreaksModal(true);
   };
+
+  // Add a new function to handle the submission of breaks
+const handleBreakSubmit = async () => {
+  try {
+    // Validate that at least one schedule type is selected
+    if (!breakScheduleTypes.currentDay && !breakScheduleTypes.thisWeek && !breakScheduleTypes.thisMonth) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No Schedule Type Selected',
+        text: 'Please select at least one schedule type'
+      });
+      return;
+    }
+
+    // Get selected days based on schedule types
+    const selectedDays = [];
+    const startOfWeek = moment(currentDate).startOf('week');
+    const startOfMonth = moment(currentDate).startOf('month');
+
+    if (breakScheduleTypes.currentDay) {
+      selectedDays.push(currentDate.format('YYYY-MM-DD'));
+    }
+
+    if (breakScheduleTypes.thisWeek) {
+      for (let i = 1; i <= 5; i++) { // Monday to Friday
+        selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
+      }
+    }
+
+    if (breakScheduleTypes.thisMonth) {
+      const daysInMonth = currentDate.daysInMonth();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const day = moment(startOfMonth).add(i - 1, 'days');
+        if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
+          selectedDays.push(day.format('YYYY-MM-DD'));
+        }
+      }
+    }
+
+    // Prepare request data
+    const breakData = {
+      array_employee_emp_id: selectedEmployees,
+      admin_emp_id: localStorage.getItem("X-EMP-ID"),
+      array_selected_days: selectedDays,
+      breaks: [
+        {
+          name: 'First Break',
+          start_time: firstBreakStart,
+          end_time: firstBreakEnd
+        },
+        {
+          name: 'Second Break',
+          start_time: secondBreakStart,
+          end_time: secondBreakEnd
+        },
+        {
+          name: 'Lunch Break',
+          start_time: lunchBreakStart,
+          end_time: lunchBreakEnd
+        }
+      ]
+    };
+
+    // Show loading
+    Swal.fire({
+      title: 'Setting breaks...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    // In a real implementation, you would make an API call here
+    // For now, we'll simulate success after a short delay
+    setTimeout(() => {
+      console.log('Break data to be submitted:', breakData);
+
+      // Close modal
+      setShowBreaksModal(false);
+
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: 'Breaks have been set successfully',
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      // Reset form
+      setBreakScheduleTypes({
+        currentDay: false,
+        thisWeek: false,
+        thisMonth: false
+      });
+    }, 1000);
+
+    // In a real implementation, your API call would look like this:
+    /*
+    const response = await axios.post(
+      `${config.API_BASE_URL}/shift_schedules/add_break_schedules`,
+      breakData,
+      {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+        }
+      }
+    );
+
+    // Close modal
+    setShowBreaksModal(false);
+
+    // Show success message
+    Swal.fire({
+      icon: 'success',
+      title: 'Success',
+      text: response.data.success || 'Breaks have been set successfully',
+      timer: 1500,
+      showConfirmButton: false
+    });
+    */
+
+  } catch (error) {
+    console.error('Error setting breaks:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: error.response?.data?.error || 'Failed to set breaks'
+    });
+  }
+};
 
   // Handle the React Select search button
   const handleSearch = () => {
@@ -634,6 +822,30 @@ const resetOTForm = () => {
       setSelectedEmployees([]);
     }
   };
+
+  // Then add this style tag in your render method, just before the return statement:
+useEffect(() => {
+  // Create style element
+  const styleEl = document.createElement('style');
+
+  // Compile styles
+  const cssRules = Object.entries(calendarStyles)
+    .map(([selector, styles]) => {
+      const cssProps = Object.entries(styles)
+        .map(([prop, value]) => `${prop}: ${value};`)
+        .join(' ');
+      return `${selector} { ${cssProps} }`;
+    })
+    .join('\n');
+
+  styleEl.innerHTML = cssRules;
+  document.head.appendChild(styleEl);
+
+  // Cleanup
+  return () => {
+    document.head.removeChild(styleEl);
+  };
+}, []);
 
   return (
     <>
@@ -652,340 +864,582 @@ const resetOTForm = () => {
 
         <div className="container-fluid">
           <div className="row">
-            {/* Employee List Container */}
-            <div className="col-md-4">
-              <div className="card shadow-sm">
-                <div className="card-header d-flex justify-content-between align-items-center">
-                  <h5 className="mb-0">Employees</h5>
-                  <button
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={handleSelectAll}
-                  >
-                    {selectedEmployees.length === filteredEmployees.length
-                      ? 'Unselect All'
-                      : 'Select All'}
-                  </button>
-                </div>
-                <div className="card-body">
-                  {error && (
-                    <div className="alert alert-danger" role="alert">
-                      {error}
-                    </div>
-                  )}
-                  {/* Search Field Using React Select */}
-                  <div className="mb-3">
-                    <label className="form-label">Search Employee</label>
-                    <Select
-                      isClearable
-                      placeholder="Find an employee..."
-                      options={employeeOptions}
-                      value={searchSelection}
-                      onChange={(selected) => setSearchSelection(selected)}
-                    />
-                    <button
-                      className="btn btn-primary btn-sm mt-2"
-                      onClick={handleSearch}
-                    >
-                      Search
-                    </button>
-                  </div>
+            {/* Employee List Container - Improved UI */}
+<div className="col-md-4">
+  <div className="card shadow-sm">
+    <div className="card-header bg-white d-flex justify-content-between align-items-center">
+      <h5 className="mb-0">
+        <i className="bi bi-people me-2 text-primary"></i>
+        Employees
+      </h5>
+      <div className="d-flex gap-2">
+        <button
+          className={`btn btn-sm ${selectedEmployees.length === 0
+            ? 'btn-outline-primary'
+            : 'btn-primary'}`}
+          onClick={handleSelectAll}
+        >
+          {selectedEmployees.length === filteredEmployees.length && filteredEmployees.length > 0
+            ? <><i className="bi bi-check-all me-1"></i> Unselect All</>
+            : <><i className="bi bi-check-square me-1"></i> Select All</>}
+        </button>
+        <span className="badge bg-primary rounded-pill align-self-center">
+          {selectedEmployees.length}
+        </span>
+      </div>
+    </div>
+    <div className="card-body">
+      {error && (
+        <div className="alert alert-danger d-flex align-items-center" role="alert">
+          <i className="bi bi-exclamation-triangle-fill me-2"></i>
+          <div>{error}</div>
+        </div>
+      )}
 
-                  {/* Scrollable area for checkboxes */}
-                  <div
-                    style={{
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                      border: '1px solid #ddd',
-                      padding: '0.5rem',
-                    }}
-                  >
-                    <ul className="list-group list-group-flush">
-                      {filteredEmployees.map((emp) => (
-                        <li className="list-group-item" key={emp.emp_ID}>
-                          <div className="form-check">
-                            <input
-                              className="form-check-input"
-                              type="checkbox"
-                              id={`checkbox-${emp.emp_ID}`}
-                              checked={selectedEmployees.includes(emp.emp_ID)}
-                              onChange={() => handleEmployeeSelect(emp.emp_ID)}
-                            />
-                            <label
-                              className="form-check-label"
-                              htmlFor={`checkbox-${emp.emp_ID}`}
-                            >
-                              {`${emp.fName} ${emp.lName}`} (ID: {emp.emp_ID})
-                            </label>
+      {/* Search Field Using React Select - Improved */}
+      <div className="mb-3">
+        <label className="form-label d-flex align-items-center">
+          <i className="bi bi-search me-2 text-muted"></i>
+          Search Employee
+        </label>
+        <div className="input-group">
+          <Select
+            className="form-control p-0"
+            classNamePrefix="react-select"
+            isClearable
+            placeholder="Find an employee by name or ID..."
+            options={employeeOptions}
+            value={searchSelection}
+            onChange={(selected) => {
+              setSearchSelection(selected);
+              // Auto-search when selection changes
+              if (selected) {
+                const filtered = employees.filter((emp) => emp.emp_ID === selected.value);
+                setFilteredEmployees(filtered);
+                setSelectedEmployees([]);
+              } else {
+                setFilteredEmployees(employees);
+                setSelectedEmployees([]);
+              }
+            }}
+            theme={(theme) => ({
+              ...theme,
+              colors: {
+                ...theme.colors,
+                primary: '#0d6efd',
+                primary25: '#e6f0ff',
+              },
+            })}
+          />
+          <button
+            className="btn btn-primary"
+            onClick={handleSearch}
+            title="Search"
+          >
+            <i className="bi bi-search"></i>
+          </button>
+        </div>
+        {searchSelection && (
+          <button
+            className="btn btn-sm btn-outline-secondary mt-2"
+            onClick={() => {
+              setSearchSelection(null);
+              setFilteredEmployees(employees);
+              setSelectedEmployees([]);
+            }}
+          >
+            <i className="bi bi-x-circle me-1"></i> Clear filter
+          </button>
+        )}
+      </div>
+
+      {/* Scrollable area for employee list - Improved */}
+      {filteredEmployees.length > 0 ? (
+        <div
+          className="border rounded"
+          style={{
+            maxHeight: '350px',
+            overflowY: 'auto',
+            padding: '0.5rem',
+          }}
+        >
+          <div className="d-flex justify-content-between mb-2 px-2 text-muted small">
+            <span>Employee Name</span>
+            <span>ID</span>
+          </div>
+          <ul className="list-group list-group-flush">
+            {filteredEmployees.map((emp) => (
+              <li
+                className={`list-group-item list-group-item-action border-0 rounded ${
+                  selectedEmployees.includes(emp.emp_ID) ? 'bg-light' : ''
+                }`}
+                key={emp.emp_ID}
+                onClick={() => handleEmployeeSelect(emp.emp_ID)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="d-flex justify-content-between align-items-center">
+                  <div className="d-flex align-items-center">
+                    <div className="form-check me-2">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id={`checkbox-${emp.emp_ID}`}
+                        checked={selectedEmployees.includes(emp.emp_ID)}
+                        onChange={() => {}} // Handled by the list item click
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div>
+                      <div className="fw-medium">{`${emp.fName} ${emp.lName}`}</div>
+                      {emp.position && <div className="small text-muted">{emp.position}</div>}
+                    </div>
+                  </div>
+                  <span className="badge bg-light text-dark border">{emp.emp_ID}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <div className="alert alert-info d-flex align-items-center">
+          <i className="bi bi-info-circle me-2"></i>
+          <div>No employees found. Try adjusting your search.</div>
+        </div>
+      )}
+
+      {/* Selection summary */}
+      {selectedEmployees.length > 0 && (
+        <div className="alert alert-light border mt-3 mb-0 py-2">
+          <div className="d-flex justify-content-between align-items-center">
+            <small className="text-muted">
+              <i className="bi bi-check-square me-1"></i>
+              <strong>{selectedEmployees.length}</strong> employees selected
+            </small>
+            <button
+              className="btn btn-sm btn-outline-danger"
+              onClick={() => setSelectedEmployees([])}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
+
+            {/* Calendar Container - Improved */}
+<div className="col-md-8">
+  <div className="card shadow-sm">
+    {/* Schedule Action Buttons - Improved and Larger */}
+<div className="card-header bg-white">
+  <div className="d-flex flex-column flex-lg-row justify-content-between align-items-stretch align-items-lg-center gap-3 mb-3">
+    <h5 className="mb-0 d-flex align-items-center">
+      <i className="bi bi-calendar-week me-2 text-primary"></i>
+      Schedule Calendar
+    </h5>
+
+    <div className="d-flex flex-wrap gap-2 action-buttons">
+      <button
+        className="btn btn-primary px-3 py-2 d-flex align-items-center"
+        onClick={handleRegularSchedule}
+        disabled={selectedEmployees.length === 0}
+        title="Set regular schedule for selected employees"
+      >
+        <i className="bi bi-calendar2-check me-2 fs-5"></i>
+        <div>
+          <span className="d-block fw-medium">Regular</span>
+          <small className="d-block text-white-50">Standard shifts</small>
+        </div>
+      </button>
+
+      <button
+        className="btn btn-warning text-dark px-3 py-2 d-flex align-items-center"
+        onClick={handleOTSchedule}
+        disabled={selectedEmployees.length === 0}
+        title="Set overtime schedule for selected employees"
+      >
+        <i className="bi bi-clock-history me-2 fs-5"></i>
+        <div>
+          <span className="d-block fw-medium">Overtime</span>
+          <small className="d-block text-dark-50">Extra hours</small>
+        </div>
+      </button>
+
+      <button
+        className="btn btn-info text-white px-3 py-2 d-flex align-items-center"
+        onClick={handleBreaks}
+        disabled={selectedEmployees.length === 0}
+        title="Set break schedules for selected employees"
+      >
+        <i className="bi bi-pause-circle me-2 fs-5"></i>
+        <div>
+          <span className="d-block fw-medium">Breaks</span>
+          <small className="d-block text-white-50">Rest periods</small>
+        </div>
+      </button>
+
+      <button
+        className="btn btn-danger px-3 py-2 d-flex align-items-center"
+        onClick={handleRemoveSchedule}
+        disabled={selectedEmployees.length === 0}
+        title="Remove schedules for selected employees"
+      >
+        <i className="bi bi-calendar2-x me-2 fs-5"></i>
+        <div>
+          <span className="d-block fw-medium">Remove</span>
+          <small className="d-block text-white-50">Delete schedules</small>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  {/* Calendar Navigation - Keep as is */}
+  <div className="d-flex justify-content-between align-items-center mb-2">
+    <button
+      className="btn btn-sm btn-outline-secondary d-flex align-items-center"
+      onClick={handlePrevMonth}
+    >
+      <i className="bi bi-chevron-left me-1"></i>
+      Previous
+    </button>
+    <h6 className="mb-0 fs-5 fw-bold text-primary">
+      {currentDate.format('MMMM YYYY')}
+    </h6>
+    <button
+      className="btn btn-sm btn-outline-secondary d-flex align-items-center"
+      onClick={handleNextMonth}
+    >
+      Next
+      <i className="bi bi-chevron-right ms-1"></i>
+    </button>
+  </div>
+</div>
+
+    <div className="card-body p-2">
+      {/* Legend */}
+      <div className="d-flex gap-3 mb-2 flex-wrap justify-content-end">
+        <div className="d-flex align-items-center">
+          <div className="bg-primary rounded me-1" style={{ width: '12px', height: '12px' }}></div>
+          <small className="text-muted">Regular</small>
+        </div>
+        <div className="d-flex align-items-center">
+          <div className="bg-warning rounded me-1" style={{ width: '12px', height: '12px' }}></div>
+          <small className="text-muted">Overtime</small>
+        </div>
+        <div className="d-flex align-items-center">
+          <div className="bg-info rounded me-1" style={{ width: '12px', height: '12px' }}></div>
+          <small className="text-muted">Today</small>
+        </div>
+      </div>
+
+      {/* Calendar Grid - Improved */}
+      <div className="table-responsive">
+        <table className="table table-bordered calendar-table">
+          <thead>
+            <tr className="bg-light">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <th
+                  key={day}
+                  className="text-center bg-gradient"
+                  style={{
+                    fontSize: '0.9rem',
+                    backgroundColor: day === 'Sun' || day === 'Sat' ? '#f8f9fa' : 'white'
+                  }}
+                >
+                  {day}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {chunk(getDaysInMonth(), 7).map((week, weekIndex) => (
+              <tr key={weekIndex}>
+                {week.map((day, dayIndex) => {
+                  const isWeekend = dayIndex === 0 || dayIndex === 6;
+                  const isToday = day === moment().date() &&
+                                  currentDate.month() === moment().month() &&
+                                  currentDate.year() === moment().year();
+                  const isCurrentMonth = day !== null;
+
+                  return (
+                    <td
+                      key={dayIndex}
+                      className={`
+                        text-center position-relative
+                        ${!isCurrentMonth ? 'bg-light' : ''}
+                        ${isToday ? 'calendar-today' : ''}
+                        ${isWeekend && isCurrentMonth ? 'bg-light-subtle' : ''}
+                      `}
+                      style={{
+                        height: '110px',
+                        verticalAlign: 'top',
+                        minWidth: '100px',
+                        borderColor: '#dee2e6',
+                        position: 'relative'
+                      }}
+                    >
+                      {day && (
+                        <>
+                          <div className={`calendar-date ${isToday ? 'current-date' : ''}`}>
+                            {day}
                           </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Calendar Container */}
-            <div className="col-md-8">
-              <div className="card shadow-sm">
-                <div className="card-header">
-                  {/* Schedule Action Buttons */}
-                  <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
-                    <h5 className="mb-0">Schedule Calendar</h5>
-                    <div className="d-flex flex-wrap gap-2">
-                      <button
-                        className="btn btn-primary"
-                        onClick={handleRegularSchedule}
-                        disabled={selectedEmployees.length === 0}
-                      >
-                        <i className="bi bi-calendar2-check me-1"></i>
-                        Regular
-                      </button>
-                      <button
-                        className="btn btn-warning"
-                        onClick={handleOTSchedule}
-                        disabled={selectedEmployees.length === 0}
-                      >
-                        <i className="bi bi-clock-history me-1"></i>
-                        OT
-                      </button>
-                      <button
-                        className="btn btn-danger"
-                        onClick={handleRemoveSchedule}
-                        disabled={selectedEmployees.length === 0}
-                      >
-                        <i className="bi bi-calendar2-x me-1"></i>
-                        Remove
-                      </button>
-
-                      {/* New Breaks button */}
-                      <button
-                        className="btn btn-info"
-                        onClick={handleBreaks}
-                        disabled={selectedEmployees.length === 0}
-                      >
-                        <i className="bi bi-pause-circle me-1"></i> Breaks
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Calendar Navigation */}
-                  <div className="d-flex justify-content-between align-items-center">
-                    <button
-                      className="btn btn-outline-secondary"
-                      onClick={handlePrevMonth}
-                    >
-                      <i className="bi bi-chevron-left"></i>
-                    </button>
-                    <h6 className="mb-0">{currentDate.format('MMMM YYYY')}</h6>
-                    <button
-                      className="btn btn-outline-secondary"
-                      onClick={handleNextMonth}
-                    >
-                      <i className="bi bi-chevron-right"></i>
-                    </button>
-                  </div>
-                </div>
-                <div className="card-body">
-                  {/* Calendar Grid */}
-                  <div className="table-responsive">
-                    <table className="table table-bordered">
-                      <thead>
-                        <tr>
-                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                            <th key={day} className="text-center">{day}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {chunk(getDaysInMonth(), 7).map((week, weekIndex) => (
-                          <tr key={weekIndex}>
-                            {week.map((day, dayIndex) => (
-                              <td
-                                key={dayIndex}
-                                className={`text-center ${
-                                  day === currentDate.date() ? 'table-primary' : ''
-                                } ${!day ? 'table-light' : ''}`}
-                                style={{ height: '100px', verticalAlign: 'top' }}
+                          <div className="schedule-container" style={{ fontSize: '0.75rem', marginTop: '20px' }}>
+                            {getSchedulesForDay(day).regular.map((schedule, idx) => (
+                              <div
+                                key={`regular-${idx}`}
+                                className="schedule-item bg-primary text-white p-1 mb-1 rounded"
+                                style={{ fontSize: '0.7rem' }}
+                                title={`Regular Schedule: ${moment(schedule.shift_in).format('HH:mm')} - ${moment(schedule.shift_out).format('HH:mm')}`}
                               >
-                                {day && (
-                                  <>
-                                    <div className="fw-bold">{day}</div>
-                                    <div className="schedule-container" style={{ fontSize: '0.8rem' }}>
-                                      {getSchedulesForDay(day).regular.map((schedule, idx) => (
-                                        <div
-                                          key={`regular-${idx}`}
-                                          className="schedule-item bg-primary text-white p-1 mb-1 rounded"
-                                          style={{ fontSize: '0.7rem' }}
-                                        >
-                                          <div className="d-flex justify-content-between align-items-center">
-                                            <div>
-                                              <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID}</div>
-                                              <small>
-                                                {moment(schedule.shift_in).format('HH:mm')} -
-                                                {moment(schedule.shift_out).format('HH:mm')}
-                                              </small>
-                                            </div>
-                                            <button
-                                              className="btn btn-link text-white p-0 ms-2"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteSchedule(
-                                                  schedule.emp_ID,
-                                                  moment(schedule.day).format('YYYY-MM-DD'),
-                                                  schedule.schedule_type || 1,
-                                                  false // isOvertime = false
-                                                );
-                                              }}
-                                              title="Delete schedule"
-                                            >
-                                              <i className="bi bi-x-circle"></i>
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ))}
-                                      {getSchedulesForDay(day).overtime.map((schedule, idx) => (
-                                        <div
-                                          key={`ot-${idx}`}
-                                          className="schedule-item bg-warning text-dark p-1 mb-1 rounded"
-                                          style={{ fontSize: '0.7rem' }}
-                                        >
-                                          <div className="d-flex justify-content-between align-items-center">
-                                            <div>
-                                              <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID} (OT)</div>
-                                              <small>
-                                                {moment(schedule.shift_in).format('HH:mm')} -
-                                                {moment(schedule.shift_out).format('HH:mm')}
-                                              </small>
-                                            </div>
-                                            <button
-                                              className="btn btn-link text-dark p-0 ms-2"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteSchedule(
-                                                  schedule.emp_ID,
-                                                  moment(schedule.day).format('YYYY-MM-DD'),
-                                                  schedule.schedule_type || 2,
-                                                  true // isOvertime = true
-                                                );
-                                              }}
-                                              title="Delete schedule"
-                                            >
-                                              <i className="bi bi-x-circle"></i>
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </>
-                                )}
-                              </td>
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div className="text-truncate" style={{ maxWidth: '75px' }}>
+                                    <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID}</div>
+                                    <small>
+                                      {moment(schedule.shift_in).format('HH:mm')}-
+                                      {moment(schedule.shift_out).format('HH:mm')}
+                                    </small>
+                                  </div>
+                                  <button
+                                    className="btn btn-link text-white p-0 ms-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteSchedule(
+                                        schedule.emp_ID,
+                                        moment(schedule.day).format('YYYY-MM-DD'),
+                                        schedule.schedule_type || 1,
+                                        false // isOvertime = false
+                                      );
+                                    }}
+                                    title="Delete schedule"
+                                  >
+                                    <i className="bi bi-x-circle-fill"></i>
+                                  </button>
+                                </div>
+                              </div>
                             ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
+                            {getSchedulesForDay(day).overtime.map((schedule, idx) => (
+                              <div
+                                key={`ot-${idx}`}
+                                className="schedule-item bg-warning text-dark p-1 mb-1 rounded"
+                                style={{ fontSize: '0.7rem' }}
+                                title={`Overtime Schedule: ${moment(schedule.shift_in).format('HH:mm')} - ${moment(schedule.shift_out).format('HH:mm')}`}
+                              >
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div className="text-truncate" style={{ maxWidth: '75px' }}>
+                                    <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID}</div>
+                                    <small>
+                                      {moment(schedule.shift_in).format('HH:mm')}-
+                                      {moment(schedule.shift_out).format('HH:mm')}
+                                    </small>
+                                  </div>
+                                  <button
+                                    className="btn btn-link text-dark p-0 ms-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteSchedule(
+                                        schedule.emp_ID,
+                                        moment(schedule.day).format('YYYY-MM-DD'),
+                                        schedule.schedule_type || 2,
+                                        true // isOvertime = true
+                                      );
+                                    }}
+                                    title="Delete schedule"
+                                  >
+                                    <i className="bi bi-x-circle-fill"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
           </div>
         </div>
         {showRegularModal && (
           <div className="modal show d-block" tabIndex="-1">
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-dialog-centered">
               <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Regular Schedule</h5>
-                  <button type="button" className="btn-close" onClick={() => setShowRegularModal(false)}></button>
+                <div className="modal-header bg-primary text-white">
+                  <h5 className="modal-title">
+                    <i className="bi bi-calendar2-check me-2"></i>
+                    Regular Schedule
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowRegularModal(false)}
+                  ></button>
                 </div>
                 <div className="modal-body">
-                  <div className="mb-3">
-                    <label htmlFor="shiftInTime" className="form-label">Shift In Time</label>
-                    <input
-                      type="time"
-                      className="form-control"
-                      id="shiftInTime"
-                      value={shiftInTime}
-                      onChange={(e) => setShiftInTime(e.target.value)}
-                    />
+                  <div className="alert alert-light border mb-3">
+                    <div className="d-flex align-items-center mb-1">
+                      <i className="bi bi-info-circle text-primary me-2"></i>
+                      <small className="text-muted">Setting regular schedule for <strong>{selectedEmployees.length}</strong> selected employees</small>
+                    </div>
+                    <small className="text-muted">Current date: {currentDate.format('MMMM D, YYYY')}</small>
                   </div>
-                  <div className="mb-3">
-                    <label htmlFor="shiftOutTime" className="form-label">Shift Out Time</label>
-                    <input
-                      type="time"
-                      className="form-control"
-                      id="shiftOutTime"
-                      value={shiftOutTime}
-                      onChange={(e) => setShiftOutTime(e.target.value)}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label d-block">Schedule Type</label>
-                    <div className="form-check mb-2">
-                      <input
-                        type="checkbox"
-                        className="form-check-input"
-                        id="currentDay"
-                        checked={scheduleTypes.currentDay}
-                        onChange={(e) => setScheduleTypes(prev => ({
-                          ...prev,
-                          currentDay: e.target.checked
-                        }))}
-                      />
-                      <label className="form-check-label" htmlFor="currentDay">
-                        Current Day Only
-                      </label>
+
+                  <div className="card shadow-sm mb-4 border-primary">
+                    <div className="card-header bg-primary bg-opacity-10">
+                      <h6 className="mb-0">Shift Times</h6>
                     </div>
-                    <div className="form-check mb-2">
-                      <input
-                        type="checkbox"
-                        className="form-check-input"
-                        id="thisWeek"
-                        checked={scheduleTypes.thisWeek}
-                        onChange={(e) => setScheduleTypes(prev => ({
-                          ...prev,
-                          thisWeek: e.target.checked
-                        }))}
-                      />
-                      <label className="form-check-label" htmlFor="thisWeek">
-                        This Week (Mon-Fri)
-                      </label>
-                    </div>
-                    <div className="form-check mb-2">
-                      <input
-                        type="checkbox"
-                        className="form-check-input"
-                        id="thisMonth"
-                        checked={scheduleTypes.thisMonth}
-                        onChange={(e) => setScheduleTypes(prev => ({
-                          ...prev,
-                          thisMonth: e.target.checked
-                        }))}
-                      />
-                      <label className="form-check-label" htmlFor="thisMonth">
-                        This Month (Weekdays)
-                      </label>
-                    </div>
-                    <div className="form-check">
-                      <input
-                        type="checkbox"
-                        className="form-check-input"
-                        id="autoOffWeekend"
-                        checked={scheduleTypes.autoOffWeekend}
-                        onChange={(e) => setScheduleTypes(prev => ({
-                          ...prev,
-                          autoOffWeekend: e.target.checked
-                        }))}
-                      />
-                      <label className="form-check-label" htmlFor="autoOffWeekend">
-                        Auto Off Weekend (Sat-Sun)
-                      </label>
+                    <div className="card-body">
+                      <div className="row">
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label htmlFor="shiftInTime" className="form-label d-flex align-items-center">
+                              <i className="bi bi-clock me-2 text-muted"></i>
+                              Shift In Time
+                            </label>
+                            <input
+                              type="time"
+                              className="form-control"
+                              id="shiftInTime"
+                              value={shiftInTime}
+                              onChange={(e) => setShiftInTime(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="mb-3">
+                            <label htmlFor="shiftOutTime" className="form-label d-flex align-items-center">
+                              <i className="bi bi-clock-history me-2 text-muted"></i>
+                              Shift Out Time
+                            </label>
+                            <input
+                              type="time"
+                              className="form-control"
+                              id="shiftOutTime"
+                              value={shiftOutTime}
+                              onChange={(e) => setShiftOutTime(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-end mt-2">
+                        <button
+                          className="btn btn-outline-primary btn-sm"
+                          onClick={() => {
+                            // Reset to standard 8-hour shift
+                            setShiftInTime('08:00');
+                            setShiftOutTime('17:00');
+                            Swal.fire({
+                              toast: true,
+                              position: 'top-end',
+                              showConfirmButton: false,
+                              timer: 1500,
+                              icon: 'info',
+                              title: 'Reset to standard times'
+                            });
+                          }}
+                        >
+                          <i className="bi bi-arrow-counterclockwise me-1"></i> Reset to Default
+                        </button>
+                      </div>
                     </div>
                   </div>
+
+                  <fieldset className="border rounded p-3">
+                    <legend className="float-none w-auto px-2 fs-6 text-muted">Apply To</legend>
+                    <div className="row row-cols-1 row-cols-md-2 g-3">
+                      <div className="col">
+                        <div className="form-check mb-2">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id="currentDay"
+                            checked={scheduleTypes.currentDay}
+                            onChange={(e) => setScheduleTypes(prev => ({
+                              ...prev,
+                              currentDay: e.target.checked
+                            }))}
+                          />
+                          <label className="form-check-label" htmlFor="currentDay">
+                            <i className="bi bi-calendar-date text-primary me-2"></i>
+                            Current Day Only
+                          </label>
+                        </div>
+
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id="thisWeek"
+                            checked={scheduleTypes.thisWeek}
+                            onChange={(e) => setScheduleTypes(prev => ({
+                              ...prev,
+                              thisWeek: e.target.checked
+                            }))}
+                          />
+                          <label className="form-check-label" htmlFor="thisWeek">
+                            <i className="bi bi-calendar-week text-primary me-2"></i>
+                            This Week (Mon-Fri)
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="col">
+                        <div className="form-check mb-2">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id="thisMonth"
+                            checked={scheduleTypes.thisMonth}
+                            onChange={(e) => setScheduleTypes(prev => ({
+                              ...prev,
+                              thisMonth: e.target.checked
+                            }))}
+                          />
+                          <label className="form-check-label" htmlFor="thisMonth">
+                            <i className="bi bi-calendar-month text-primary me-2"></i>
+                            This Month (Weekdays)
+                          </label>
+                        </div>
+
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id="autoOffWeekend"
+                            checked={scheduleTypes.autoOffWeekend}
+                            onChange={(e) => setScheduleTypes(prev => ({
+                              ...prev,
+                              autoOffWeekend: e.target.checked
+                            }))}
+                          />
+                          <label className="form-check-label" htmlFor="autoOffWeekend">
+                            <i className="bi bi-calendar2-x text-primary me-2"></i>
+                            Auto Off Weekend (Sat-Sun)
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </fieldset>
                 </div>
+
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowRegularModal(false)}>Close</button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowRegularModal(false)}
+                  >
+                    Cancel
+                  </button>
                   <button
                     type="button"
                     className="btn btn-primary"
@@ -1001,7 +1455,7 @@ const resetOTForm = () => {
                       handleScheduleSubmit();
                     }}
                   >
-                    Set Schedule
+                    <i className="bi bi-save me-1"></i> Set Regular Schedule
                   </button>
                 </div>
               </div>
@@ -1010,10 +1464,13 @@ const resetOTForm = () => {
         )}
         {showOTModal && (
           <div className="modal show d-block" tabIndex="-1">
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-dialog-centered">
               <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Overtime Schedule</h5>
+                <div className="modal-header bg-warning text-dark">
+                  <h5 className="modal-title">
+                    <i className="bi bi-clock-history me-2"></i>
+                    Overtime Schedule
+                  </h5>
                   <button
                     type="button"
                     className="btn-close"
@@ -1024,11 +1481,25 @@ const resetOTForm = () => {
                   ></button>
                 </div>
                 <div className="modal-body">
-                  <div className="row">
-                    {/* Left Column */}
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label htmlFor="otDate" className="form-label">Select Date</label>
+                  <div className="alert alert-light border mb-3">
+                    <div className="d-flex align-items-center mb-1">
+                      <i className="bi bi-info-circle text-warning me-2"></i>
+                      <small className="text-muted">Setting overtime schedule for <strong>{selectedEmployees.length}</strong> selected employees</small>
+                    </div>
+                    <small className="text-muted">Current date: {currentDate.format('MMMM D, YYYY')}</small>
+                  </div>
+
+                  <div className="card shadow-sm mb-3 border-warning">
+                    <div className="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                      <h6 className="mb-0">Date Selection</h6>
+                      <span className="badge bg-warning text-dark">Single Day</span>
+                    </div>
+                    <div className="card-body">
+                      <div className="mb-0">
+                        <label htmlFor="otDate" className="form-label d-flex align-items-center">
+                          <i className="bi bi-calendar3 me-2 text-muted"></i>
+                          Select Date
+                        </label>
                         <input
                           type="date"
                           className="form-control"
@@ -1037,48 +1508,98 @@ const resetOTForm = () => {
                           onChange={(e) => setCurrentDate(moment(e.target.value))}
                         />
                       </div>
-                      <div className="mb-3">
-                        <label htmlFor="otShiftIn" className="form-label">Shift In Time</label>
-                        <input
-                          type="time"
-                          className="form-control"
-                          id="otShiftIn"
-                          value={shiftInTime}
-                          onChange={(e) => setShiftInTime(e.target.value)}
-                        />
-                      </div>
                     </div>
-                    {/* Right Column */}
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label htmlFor="otType" className="form-label">OT Type</label>
-                        <select
-                          className="form-select"
-                          id="otType"
-                          value={otType}
-                          onChange={(e) => setOtType(e.target.value)}
-                        >
-                          <option value="">Select OT Type</option>
-                          {overtimeTypes.map((type) => (
-                            <option key={type.id} value={type.id}>
-                              {type.type}
-                            </option>
-                          ))}
-                        </select>
+                  </div>
+
+                  <div className="card shadow-sm mb-3 border-warning">
+                    <div className="card-header bg-warning bg-opacity-10">
+                      <h6 className="mb-0">Overtime Details</h6>
+                    </div>
+                    <div className="card-body">
+                      <div className="row">
+                        <div className="col-md-12 mb-3">
+                          <label htmlFor="otType" className="form-label d-flex align-items-center">
+                            <i className="bi bi-tag me-2 text-muted"></i>
+                            OT Type
+                          </label>
+                          <select
+                            className="form-select"
+                            id="otType"
+                            value={otType}
+                            onChange={(e) => setOtType(e.target.value)}
+                          >
+                            <option value="">Select OT Type</option>
+                            {overtimeTypes.map((type) => (
+                              <option key={type.id} value={type.id}>
+                                {type.type}
+                              </option>
+                            ))}
+                          </select>
+                          {!otType && (
+                            <div className="form-text text-danger">
+                              <i className="bi bi-exclamation-circle me-1"></i>
+                              Please select an overtime type
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="col-md-6">
+                          <div className="mb-0">
+                            <label htmlFor="otShiftIn" className="form-label d-flex align-items-center">
+                              <i className="bi bi-clock me-2 text-muted"></i>
+                              Shift In Time
+                            </label>
+                            <input
+                              type="time"
+                              className="form-control"
+                              id="otShiftIn"
+                              value={shiftInTime}
+                              onChange={(e) => setShiftInTime(e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="col-md-6">
+                          <div className="mb-0">
+                            <label htmlFor="otShiftOut" className="form-label d-flex align-items-center">
+                              <i className="bi bi-clock-history me-2 text-muted"></i>
+                              Shift Out Time
+                            </label>
+                            <input
+                              type="time"
+                              className="form-control"
+                              id="otShiftOut"
+                              value={shiftOutTime}
+                              onChange={(e) => setShiftOutTime(e.target.value)}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="mb-3">
-                        <label htmlFor="otShiftOut" className="form-label">Shift Out Time</label>
-                        <input
-                          type="time"
-                          className="form-control"
-                          id="otShiftOut"
-                          value={shiftOutTime}
-                          onChange={(e) => setShiftOutTime(e.target.value)}
-                        />
+
+                      <div className="text-end mt-3">
+                        <button
+                          className="btn btn-outline-warning btn-sm text-dark"
+                          onClick={() => {
+                            // Reset times
+                            setShiftInTime('08:00');
+                            setShiftOutTime('17:00');
+                            Swal.fire({
+                              toast: true,
+                              position: 'top-end',
+                              showConfirmButton: false,
+                              timer: 1500,
+                              icon: 'info',
+                              title: 'Reset to standard times'
+                            });
+                          }}
+                        >
+                          <i className="bi bi-arrow-counterclockwise me-1"></i> Reset Times
+                        </button>
                       </div>
                     </div>
                   </div>
                 </div>
+
                 <div className="modal-footer">
                   <button
                     type="button"
@@ -1088,23 +1609,25 @@ const resetOTForm = () => {
                       resetOTForm();
                     }}
                   >
-                    Close
+                    Cancel
                   </button>
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-warning text-dark"
                     onClick={() => {
-                      console.log({
-                        date: currentDate.format('YYYY-MM-DD'),
-                        shiftInTime,
-                        shiftOutTime,
-                        otType,
-                        selectedEmployees
-                      });
+                      if (!otType) {
+                        document.getElementById('otType').focus();
+                        Swal.fire({
+                          icon: 'warning',
+                          title: 'OT Type Required',
+                          text: 'Please select an overtime type'
+                        });
+                        return;
+                      }
                       handleOTSubmit();
                     }}
                   >
-                    Set Schedule
+                    <i className="bi bi-save me-1"></i> Set Overtime Schedule
                   </button>
                 </div>
               </div>
@@ -1194,68 +1717,115 @@ const resetOTForm = () => {
         )}
         {showDeleteModal && (
           <div className="modal show d-block" tabIndex="-1">
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-dialog-centered">
               <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Remove Schedules</h5>
+                <div className="modal-header bg-danger text-white">
+                  <h5 className="modal-title">
+                    <i className="bi bi-calendar2-x me-2"></i>
+                    Remove Schedules
+                  </h5>
                   <button type="button" className="btn-close" onClick={() => setShowDeleteModal(false)}></button>
                 </div>
                 <div className="modal-body">
-                  <div className="alert alert-warning">
-                    <i className="bi bi-exclamation-triangle me-2"></i>
-                    This action will remove both regular and overtime schedules for the selected period.
+                  <div className="alert alert-warning d-flex align-items-center">
+                    <i className="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
+                    <div>This action will remove both regular and overtime schedules for the selected period.</div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label d-block">Select Period to Remove</label>
-                    <div className="form-check mb-2">
-                      <input
-                        type="checkbox"
-                        className="form-check-input"
-                        id="removeCurrentDay"
-                        checked={scheduleTypes.currentDay}
-                        onChange={(e) => setScheduleTypes(prev => ({
-                          ...prev,
-                          currentDay: e.target.checked
-                        }))}
-                      />
-                      <label className="form-check-label" htmlFor="removeCurrentDay">
-                        Current Day Only
-                      </label>
+
+                  <div className="alert alert-light border mb-3">
+                    <div className="d-flex align-items-center mb-1">
+                      <i className="bi bi-info-circle text-danger me-2"></i>
+                      <small className="text-muted">Removing schedules for <strong>{selectedEmployees.length}</strong> selected employees</small>
                     </div>
-                    <div className="form-check mb-2">
-                      <input
-                        type="checkbox"
-                        className="form-check-input"
-                        id="removeThisWeek"
-                        checked={scheduleTypes.thisWeek}
-                        onChange={(e) => setScheduleTypes(prev => ({
-                          ...prev,
-                          thisWeek: e.target.checked
-                        }))}
-                      />
-                      <label className="form-check-label" htmlFor="removeThisWeek">
-                        This Week (Mon-Fri)
-                      </label>
+                    <small className="text-muted">Current date: {currentDate.format('MMMM D, YYYY')}</small>
+                  </div>
+
+                  <div className="card shadow-sm mb-4 border-danger">
+                    <div className="card-header bg-danger bg-opacity-10">
+                      <h6 className="mb-0">Select Period to Remove</h6>
                     </div>
-                    <div className="form-check">
-                      <input
-                        type="checkbox"
-                        className="form-check-input"
-                        id="removeThisMonth"
-                        checked={scheduleTypes.thisMonth}
-                        onChange={(e) => setScheduleTypes(prev => ({
-                          ...prev,
-                          thisMonth: e.target.checked
-                        }))}
-                      />
-                      <label className="form-check-label" htmlFor="removeThisMonth">
-                        This Month (Weekdays)
-                      </label>
+                    <div className="card-body">
+                      <div className="row row-cols-1 row-cols-md-2 g-3">
+                        <div className="col">
+                          <div className="form-check mb-3">
+                            <input
+                              type="checkbox"
+                              className="form-check-input"
+                              id="removeCurrentDay"
+                              checked={scheduleTypes.currentDay}
+                              onChange={(e) => setScheduleTypes(prev => ({
+                                ...prev,
+                                currentDay: e.target.checked
+                              }))}
+                            />
+                            <label className="form-check-label" htmlFor="removeCurrentDay">
+                              <i className="bi bi-calendar-date text-danger me-2"></i>
+                              Current Day Only
+                            </label>
+                            <div className="form-text small ms-4">
+                              {currentDate.format('MMM DD, YYYY (dddd)')}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="col">
+                          <div className="form-check mb-3">
+                            <input
+                              type="checkbox"
+                              className="form-check-input"
+                              id="removeThisWeek"
+                              checked={scheduleTypes.thisWeek}
+                              onChange={(e) => setScheduleTypes(prev => ({
+                                ...prev,
+                                thisWeek: e.target.checked
+                              }))}
+                            />
+                            <label className="form-check-label" htmlFor="removeThisWeek">
+                              <i className="bi bi-calendar-week text-danger me-2"></i>
+                              This Week (Mon-Fri)
+                            </label>
+                            <div className="form-text small ms-4">
+                              {moment(currentDate).startOf('week').add(1, 'days').format('MMM DD')} - {moment(currentDate).startOf('week').add(5, 'days').format('MMM DD')}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="col">
+                          <div className="form-check">
+                            <input
+                              type="checkbox"
+                              className="form-check-input"
+                              id="removeThisMonth"
+                              checked={scheduleTypes.thisMonth}
+                              onChange={(e) => setScheduleTypes(prev => ({
+                                ...prev,
+                                thisMonth: e.target.checked
+                              }))}
+                            />
+                            <label className="form-check-label" htmlFor="removeThisMonth">
+                              <i className="bi bi-calendar-month text-danger me-2"></i>
+                              This Month (Weekdays)
+                            </label>
+                            <div className="form-text small ms-4">
+                              All weekdays in {currentDate.format('MMMM YYYY')}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth && (
+                        <div className="alert alert-danger mt-3 mb-0 py-2 d-flex align-items-center">
+                          <i className="bi bi-exclamation-circle-fill me-2"></i>
+                          <small>Please select at least one period</small>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>
+                    Cancel
+                  </button>
                   <button
                     type="button"
                     className="btn btn-danger"
@@ -1271,7 +1841,276 @@ const resetOTForm = () => {
                       handleBulkDeleteSubmit();
                     }}
                   >
-                    Remove All Schedules
+                    <i className="bi bi-trash me-1"></i> Remove All Schedules
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {showBreaksModal && (
+          <div className="modal show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header bg-info text-white">
+                  <h5 className="modal-title">
+                    <i className="bi bi-pause-circle me-2"></i>
+                    Set Break Schedule
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                    onClick={() => setShowBreaksModal(false)}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  <div className="alert alert-light border mb-3">
+                    <div className="d-flex align-items-center mb-1">
+                      <i className="bi bi-info-circle text-info me-2"></i>
+                      <small className="text-muted">Setting breaks for <strong>{selectedEmployees.length}</strong> selected employees</small>
+                    </div>
+                    <small className="text-muted">Current date: {currentDate.format('MMMM D, YYYY')}</small>
+                  </div>
+
+                  {/* First Break Row */}
+                  <div className="card mb-3 shadow-sm border-info">
+                    <div className="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center">
+                      <h6 className="mb-0">First Break</h6>
+                      <span className="badge bg-info text-white">Morning</span>
+                    </div>
+                    <div className="card-body">
+                      <div className="row align-items-center">
+                        <div className="col-4">
+                          <div className="mb-0">
+                            <label className="form-label small">Start Time</label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={firstBreakStart}
+                              onChange={(e) => setFirstBreakStart(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-4">
+                          <div className="mb-0">
+                            <label className="form-label small">End Time</label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={firstBreakEnd}
+                              onChange={(e) => setFirstBreakEnd(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-4 d-flex align-items-end">
+                          <button
+                            className="btn btn-info btn-sm w-100 mt-2"
+                            onClick={() => {
+                              // Logic for first break button - you can add specific functionality
+                              setFirstBreakStart('10:00');
+                              setFirstBreakEnd('10:15');
+                              Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 1500,
+                                icon: 'success',
+                                title: 'First break times set'
+                              });
+                            }}
+                          >
+                            <i className="bi bi-clock-history me-1"></i> First Break
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Second Break Row */}
+                  <div className="card mb-3 shadow-sm border-info">
+                    <div className="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center">
+                      <h6 className="mb-0">Second Break</h6>
+                      <span className="badge bg-info text-white">Afternoon</span>
+                    </div>
+                    <div className="card-body">
+                      <div className="row align-items-center">
+                        <div className="col-4">
+                          <div className="mb-0">
+                            <label className="form-label small">Start Time</label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={secondBreakStart}
+                              onChange={(e) => setSecondBreakStart(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-4">
+                          <div className="mb-0">
+                            <label className="form-label small">End Time</label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={secondBreakEnd}
+                              onChange={(e) => setSecondBreakEnd(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-4 d-flex align-items-end">
+                          <button
+                            className="btn btn-info btn-sm w-100 mt-2"
+                            onClick={() => {
+                              // Logic for second break button
+                              setSecondBreakStart('15:00');
+                              setSecondBreakEnd('15:15');
+                              Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 1500,
+                                icon: 'success',
+                                title: 'Second break times set'
+                              });
+                            }}
+                          >
+                            <i className="bi bi-clock-history me-1"></i> Second Break
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lunch Break Row */}
+                  <div className="card mb-4 shadow-sm border-warning">
+                    <div className="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                      <h6 className="mb-0">Lunch Break</h6>
+                      <span className="badge bg-warning text-dark">Midday</span>
+                    </div>
+                    <div className="card-body">
+                      <div className="row align-items-center">
+                        <div className="col-4">
+                          <div className="mb-0">
+                            <label className="form-label small">Start Time</label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={lunchBreakStart}
+                              onChange={(e) => setLunchBreakStart(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-4">
+                          <div className="mb-0">
+                            <label className="form-label small">End Time</label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={lunchBreakEnd}
+                              onChange={(e) => setLunchBreakEnd(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-4 d-flex align-items-end">
+                          <button
+                            className="btn btn-warning btn-sm text-dark w-100 mt-2"
+                            onClick={() => {
+                              // Logic for lunch break button
+                              setLunchBreakStart('12:00');
+                              setLunchBreakEnd('13:00');
+                              Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 1500,
+                                icon: 'success',
+                                title: 'Lunch break times set'
+                              });
+                            }}
+                          >
+                            <i className="bi bi-cup-hot me-1"></i> Lunch Break
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Schedule Type Selection */}
+                  <fieldset className="border rounded p-3">
+                    <legend className="float-none w-auto px-2 fs-6 text-muted">Apply To</legend>
+                    <div className="row">
+                      <div className="col-md-4">
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id="breakCurrentDay"
+                            checked={breakScheduleTypes.currentDay}
+                            onChange={(e) => setBreakScheduleTypes(prev => ({
+                              ...prev,
+                              currentDay: e.target.checked
+                            }))}
+                          />
+                          <label className="form-check-label" htmlFor="breakCurrentDay">
+                            Current Day
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="col-md-4">
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id="breakThisWeek"
+                            checked={breakScheduleTypes.thisWeek}
+                            onChange={(e) => setBreakScheduleTypes(prev => ({
+                              ...prev,
+                              thisWeek: e.target.checked
+                            }))}
+                          />
+                          <label className="form-check-label" htmlFor="breakThisWeek">
+                            This Week (Mon-Fri)
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="col-md-4">
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id="breakThisMonth"
+                            checked={breakScheduleTypes.thisMonth}
+                            onChange={(e) => setBreakScheduleTypes(prev => ({
+                              ...prev,
+                              thisMonth: e.target.checked
+                            }))}
+                          />
+                          <label className="form-check-label" htmlFor="breakThisMonth">
+                            This Month (Weekdays)
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </fieldset>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowBreaksModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleBreakSubmit}
+                  >
+                    <i className="bi bi-save me-1"></i> Apply All Breaks
                   </button>
                 </div>
               </div>

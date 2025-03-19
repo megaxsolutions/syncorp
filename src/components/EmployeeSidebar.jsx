@@ -4,19 +4,28 @@ import axios from "axios";
 import { useLocation, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Swal from "sweetalert2";
-import { jwtDecode } from "jwt-decode"; // ✅ Correct import
+import { jwtDecode } from "jwt-decode";
 import config from "../config";
 
 const EmployeeSidebar = () => {
   const location = useLocation();
-  const isDashboard = location.pathname === "/employee_dashboard";
-  const isAttendance = location.pathname === "/employee_attendance";
-  const isPayslip = location.pathname === "/employee_payslip";
-  const isLeaveRequest = location.pathname === "/employee_leave_request";
-  const isOvertimeRequest = location.pathname === "/employee_overtime_request";
+  const [collapsed, setCollapsed] = useState(false);
+  const [username, setUsername] = useState("Employee");
+  const [position, setPosition] = useState("Employee");
 
+  // Check active routes with a more efficient function
+  const isActive = (path) => location.pathname === path;
 
-  // Add isLoading state
+  // Navigation items for better organization
+  const navItems = [
+    { path: "/employee_dashboard", icon: "bi-grid", label: "Dashboard" },
+    { path: "/employee_attendance", icon: "bi-calendar-check", label: "Attendance" },
+    { path: "/employee_payslip", icon: "bi-cash-stack", label: "Payslip" },
+    { path: "/employee_leave_request", icon: "bi-arrow-right-square", label: "Leave Request" },
+    { path: "/employee_overtime_request", icon: "bi-clock-history", label: "Overtime Request" }
+  ];
+
+  // State for attendance tracking
   const [isLoading, setIsLoading] = useState(false);
   const [dateTime, setDateTime] = useState(
     moment().tz("Asia/Manila").format("ddd").substring(0, 4).toUpperCase() +
@@ -31,261 +40,117 @@ const EmployeeSidebar = () => {
   const [breakClockState, setBreakClockState] = useState(0);
   const [breakState, setBreakState] = useState(0);
 
-  // State for profile photo
-  const [photoUrl, setPhotoUrl] = useState("https://via.placeholder.com/100");
+  // State for profile data
+  const [photoUrl, setPhotoUrl] = useState("https://avatar.iran.liara.run/public/26");
 
   useEffect(() => {
-  const fetchEmployeePhoto = () => {
-    try {
-      const token = localStorage.getItem("X-JWT-TOKEN");
-      if (!token) return;
+    const fetchEmployeePhoto = () => {
+      try {
+        const token = localStorage.getItem("X-JWT-TOKEN");
+        if (!token) return;
 
-      // Decode the token
-      const decoded = jwtDecode(token);
-      console.log("Decoded token:", decoded);
+        // Decode the token
+        const decoded = jwtDecode(token);
 
-      if (decoded?.login?.length > 0) {
-        const userData = decoded.login[0]; // Extract user data from token
+        if (decoded?.login?.length > 0) {
+          const userData = decoded.login[0];
 
-        if (userData.photo) {
-          setPhotoUrl(`${config.API_BASE_URL}/uploads/${userData.photo}`);
-        } else {
-          setPhotoUrl("https://avatar.iran.liara.run/public/26"); // Fallback avatar
+          // Set username and position if available
+          if (userData.fName && userData.lName) {
+            setUsername(`${userData.fName} ${userData.lName}`);
+          }
+
+          if (userData.designation) {
+            setPosition(userData.designation);
+          }
+
+          if (userData.photo) {
+            setPhotoUrl(`${config.API_BASE_URL}/uploads/${userData.photo}`);
+          }
         }
+      } catch (error) {
+        console.error("Error decoding token:", error);
       }
-    } catch (error) {
-      console.error("Error decoding token:", error);
-    }
-  };
+    };
 
-  fetchEmployeePhoto();
-}, []);
+    fetchEmployeePhoto();
+  }, []);
 
-  // Remove the localStorage useEffect and modify the checkTimeInStatus effect
-
+  // Check time in status and fetch clock state
   useEffect(() => {
-  const checkTimeInStatus = async () => {
-    try {
-      const emp_id = localStorage.getItem("X-EMP-ID");
-      const storedTimeInStatus = localStorage.getItem("isTimeIn");
+    const checkTimeInStatus = async () => {
+      try {
+        const emp_id = localStorage.getItem("X-EMP-ID");
+        const storedTimeInStatus = localStorage.getItem("isTimeIn");
 
-      if (storedTimeInStatus === "true") {
-        setIsTimeIn(true); // Keep it true if it's in localStorage
-        return;
-      }
-
-      const response = await axios.get(
-        `${config.API_BASE_URL}/attendances/get_all_user_attendance/${emp_id}`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id,
-          },
-        }
-      );
-
-      if (response.data?.data?.length > 0) {
-        const latestRecord = response.data.data[0];
-        const isCurrentlyTimeIn = !latestRecord.timeOUT;
-
-        if (isCurrentlyTimeIn) {
+        if (storedTimeInStatus === "true") {
           setIsTimeIn(true);
-          localStorage.setItem("isTimeIn", "true"); // Ensure it remains true
+          return;
         }
-      }
-    } catch (error) {
-      console.error("Error checking time in status:", error);
-    }
-  };
 
-  checkTimeInStatus();
-}, []); // Run once on mount
+        const response = await axios.get(
+          `${config.API_BASE_URL}/attendances/get_all_user_attendance/${emp_id}`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": emp_id,
+            },
+          }
+        );
 
-  // Update the fetchClockState function
-useEffect(() => {
-  const fetchClockState = async () => {
-    try {
-      const emp_id = localStorage.getItem("X-EMP-ID");
-      const response = await axios.get(
-        `${config.API_BASE_URL}/attendances/get_user_clock_state/${emp_id}`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id,
-          },
-        }
-      );
+        if (response.data?.data?.length > 0) {
+          const latestRecord = response.data.data[0];
+          const isCurrentlyTimeIn = !latestRecord.timeOUT;
 
-      if (response.data?.data?.length > 0) {
-        const { state, break_state } = response.data.data[0];
-        setIsTimeIn(state === 1);
-        setBreakState(break_state); // Set break state from API
-        setIsBreakIn(break_state === 1); // Update break in status based on break_state
-      }
-    } catch (error) {
-      console.error("Error fetching clock state:", error);
-    }
-  };
-
-  fetchClockState();
-  // Set up an interval to periodically check the clock state
-  const intervalId = setInterval(fetchClockState, 30000);
-
-  // Listen for break state refresh events
-  window.addEventListener("refreshBreakState", fetchClockState);
-
-  return () => {
-    clearInterval(intervalId);
-    window.removeEventListener("refreshBreakState", fetchClockState);
-  };
-}, []);
-
-
-  const handleTimeInOut = async () => {
-  try {
-    setIsLoading(true);
-    const emp_id = localStorage.getItem("X-EMP-ID");
-    const token = localStorage.getItem("X-JWT-TOKEN");
-
-    // Get cluster_id from JWT token
-    const decoded = jwtDecode(token);
-    const cluster_id = decoded.login[0].clusterID;
-
-    // Store cluster_id in localStorage
-    localStorage.setItem("cluster_id", cluster_id);
-
-    if (!isTimeIn) {
-      // Time In
-      const response = await axios.post(
-        `${config.API_BASE_URL}/attendances/add_attendance_time_in`,
-        {
-          emp_id,
-          cluster_id  // Send cluster_id with the request
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": token,
-            "X-EMP-ID": emp_id
+          if (isCurrentlyTimeIn) {
+            setIsTimeIn(true);
+            localStorage.setItem("isTimeIn", "true");
           }
         }
-      );
-
-      if (response.data.success) {
-        setIsTimeIn(true);
-        Swal.fire({
-          icon: "success",
-          title: "Time In Successful",
-          text: response.data.success,
-          timer: 5000,
-          showConfirmButton: false
-        });
-        window.dispatchEvent(new Event("refreshAttendance"));
+      } catch (error) {
+        console.error("Error checking time in status:", error);
       }
-    } else {
-      // Time Out logic remains the same
-      const response = await axios.put(
-        `${config.API_BASE_URL}/attendances/update_attendance_time_out/${emp_id}`,
-        {},
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id
+    };
+
+    checkTimeInStatus();
+  }, []);
+
+  useEffect(() => {
+    const fetchClockState = async () => {
+      try {
+        const emp_id = localStorage.getItem("X-EMP-ID");
+        const response = await axios.get(
+          `${config.API_BASE_URL}/attendances/get_user_clock_state/${emp_id}`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": emp_id,
+            },
           }
+        );
+
+        if (response.data?.data?.length > 0) {
+          const { state, break_state } = response.data.data[0];
+          setIsTimeIn(state === 1);
+          setBreakState(break_state);
+          setIsBreakIn(break_state === 1);
         }
-      );
-
-      if (response.data.success) {
-        setIsTimeIn(false);
-        Swal.fire({
-          icon: "success",
-          title: "Time Out Successful",
-          text: response.data.success, // Additional text
-          timer: 5000,
-          showConfirmButton: false
-        });
-        window.dispatchEvent(new Event("refreshAttendance"));
+      } catch (error) {
+        console.error("Error fetching clock state:", error);
       }
-    }
-  } catch (error) {
-    Swal.fire({
-      icon: "error",
-      title: "Error",
-      text: error.response?.data?.error || "Failed to process attendance."
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
+    };
 
-  // Update the handleBreakInClick function
-const handleBreakInClick = async () => {
-  try {
-    setIsLoadingBreak(true);
-    const emp_id = localStorage.getItem("X-EMP-ID");
+    fetchClockState();
+    const intervalId = setInterval(fetchClockState, 30000);
+    window.addEventListener("refreshBreakState", fetchClockState);
 
-    if (!isBreakIn) {
-      // Break In
-      const breakInResponse = await axios.post(
-        `${config.API_BASE_URL}/breaks/add_break`,
-        { emp_id },
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id
-          }
-        }
-      );
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("refreshBreakState", fetchClockState);
+    };
+  }, []);
 
-      if (breakInResponse.data.success) {
-        setIsBreakIn(true);
-        setBreakState(1);
-        Swal.fire({
-          icon: "success",
-          title: "Break In Successful",
-          timer: 2000,
-          showConfirmButton: false
-        });
-      }
-    } else {
-      // Break Out
-      const breakOutResponse = await axios.put(
-        `${config.API_BASE_URL}/breaks/update_break/${emp_id}`,
-        {},
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id
-          }
-        }
-      );
-
-      if (breakOutResponse.data.success) {
-        setIsBreakIn(false);
-        setBreakState(0);
-        Swal.fire({
-          icon: "success",
-          title: "Break Out Successful",
-          timer: 2000,
-          showConfirmButton: false
-        });
-      }
-    }
-
-    // Refresh the clock state after break action
-    window.dispatchEvent(new Event("refreshBreakState"));
-
-  } catch (error) {
-    console.error("Break Error:", error);
-    Swal.fire({
-      icon: "error",
-      title: "Error",
-      text: "Failed to process break time."
-    });
-  } finally {
-    setIsLoadingBreak(false);
-  }
-};
-
+  // Update date and time every second
   useEffect(() => {
     const intervalId = setInterval(() => {
       setDateTime(
@@ -300,89 +165,254 @@ const handleBreakInClick = async () => {
     return () => clearInterval(intervalId);
   }, []);
 
+  // Handle time in/out button click
+  const handleTimeInOut = async () => {
+    try {
+      setIsLoading(true);
+      const emp_id = localStorage.getItem("X-EMP-ID");
+      const token = localStorage.getItem("X-JWT-TOKEN");
+
+      const decoded = jwtDecode(token);
+      const cluster_id = decoded.login[0].clusterID;
+      localStorage.setItem("cluster_id", cluster_id);
+
+      if (!isTimeIn) {
+        // Time In logic
+        const response = await axios.post(
+          `${config.API_BASE_URL}/attendances/add_attendance_time_in`,
+          { emp_id, cluster_id },
+          {
+            headers: {
+              "X-JWT-TOKEN": token,
+              "X-EMP-ID": emp_id
+            }
+          }
+        );
+
+        if (response.data.success) {
+          setIsTimeIn(true);
+          Swal.fire({
+            icon: "success",
+            title: "Time In Successful",
+            text: response.data.success,
+            timer: 5000,
+            showConfirmButton: false
+          });
+          window.dispatchEvent(new Event("refreshAttendance"));
+        }
+      } else {
+        // Time Out logic
+        const response = await axios.put(
+          `${config.API_BASE_URL}/attendances/update_attendance_time_out/${emp_id}`,
+          {},
+          {
+            headers: {
+              "X-JWT-TOKEN": token,
+              "X-EMP-ID": emp_id
+            }
+          }
+        );
+
+        if (response.data.success) {
+          setIsTimeIn(false);
+          Swal.fire({
+            icon: "success",
+            title: "Time Out Successful",
+            text: response.data.success,
+            timer: 5000,
+            showConfirmButton: false
+          });
+          window.dispatchEvent(new Event("refreshAttendance"));
+        }
+      }
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.error || "Failed to process attendance."
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle break in/out button click
+  const handleBreakInClick = async () => {
+    try {
+      setIsLoadingBreak(true);
+      const emp_id = localStorage.getItem("X-EMP-ID");
+
+      if (!isBreakIn) {
+        // Break In logic
+        const breakInResponse = await axios.post(
+          `${config.API_BASE_URL}/breaks/add_break`,
+          { emp_id },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": emp_id
+            }
+          }
+        );
+
+        if (breakInResponse.data.success) {
+          setIsBreakIn(true);
+          setBreakState(1);
+          Swal.fire({
+            icon: "success",
+            title: "Break In Successful",
+            timer: 2000,
+            showConfirmButton: false
+          });
+        }
+      } else {
+        // Break Out logic
+        const breakOutResponse = await axios.put(
+          `${config.API_BASE_URL}/breaks/update_break/${emp_id}`,
+          {},
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": emp_id
+            }
+          }
+        );
+
+        if (breakOutResponse.data.success) {
+          setIsBreakIn(false);
+          setBreakState(0);
+          Swal.fire({
+            icon: "success",
+            title: "Break Out Successful",
+            timer: 2000,
+            showConfirmButton: false
+          });
+        }
+      }
+
+      window.dispatchEvent(new Event("refreshBreakState"));
+
+    } catch (error) {
+      console.error("Break Error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to process break time."
+      });
+    } finally {
+      setIsLoadingBreak(false);
+    }
+  };
+
   return (
-    <aside id="sidebar" className="sidebar employee-sidebar">
-      <div className="d-flex flex-column align-items-center mt-3">
-        {/* Display user photo if available, else custom avatar */}
-        <div className="rounded-circle overflow-hidden mb-3 profile-circle">
-          <img
-            src={photoUrl}
-            alt="Profile"
-            className="img-fluid"
-          />
-        </div>
-        <div className="d-flex align-items-center mb-1 datetime-row">
-          <span className="date-time-text">{dateTime}</span>
-          <button
-            className={`btn btn-sm timein-btn ${isTimeIn ? "btn-danger" : "btn-success"}`}
-            onClick={handleTimeInOut}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-            ) : isTimeIn ? (
-              "Time Out"
-            ) : (
-              "Time In"
-            )}
-          </button>
-        </div>
-        <div className="mb-3 full-width-btn">
-          <button
-            className={`btn btn-sm w-100 ${breakState === 1 ? "btn-danger" : "btn-success"}`}
-            onClick={handleBreakInClick}
-            disabled={isLoadingBreak || !isTimeIn} // Disable break button if not timed in
-          >
-            {isLoadingBreak ? (
-              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-            ) : breakState === 1 ? (
-              "Break Out"
-            ) : (
-              "Break In"
-            )}
-          </button>
+    <aside id="sidebar" className={`sidebar employee-sidebar ${collapsed ? 'collapsed' : ''}`}>
+      <div className="sidebar-toggle d-xl-none">
+        <button
+          className="hamburger hamburger--spin"
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <span className="hamburger-box">
+            <span className="hamburger-inner"></span>
+          </span>
+        </button>
+      </div>
+
+      <div className="sidebar-header">
+        <div className="d-flex flex-column align-items-center mt-4">
+          {/* Profile Photo with Status Indicator */}
+          <div className="position-relative mb-3">
+            <div className="rounded-circle overflow-hidden profile-circle">
+              <img
+                src={photoUrl}
+                alt="Profile"
+                className="img-fluid profile-img"
+              />
+            </div>
+            <div className={`status-indicator ${isTimeIn ? 'online' : 'offline'}`}
+                 title={isTimeIn ? 'Currently Working' : 'Not Clocked In'}></div>
+          </div>
+
+          {/* User Info */}
+          <div className="text-center mb-2">
+            <h6 className="profile-name mb-0">{username}</h6>
+            <span className="profile-designation text-muted small">{position}</span>
+          </div>
+
+          {/* Date/Time Display */}
+          <div className="date-time-container mb-3">
+            <div className="date-time-display">
+              <i className="bi bi-clock me-1"></i>
+              <span>{dateTime}</span>
+            </div>
+          </div>
+
+          {/* Time In/Out Button */}
+          <div className="attendance-controls mb-2 w-100">
+            <button
+              className={`btn ${isTimeIn ? "btn-outline-danger" : "btn-outline-success"} w-100 d-flex align-items-center justify-content-center`}
+              onClick={handleTimeInOut}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              ) : (
+                <i className={`bi ${isTimeIn ? "bi-box-arrow-right" : "bi-box-arrow-in-right"} me-2`}></i>
+              )}
+              <span>{isTimeIn ? "Time Out" : "Time In"}</span>
+            </button>
+          </div>
+
+          {/* Break In/Out Button */}
+          <div className="break-controls w-100">
+            <button
+              className={`btn ${breakState === 1 ? "btn-outline-warning" : "btn-outline-info"} w-100 d-flex align-items-center justify-content-center ${!isTimeIn ? 'disabled' : ''}`}
+              onClick={handleBreakInClick}
+              disabled={isLoadingBreak || !isTimeIn}
+            >
+              {isLoadingBreak ? (
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              ) : (
+                <i className={`bi ${breakState === 1 ? "bi-pause-fill" : "bi-cup-hot"} me-2`}></i>
+              )}
+              <span>{breakState === 1 ? "End Break" : "Take Break"}</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <ul className="sidebar-nav margin-top-10" id="sidebar-nav">
-        <li className="nav-item">
-          <Link to="/employee_dashboard" className={`nav-link ${isDashboard ? "active" : ""}`}>
-            <i className="bi bi-grid"></i>
-            <span className="navs">Dashboard</span>
-          </Link>
-        </li>
+      <div className="divider my-3"></div>
 
-        <li className="nav-item">
-          <Link to="/employee_attendance" className={`nav-link ${isAttendance ? "active" : ""}`}>
-            <i className="bi bi-calendar-check"></i>
-            <span className="navs">Attendance</span>
-          </Link>
-        </li>
+      {/* Navigation Menu */}
+      <div className="sidebar-content">
+        <ul className="sidebar-nav" id="sidebar-nav">
+          {navItems.map((item, index) => (
+            <li className="nav-item" key={index}>
+              <Link
+                to={item.path}
+                className={`nav-link ${isActive(item.path) ? "active" : ""}`}
+                title={collapsed ? item.label : ""}
+              >
+                <i className={`bi ${item.icon}`}></i>
+                <span className="navs">{item.label}</span>
+                {isActive(item.path) && <span className="active-indicator"></span>}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
 
-        <li className="nav-item">
-          <Link to="/employee_payslip" className={`nav-link ${isPayslip ? "active" : ""}`}>
-            <i className="bi bi-cash-stack"></i>
-            <span className="navs">Payslip</span>
-          </Link>
-        </li>
-
-        <li className="nav-item">
-          <Link to="/employee_leave_request" className={`nav-link ${isLeaveRequest ? "active" : ""}`}>
-            <i className="bi bi-arrow-right-square"></i>
-            <span className="navs">Leave Request</span>
-          </Link>
-        </li>
-
-        <li className="nav-item">
-          <Link
-            to="/employee_overtime_request"
-            className={`nav-link ${isOvertimeRequest ? "active" : ""}`}
+      <div className="sidebar-footer">
+        <div className="sidebar-collapse-btn d-none d-xl-block">
+          <button
+            className="btn btn-sm btn-icon"
+            onClick={() => setCollapsed(!collapsed)}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <i className="bi bi-clock-history"></i>
-            <span className="navs">Overtime Request</span>
-          </Link>
-        </li>
-      </ul>
+            <i className={`bi ${collapsed ? 'bi-chevron-right' : 'bi-chevron-left'}`}></i>
+          </button>
+        </div>
+      </div>
     </aside>
   );
 };
