@@ -23,7 +23,7 @@ function Coaching() {
   const [employeeOptions, setEmployeeOptions] = useState([]); // Add this for React-Select options
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({
-    id: '',
+    coaching_id: '',
     emp_id: '',
     coaching_type: '',
     coached_by: '',

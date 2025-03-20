@@ -4,6 +4,8 @@ import SupervisorNavbar from '../../components/SupervisorNavbar';
 import SupervisorSidebar from '../../components/SupervisorSidebar';
 import axios from 'axios';
 import config from '../../config';
+import { motion } from 'framer-motion';
+import "../../css/Sdashbords.css";
 
 const SupervisorDashboard = () => {
   const location = useLocation();
@@ -13,6 +15,8 @@ const SupervisorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [loadingOvertime, setLoadingOvertime] = useState(true);
 
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
+
   const isAttendance = location.pathname === "/supervisor/attendance";
   const isLeaveRequest = location.pathname === "/supervisor/leave-request";
   const isOvertimeRequest = location.pathname === "/supervisor/overtime-request";
@@ -20,6 +24,7 @@ const SupervisorDashboard = () => {
   useEffect(() => {
     fetchLeaveRequests();
     fetchOvertimeRequests();
+    fetchAttendanceStats();
   }, []);
 
   const fetchLeaveRequests = async () => {
@@ -113,6 +118,45 @@ const SupervisorDashboard = () => {
     }
   };
 
+  const fetchAttendanceStats = async () => {
+    try {
+      setLoadingAttendance(true);
+      const supervisor_emp_id = localStorage.getItem("X-EMP-ID");
+      const today = new Date().toISOString().split('T')[0];
+
+      const response = await axios.get(
+        `${config.API_BASE_URL}/attendance/get_all_attendance_supervisor/${supervisor_emp_id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": supervisor_emp_id,
+          },
+        }
+      );
+
+      if (response.data?.data) {
+        const todayAttendance = response.data.data.filter(record =>
+          record.date === today
+        );
+
+        setAttendanceStats({
+          totalEmployees: response.data.total_employees || todayAttendance.length,
+          presentToday: todayAttendance.filter(record =>
+            record.status?.toLowerCase() === 'present'
+          ).length
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching attendance stats:', error);
+      setAttendanceStats({
+        totalEmployees: 0,
+        presentToday: 0
+      });
+    } finally {
+      setLoadingAttendance(false);
+    }
+  };
+
   const handleLeaveRequestClick = (e) => {
     e.preventDefault();
     navigate('/supervisor_leave_request');
@@ -124,148 +168,154 @@ const SupervisorDashboard = () => {
   };
 
   return (
-    <div>
+    <div className="dashboard-container">
       <SupervisorNavbar />
       <SupervisorSidebar />
       <main id="main" className="main">
-        <div className="container-fluid" id="pagetitle">
-          <div className="pagetitle">
-            <h1>Dashboard</h1>
-            <nav>
-              <ol className="breadcrumb">
-                <li className="breadcrumb-item">
-                  <a href="/employee_dashboard">Home</a>
-                </li>
-                <li className="breadcrumb-item active">Dashboard</li>
-              </ol>
-            </nav>
-          </div>
-
-          {/* Main Content */}
-          <div className="row justify-content-center">
-            <div className="col-lg-12">
-              <div className="welcome-section text-center mb-5">
-                <h2 className="display-4 mb-3">Welcome to Supervisor Dashboard</h2>
-                <p className="lead text-muted">Manage your team's attendance, leaves, and overtime requests</p>
+        <div className="container-fluid">
+          {/* Enhanced Page Title Section */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="pagetitle-wrapper"
+          >
+            <div className="pagetitle d-flex justify-content-between align-items-center">
+              <div>
+                <h1 className="mb-0">Dashboard</h1>
+                <nav>
+                  <ol className="breadcrumb mt-2 mb-0">
+                    <li className="breadcrumb-item">
+                      <Link to="/supervisor_dashboard">Home</Link>
+                    </li>
+                    <li className="breadcrumb-item active">Dashboard</li>
+                  </ol>
+                </nav>
               </div>
+            </div>
+          </motion.div>
 
-              {/* Cards Section */}
-              <div className="row g-4">
-                <div className="col-md-4">
-                  <Link to="/supervisor_attendance" className="text-decoration-none">
-                    <div className="card h-100 shadow-sm hover-card">
-                      <div className="card-body d-flex flex-column align-items-center text-center p-4">
-                        <div className="feature-icon-border d-inline-flex align-items-center justify-content-center bg-primary bg-gradient text-white fs-2 mb-3 rounded-circle" style={{ width: '80px', height: '80px' }}>
-                          <i className="bi bi-calendar-check"></i>
-                        </div>
-                        <h4 className="card-title mb-3">Attendance</h4>
-                        <p className="card-text text-muted">
-                          View and manage employee attendance records and time logs
-                        </p>
-                        <div className="mt-auto">
-                          <button className="btn btn-outline-primary">
-                            View Attendance <i className="bi bi-arrow-right"></i>
-                          </button>
-                        </div>
+          {/* Welcome Section with Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="welcome-section text-center my-4"
+          >
+            <div className="welcome-card">
+              <div className="row align-items-center">
+                <div className="col-lg-8 text-lg-start">
+                  <h2 className="display-5 fw-bold mb-3">Welcome Back, Supervisor!</h2>
+                  <p className="lead text-muted mb-0">
+                    Here's what's happening with your team today
+                  </p>
+                </div>
+                <div className="col-lg-4">
+                  <div className="quick-stats row g-2 mt-3 mt-lg-0">
+                    <div className="col-6">
+                      <div className="stat-card bg-primary bg-opacity-10 p-3 rounded">
+                        <h3 className="text-primary mb-0">{pendingLeaveRequests}</h3>
+                        <small className="text-muted">Pending Leaves</small>
                       </div>
                     </div>
-                  </Link>
-                </div>
-
-                <div className="col-md-4">
-                  <div
-                    onClick={handleLeaveRequestClick}
-                    className="card h-100 shadow-sm hover-card"
-                    style={{ cursor: 'pointer', position: 'relative' }}
-                  >
-                    {/* Make the badge more prominent */}
-                    {pendingLeaveRequests > 0 && (
-                      <div
-                        className="position-absolute"
-                        style={{
-                          top: '10px',
-                          right: '10px',
-                          zIndex: '10'
-                        }}
-                      >
-                        <span className="badge rounded-pill bg-danger"
-                              style={{
-                                fontSize: '1rem',
-                                padding: '10px 15px',
-                                boxShadow: '0 3px 5px rgba(0,0,0,0.2)'
-                              }}>
-                          {pendingLeaveRequests} {pendingLeaveRequests === 1 ? 'request' : 'requests'}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="card-body d-flex flex-column align-items-center text-center p-4">
-                      <div className="feature-icon-border d-inline-flex align-items-center justify-content-center bg-success bg-gradient text-white fs-2 mb-3 rounded-circle" style={{ width: '80px', height: '80px' }}>
-                        <i className="bi bi-calendar2-plus"></i>
-                      </div>
-                      <h4 className="card-title mb-3">
-                        Leave Request
-                        {loading && <small className="ms-2"><i className="bi bi-hourglass-split fa-spin"></i></small>}
-                      </h4>
-                      <p className="card-text text-muted">
-                        Process and track employee leave applications
-                      </p>
-                      <div className="mt-auto">
-                        <button className="btn btn-outline-success">
-                          Manage Leaves <i className="bi bi-arrow-right"></i>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="col-md-4">
-                  <div
-                    onClick={handleOvertimeRequestClick}
-                    className="card h-100 shadow-sm hover-card"
-                    style={{ cursor: 'pointer', position: 'relative' }}
-                  >
-                    {pendingOvertimeRequests > 0 && (
-                      <div
-                        className="position-absolute"
-                        style={{
-                          top: '10px',
-                          right: '10px',
-                          zIndex: '10'
-                        }}
-                      >
-                        <span className="badge rounded-pill bg-danger"
-                              style={{
-                                fontSize: '1rem',
-                                padding: '10px 15px',
-                                boxShadow: '0 3px 5px rgba(0,0,0,0.2)'
-                              }}>
-                          {pendingOvertimeRequests} {pendingOvertimeRequests === 1 ? 'request' : 'requests'}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="card-body d-flex flex-column align-items-center text-center p-4">
-                      <div className="feature-icon-border d-inline-flex align-items-center justify-content-center bg-warning bg-gradient text-white fs-2 mb-3 rounded-circle" style={{ width: '80px', height: '80px' }}>
-                        <i className="bi bi-clock-history"></i>
-                      </div>
-                      <h4 className="card-title mb-3">
-                        Overtime Request
-                        {loadingOvertime && <small className="ms-2"><i className="bi bi-hourglass-split fa-spin"></i></small>}
-                      </h4>
-                      <p className="card-text text-muted">
-                        Review and approve overtime requests
-                      </p>
-                      <div className="mt-auto">
-                        <button className="btn btn-outline-warning">
-                          Check Overtime <i className="bi bi-arrow-right"></i>
-                        </button>
+                    <div className="col-6">
+                      <div className="stat-card bg-warning bg-opacity-10 p-3 rounded">
+                        <h3 className="text-warning mb-0">{pendingOvertimeRequests}</h3>
+                        <small className="text-muted">Pending OT</small>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          </motion.div>
+
+          {/* Main Cards Section */}
+          <div className="row g-4">
+            {/* Attendance Card */}
+            <motion.div
+              className="col-md-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <Link to="/supervisor_attendance" className="text-decoration-none">
+                <div className="dashboard-card">
+                  <div className="card-icon bg-primary">
+                    <i className="bi bi-calendar-check"></i>
+                  </div>
+                  <h4>Attendance Management</h4>
+                  <p>Track and manage employee attendance records</p>
+
+                  <div className="card-action">
+                    <span>View Details</span>
+                    <i className="bi bi-arrow-right"></i>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+
+            {/* Leave Requests Card */}
+            <motion.div
+              className="col-md-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              <div className="dashboard-card" onClick={handleLeaveRequestClick}>
+                <div className="card-icon bg-success">
+                  <i className="bi bi-calendar2-plus"></i>
+                </div>
+                <h4>Leave Requests</h4>
+                <p>Process employee leave applications</p>
+                {pendingLeaveRequests > 0 && (
+                  <div className="notification-badge">
+                    {pendingLeaveRequests} new
+                  </div>
+                )}
+                <div className="card-stats">
+                  <div className="stat">
+                    <span className="stat-value text-success">{pendingLeaveRequests}</span>
+                    <span className="stat-label">Pending Requests</span>
+                  </div>
+                </div>
+                <div className="card-action">
+                  <span>Process Requests</span>
+                  <i className="bi bi-arrow-right"></i>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Overtime Requests Card */}
+            <motion.div
+              className="col-md-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+            >
+              <div className="dashboard-card" onClick={handleOvertimeRequestClick}>
+                <div className="card-icon bg-warning">
+                  <i className="bi bi-clock-history"></i>
+                </div>
+                <h4>Overtime Requests</h4>
+                <p>Review overtime applications</p>
+                {pendingOvertimeRequests > 0 && (
+                  <div className="notification-badge">
+                    {pendingOvertimeRequests} new
+                  </div>
+                )}
+                <div className="card-stats">
+                  <div className="stat">
+                    <span className="stat-value text-warning">{pendingOvertimeRequests}</span>
+                    <span className="stat-label">Pending Reviews</span>
+                  </div>
+                </div>
+                <div className="card-action">
+                  <span>Review Requests</span>
+                  <i className="bi bi-arrow-right"></i>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </main>

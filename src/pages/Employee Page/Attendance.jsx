@@ -4,7 +4,7 @@ import EmployeeNavbar from '../../components/EmployeeNavbar';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import axios from 'axios';
 import config from '../../config';
-
+import "../../css/Attendance.css"
 const EmployeeAttendance = () => {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +24,17 @@ const EmployeeAttendance = () => {
 
   // Add this function near your other state declarations
   const [refreshInterval, setRefreshInterval] = useState(null);
+
+  // Add these states
+  const [dateFilter, setDateFilter] = useState({
+    startDate: '',
+    endDate: ''
+  });
+  const [filteredAttendance, setFilteredAttendance] = useState([]);
+
+  // Add this state
+  const [selectedBreaks, setSelectedBreaks] = useState([]);
+  const [showBreakModal, setShowBreakModal] = useState(false);
 
   // Fetch attendance data
   const fetchAttendance = async () => {
@@ -111,6 +122,62 @@ const EmployeeAttendance = () => {
     }
   };
 
+  // Add this function after calculateTimeDifference
+  const calculateAttendanceStats = () => {
+    if (!attendance.length) return { totalDays: 0, onTime: 0, lateCount: 0 };
+
+    const totalDays = attendance.length;
+    const lateCount = attendance.filter(record => {
+      // Consider a time after 9:00 AM as late (adjust as needed)
+      const timeIn = new Date(record.timeIN);
+      return timeIn.getHours() > 9 || (timeIn.getHours() === 9 && timeIn.getMinutes() > 0);
+    }).length;
+
+    return {
+      totalDays,
+      onTime: totalDays - lateCount,
+      lateCount
+    };
+  };
+
+  // Add this function to determine status
+  const getAttendanceStatus = (timeIn) => {
+    if (!timeIn || timeIn === 'N/A') return { status: 'absent', label: 'Absent', color: 'danger' };
+
+    const inTime = new Date(timeIn);
+    // Assuming 9:00 AM is the cutoff time
+    if (inTime.getHours() > 9 || (inTime.getHours() === 9 && inTime.getMinutes() > 0)) {
+      return { status: 'late', label: 'Late', color: 'warning' };
+    }
+    return { status: 'ontime', label: 'On Time', color: 'success' };
+  };
+
+  // Add this function
+  const filterAttendanceByDate = () => {
+    if (!dateFilter.startDate && !dateFilter.endDate) {
+      setFilteredAttendance(attendance);
+      return;
+    }
+
+    const filtered = attendance.filter(record => {
+      const recordDate = new Date(record.date);
+      const start = dateFilter.startDate ? new Date(dateFilter.startDate) : null;
+      const end = dateFilter.endDate ? new Date(dateFilter.endDate) : null;
+
+      if (start && end) {
+        return recordDate >= start && recordDate <= end;
+      } else if (start) {
+        return recordDate >= start;
+      } else if (end) {
+        return recordDate <= end;
+      }
+      return true;
+    });
+
+    setFilteredAttendance(filtered);
+    setCurrentPage(1); // Reset to first page after filtering
+  };
+
   // Modify the useEffect hook that handles fetching data
   useEffect(() => {
     fetchAttendance();
@@ -164,12 +231,24 @@ const EmployeeAttendance = () => {
     setShowHistoryModal(true);
   };
 
+  // Add this function
+  const handleViewBreaks = (date) => {
+    const dateBreaks = getBreaksForDate(date);
+    setSelectedBreaks(dateBreaks);
+    setShowBreakModal(true);
+  };
+
+  // Update useEffect to initialize filteredAttendance
+  useEffect(() => {
+    setFilteredAttendance(attendance);
+  }, [attendance]);
+
   // Pagination logic
-  const totalRecords = attendance.length;
+  const totalRecords = filteredAttendance.length;
   const totalPages = Math.ceil(totalRecords / recordsPerPage);
   const indexOfLastRecord = currentPage * recordsPerPage;
   const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
-  const currentRecords = attendance.slice(indexOfFirstRecord, indexOfLastRecord);
+  const currentRecords = filteredAttendance.slice(indexOfFirstRecord, indexOfLastRecord);
 
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -197,9 +276,71 @@ const EmployeeAttendance = () => {
 
           <div className="card shadow-sm mt-4">
             <div className="card-body">
-              <button className="btn btn-primary mb-3" onClick={handleUpdateAttendance}>
-                Refresh Attendance
-              </button>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <button className="btn btn-primary btn-lg" onClick={handleUpdateAttendance}>
+                    <i className="bi bi-arrow-clockwise me-2"></i> Refresh Attendance
+                  </button>
+                </div>
+                <div className="d-flex align-items-center">
+                  {/* Keep only the filter dropdown */}
+                  <div className="dropdown">
+                    <button
+                      className="btn btn-outline-secondary dropdown-toggle"
+                      type="button"
+                      id="filterDropdown"
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      <i className="bi bi-funnel-fill me-2"></i>
+                      Filter
+                      {(dateFilter.startDate || dateFilter.endDate) &&
+                        <span className="badge bg-primary ms-2">Active</span>
+                      }
+                    </button>
+                    <div className="dropdown-menu p-3" style={{ width: '250px' }} aria-labelledby="filterDropdown">
+                      <h6 className="dropdown-header">Date Range</h6>
+                      <div className="mb-2">
+                        <label htmlFor="startDate" className="form-label small">From Date</label>
+                        <input
+                          type="date"
+                          className="form-control form-control-sm"
+                          id="startDate"
+                          value={dateFilter.startDate}
+                          onChange={e => setDateFilter({...dateFilter, startDate: e.target.value})}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label htmlFor="endDate" className="form-label small">To Date</label>
+                        <input
+                          type="date"
+                          className="form-control form-control-sm"
+                          id="endDate"
+                          value={dateFilter.endDate}
+                          onChange={e => setDateFilter({...dateFilter, endDate: e.target.value})}
+                        />
+                      </div>
+                      <div className="d-flex justify-content-between mt-2">
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => {
+                            setDateFilter({ startDate: '', endDate: '' });
+                            setFilteredAttendance(attendance);
+                          }}
+                        >
+                          Clear
+                        </button>
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={filterAttendanceByDate}
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {loading ? (
                 <div className="text-center my-3">
@@ -209,6 +350,31 @@ const EmployeeAttendance = () => {
                 </div>
               ) : (
                 <div className="table-responsive">
+                  {/* Display active filters if any */}
+                  {(dateFilter.startDate || dateFilter.endDate) && (
+                    <div className="d-flex align-items-center mb-3 bg-light p-2 rounded">
+                      <span className="me-2"><i className="bi bi-funnel-fill text-primary"></i> Active filters:</span>
+                      {dateFilter.startDate && (
+                        <span className="badge bg-light text-dark me-2">
+                          From: {new Date(dateFilter.startDate).toLocaleDateString()}
+                        </span>
+                      )}
+                      {dateFilter.endDate && (
+                        <span className="badge bg-light text-dark me-2">
+                          To: {new Date(dateFilter.endDate).toLocaleDateString()}
+                        </span>
+                      )}
+                      <button
+                        className="btn btn-sm btn-link text-danger ms-auto"
+                        onClick={() => {
+                          setDateFilter({ startDate: '', endDate: '' });
+                          setFilteredAttendance(attendance);
+                        }}
+                      >
+                        <i className="bi bi-x-circle"></i> Clear
+                      </button>
+                    </div>
+                  )}
                   <table className="table table-striped table-bordered">
                     <thead>
                       <tr>
@@ -227,24 +393,32 @@ const EmployeeAttendance = () => {
                           return (
                             <tr key={index}>
                               <td>{record.date}</td>
-                              <td>{record.timeIN}</td>
+                              <td>
+                                {record.timeIN !== 'N/A' ? (
+                                  <div>
+                                    {record.timeIN}
+                                    <span
+                                      className={`badge bg-${getAttendanceStatus(record.timeIN).color} ms-2`}
+                                      style={{ fontSize: '0.7rem' }}
+                                    >
+                                      {getAttendanceStatus(record.timeIN).label}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  'N/A'
+                                )}
+                              </td>
                               <td>{record.timeOUT}</td>
-                              <td className="break-column" style={{ maxWidth: "200px" }}>
+                              <td className="break-column">
                                 {dateBreaks.length > 0 ? (
-                                  <div className="break-container" style={{ fontSize: '0.85rem' }}>
-                                    {dateBreaks.map((breakRecord, idx) => (
-                                      <div key={idx} className="break-record text-nowrap">
-                                        <small>
-                                          {new Date(breakRecord.breakIN).toLocaleTimeString([],
-                                            { hour: '2-digit', minute: '2-digit' })} -
-                                          {breakRecord.breakOUT ?
-                                            new Date(breakRecord.breakOUT).toLocaleTimeString([],
-                                              { hour: '2-digit', minute: '2-digit' })
-                                            : 'Ongoing'}
-                                        </small>
-                                        {idx < dateBreaks.length - 1 && <span className="mx-1">|</span>}
-                                      </div>
-                                    ))}
+                                  <div>
+                                    <span className="badge bg-info mb-1">{dateBreaks.length} break{dateBreaks.length > 1 ? 's' : ''}</span>
+                                    <button
+                                      className="btn btn-sm btn-outline-primary ms-2"
+                                      onClick={() => handleViewBreaks(record.date)}
+                                    >
+                                      View Details
+                                    </button>
                                   </div>
                                 ) : (
                                   <span className="text-muted">No breaks</span>
@@ -303,6 +477,52 @@ const EmployeeAttendance = () => {
           </div>
         </div>
       </main>
+      <div className={`modal fade ${showBreakModal ? 'show' : ''}`} style={{ display: showBreakModal ? 'block' : 'none' }} tabIndex="-1">
+        <div className="modal-dialog modal-lg">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title">Break Details</h5>
+              <button type="button" className="btn-close" onClick={() => setShowBreakModal(false)}></button>
+            </div>
+            <div className="modal-body">
+              {selectedBreaks.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Break Start</th>
+                        <th>Break End</th>
+                        <th>Duration</th>
+                        <th>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedBreaks.map((breakRecord, idx) => (
+                        <tr key={idx}>
+                          <td>{new Date(breakRecord.breakIN).toLocaleTimeString()}</td>
+                          <td>{breakRecord.breakOUT ? new Date(breakRecord.breakOUT).toLocaleTimeString() : 'Ongoing'}</td>
+                          <td>
+                            {breakRecord.breakOUT ?
+                              calculateTimeDifference(breakRecord.breakIN, breakRecord.breakOUT) :
+                              'In progress'}
+                          </td>
+                          <td>{breakRecord.reason || 'Not specified'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p>No break records found for this day.</p>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowBreakModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {showBreakModal && <div className="modal-backdrop fade show"></div>}
     </div>
   );
 };
