@@ -7,13 +7,38 @@ import config from "../config";
 
 const SupervisorSidebar = () => {
   const location = useLocation();
-  const isDashboard = location.pathname === "/supervisor_dashboard";
-  const isAttendance = location.pathname === "/supervisor_attendance";
-  const isLeaveRequest = location.pathname === "/supervisor_leave_request";
-  const isOvertimeRequest = location.pathname === "/supervisor_overtime_request";
-  const isSchedule = location.pathname === "/supervisor_schedule";
-  const isCoaching = location.pathname === "/supervisor_coaching";
-  const isBonus = location.pathname === "/supervisor_bonus";
+  const [collapsed, setCollapsed] = useState(false);
+  const [username, setUsername] = useState("Supervisor");
+  const [position, setPosition] = useState("Supervisor");
+
+  // Check active routes
+  const isActive = (path) => location.pathname === path;
+
+  // Group navigation items for better organization
+  const navItems = [
+    {
+      category: "Main",
+      items: [
+        { path: "/supervisor_dashboard", icon: "bi-grid", label: "Dashboard" }
+      ]
+    },
+    {
+      category: "Team Management",
+      items: [
+        { path: "/supervisor_attendance", icon: "bi-calendar-check", label: "Attendance" },
+        { path: "/supervisor_leave_request", icon: "bi-arrow-right-square", label: "Leave Request" },
+        { path: "/supervisor_overtime_request", icon: "bi-clock-history", label: "Overtime Request" },
+        { path: "/supervisor_schedule", icon: "bi-calendar2-week", label: "Schedule" }
+      ]
+    },
+    {
+      category: "Performance",
+      items: [
+        { path: "/supervisor_coaching", icon: "bi-person-workspace", label: "Coaching" },
+        { path: "/supervisor_bonus", icon: "bi-cash-coin", label: "Bonus" }
+      ]
+    }
+  ];
 
   const [dateTime, setDateTime] = useState(
     moment().tz("Asia/Manila").format("ddd").substring(0, 4).toUpperCase() +
@@ -34,10 +59,18 @@ const SupervisorSidebar = () => {
 
         // Decode the token
         const decoded = jwtDecode(token);
-        console.log("Decoded token:", decoded);
 
         if (decoded?.login?.length > 0) {
           const userData = decoded.login[0];
+
+          // Set username and position if available
+          if (userData.fName && userData.lName) {
+            setUsername(`${userData.fName} ${userData.lName}`);
+          }
+
+          if (userData.designation) {
+            setPosition(userData.designation);
+          }
 
           if (userData.photo) {
             setPhotoUrl(`${config.API_BASE_URL}/uploads/${userData.photo}`);
@@ -68,76 +101,80 @@ const SupervisorSidebar = () => {
   }, []);
 
   return (
-    <aside id="sidebar" className="sidebar supervisor-sidebar">
-      <div className="d-flex flex-column align-items-center mt-4">
-        <div className="rounded-circle overflow-hidden mb-3 profile-circle">
-          <img
-            src={photoUrl}
-            alt="Profile"
-            className="img-fluid"
-          />
-        </div>
-        <div className="d-flex align-items-center mb-4">
-          <span className="date-time-text">{dateTime}</span>
+    <aside id="sidebar" className={`sidebar supervisor-sidebar ${collapsed ? 'collapsed' : ''}`}>
+      <div className="sidebar-toggle d-xl-none">
+        <button
+          className="hamburger hamburger--spin"
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <span className="hamburger-box">
+            <span className="hamburger-inner"></span>
+          </span>
+        </button>
+      </div>
+
+      <div className="sidebar-header">
+        <div className="d-flex flex-column align-items-center mt-4">
+          <div className="rounded-circle overflow-hidden mb-3 profile-circle position-relative">
+            <img
+              src={photoUrl}
+              alt="Profile"
+              className="img-fluid profile-img"
+            />
+            <div className="online-indicator"></div>
+          </div>
+
+          <div className="text-center mb-1">
+            <h6 className="profile-name mb-0">{username}</h6>
+            <span className="profile-designation text-white small">{position}</span>
+          </div>
+
+          <div className="d-flex align-items-center mb-4 mt-2">
+            <span className="date-time-badge">{dateTime}</span>
+          </div>
         </div>
       </div>
 
-      <ul className="sidebar-nav" id="sidebar-nav">
-        <li className="nav-item">
-          <Link to="/supervisor_dashboard" className={`nav-link ${isDashboard ? "active" : ""}`}>
-            <i className="bi bi-grid"></i>
-            <span className="navs">Dashboard</span>
-          </Link>
-        </li>
+      <div className="sidebar-content">
+        {navItems.map((group, groupIndex) => (
+          <div key={groupIndex} className="nav-section mb-3">
+            {!collapsed && (
+              <div className="sidebar-heading px-3 py-2 text-uppercase fs-8 text-white fw-semibold">
+                {group.category}
+              </div>
+            )}
+            <ul className="sidebar-nav" id={`sidebar-nav-${groupIndex}`}>
+              {group.items.map((item, itemIndex) => (
+                <li className="nav-item" key={itemIndex}>
+                  <Link
+                    to={item.path}
+                    className={`nav-link ${isActive(item.path) ? "active" : ""}`}
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title={collapsed ? item.label : ""}
+                  >
+                    <i className={`bi ${item.icon}`}></i>
+                    <span className="navs">{item.label}</span>
+                    {isActive(item.path) && <span className="active-indicator"></span>}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
 
-        <li className="nav-item">
-          <Link to="/supervisor_attendance" className={`nav-link ${isAttendance ? "active" : ""}`}>
-            <i className="bi bi-calendar-check"></i>
-            <span className="navs">Attendance</span>
-          </Link>
-        </li>
-
-        <li className="nav-item">
-          <Link to="/supervisor_leave_request" className={`nav-link ${isLeaveRequest ? "active" : ""}`}>
-            <i className="bi bi-arrow-right-square"></i>
-            <span className="navs">Leave Request</span>
-          </Link>
-        </li>
-
-        <li className="nav-item">
-          <Link
-            to="/supervisor_overtime_request"
-            className={`nav-link ${isOvertimeRequest ? "active" : ""}`}
+      <div className="sidebar-footer">
+        <div className="sidebar-collapse-btn d-none d-xl-block">
+          <button
+            className="btn btn-sm btn-icon"
+            onClick={() => setCollapsed(!collapsed)}
           >
-            <i className="bi bi-clock-history"></i>
-            <span className="navs">Overtime Request</span>
-          </Link>
-        </li>
-
-        <li className="nav-item">
-          <Link to="/supervisor_schedule" className={`nav-link ${isSchedule ? "active" : ""}`}>
-            <i className="bi bi-calendar2-week"></i>
-            <span className="navs">Schedule</span>
-          </Link>
-        </li>
-
-        <li className="nav-item">
-          <Link to="/supervisor_coaching" className={`nav-link ${isCoaching ? "active" : ""}`}>
-            <i className="bi bi-person-workspace"></i>
-            <span className="navs">Coaching</span>
-          </Link>
-        </li>
-
-        <li className="nav-item">
-          <Link
-            to="/supervisor_bonus"
-            className={`nav-link ${isBonus ? "active" : ""}`}
-          >
-            <i className="bi bi-cash-coin"></i>
-            <span className="navs">Bonus</span>
-          </Link>
-        </li>
-      </ul>
+            <i className={`bi ${collapsed ? 'bi-chevron-right' : 'bi-chevron-left'}`}></i>
+          </button>
+        </div>
+      </div>
     </aside>
   );
 };

@@ -5,6 +5,9 @@ import EmployeeNavbar from '../../components/EmployeeNavbar';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import config from '../../config';
 import moment from 'moment';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
+import logo from '../../assets/logo.png'; // Adjust path as needed
 
 const Payslip = () => {
   const [selectedPayslip, setSelectedPayslips] = useState(null);
@@ -302,6 +305,43 @@ const Payslip = () => {
     setEmployeeData(mockEmployeeData);
   };
 
+  const handleDownloadPDF = async () => {
+    try {
+      const payslipElement = document.getElementById('payslip-preview');
+      if (!payslipElement) return;
+
+      const canvas = await html2canvas(payslipElement, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'pt', 'a4');
+
+      // Add margins around the content
+      const padding = 20;
+      const pageWidth = pdf.internal.pageSize.getWidth() - padding * 2;
+      const pageHeight = (canvas.height * pageWidth) / canvas.width;
+
+      // 2) Draw the logo first (adjust positions/size as needed)
+      pdf.addImage(logo, 'PNG', padding, padding, 120, 40);
+
+      // 3) Then draw the payslip image a bit further down
+      pdf.addImage(
+        imgData,
+        'PNG',
+        padding,
+        padding + 60, // Shift down to make space for the logo
+        pageWidth,
+        pageHeight
+      );
+
+      pdf.save(`Payslip-${selectedPayslip?.cutoffPeriod || 'preview'}.pdf`);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+    }
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
@@ -399,8 +439,21 @@ const Payslip = () => {
             <div className="col-md-8">
               <div className="card shadow-sm">
                 <div className="card-body">
-                  <h5 className="card-title">Payslip Preview</h5>
-                  <div className="payslip-container">
+                  <h5 className="card-title d-flex justify-content-between">
+                    Payslip Preview
+                    {selectedPayslip && (
+                      <button
+                        className="btn btn-sm btn-outline-success"
+                        onClick={handleDownloadPDF}
+                      >
+                        Download PDF
+                      </button>
+                    )}
+                  </h5>
+                  <div
+                    className="payslip-container"
+                    id="payslip-preview" /* Add an ID for capturing the layout */
+                  >
                     {selectedPayslip ? (
                       <div className="row g-4">
                         {/* Left column: Employee Information */}

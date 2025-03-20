@@ -24,32 +24,38 @@ const SupervisorLeaveRequest = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [employeeOptions, setEmployeeOptions] = useState([]);
 
-  // Update the fetchLeaveRequests function to include full name
+  // Update the fetchLeaveRequests function to use the new route:
   const fetchLeaveRequests = async () => {
     try {
-      const emp_id = localStorage.getItem("X-EMP-ID");
+      const supervisor_emp_id = localStorage.getItem("X-EMP-ID");
       const response = await axios.get(
-        `${config.API_BASE_URL}/leave_requests/get_all_leave_request`,
+        `${config.API_BASE_URL}/leave_requests/get_all_leave_request_supervisor/${supervisor_emp_id}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id,
+            "X-EMP-ID": supervisor_emp_id,
           },
         }
       );
 
       if (response.data?.data) {
-        const formattedData = response.data.data.map(record => ({
+        const formattedData = response.data.data.map((record) => ({
           ...record,
           leave_request_id: record.id,
-          date: moment(record.date).format('YYYY-MM-DD'),
-          date_approved: record.date_approved ? moment(record.date_approved).format('YYYY-MM-DD') : '-',
-          fullName: employees[record.emp_ID] || `${record.fName || ''} ${record.mName ? record.mName + ' ' : ''}${record.lName || ''}`.trim()
+          date: moment(record.date).format("YYYY-MM-DD"),
+          date_approved: record.date_approved
+            ? moment(record.date_approved).format("YYYY-MM-DD")
+            : "-",
+          fullName:
+            employees[record.emp_ID] ||
+            `${record.fName || ""} ${record.mName ? record.mName + " " : ""}${
+              record.lName || ""
+            }`.trim(),
         }));
 
-        // Sort by date in descending order (newest first)
-        const sortedData = formattedData.sort((a, b) =>
-          moment(b.date).valueOf() - moment(a.date).valueOf()
+        // Sort by date in descending order (newest first):
+        const sortedData = formattedData.sort(
+          (a, b) => moment(b.date).valueOf() - moment(a.date).valueOf()
         );
 
         setLeaveRequests(sortedData);

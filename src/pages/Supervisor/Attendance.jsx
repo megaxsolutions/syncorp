@@ -5,7 +5,7 @@ import moment from "moment";
 import SupervisorNavbar from "../../components/SupervisorNavbar";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
 import Swal from 'sweetalert2';
-import Select from 'react-select'; // Add this import
+import Select from 'react-select';
 
 const SupervisorAttendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
@@ -31,14 +31,32 @@ const SupervisorAttendance = () => {
   // Add this state for react-select options
   const [employeeOptions, setEmployeeOptions] = useState([]);
 
+  // Add these style constants for consistent styling
+  const selectStyles = {
+    control: (provided) => ({
+      ...provided,
+      border: '1px solid #dee2e6',
+      boxShadow: 'none',
+      '&:hover': {
+        border: '1px solid #80bdff',
+      }
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      backgroundColor: state.isSelected ? '#0d6efd' : state.isFocused ? '#e6f0ff' : null,
+      color: state.isSelected ? 'white' : '#212529',
+    }),
+  };
+
   const fetchAttendance = async () => {
     try {
+      const supervisor_emp_id = localStorage.getItem("X-EMP-ID");
       const response = await axios.get(
-        `${config.API_BASE_URL}/attendances/get_all_attendance`,
+        `${config.API_BASE_URL}/attendances/get_all_attendance_supervisor/${supervisor_emp_id}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "X-EMP-ID": supervisor_emp_id,
           },
         }
       );
@@ -50,7 +68,7 @@ const SupervisorAttendance = () => {
           fullName: record.fullName,
           clusterID: record.clusterID,
           date: moment(record.date).format('YYYY-MM-DD'),
-          timeIN: moment(record.timeIN).format('YYYY-MM-DD HH:mm:ss'),
+          timeIN: record.timeIN ? moment(record.timeIN).format('YYYY-MM-DD HH:mm:ss') : '-',
           timeOUT: record.timeOUT ? moment(record.timeOUT).format('YYYY-MM-DD HH:mm:ss') : '-'
         }));
 
@@ -342,144 +360,216 @@ const SupervisorAttendance = () => {
 
         <div className="container-fluid mt-4">
           <div className="card shadow-sm">
-            <div className="card-header">
-              <h5 className="mb-0">All Attendance Records</h5>
+            <div className="card-header bg-white d-flex justify-content-between align-items-center py-3">
+              <h5 className="mb-0 d-flex align-items-center">
+                <i className="bi bi-calendar2-check text-primary me-2"></i>
+                All Attendance Records
+              </h5>
+              <div className="badge bg-primary rounded-pill">
+                {filteredRecords.length} Records
+              </div>
             </div>
             <div className="card-body">
               {error && (
-                <div className="alert alert-danger" role="alert">
-                  {error}
+                <div className="alert alert-danger d-flex align-items-center" role="alert">
+                  <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                  <div>{error}</div>
                 </div>
               )}
-              <div className="table-responsive">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <div className="d-flex gap-2 flex-wrap">
-                    <div className="dropdown">
-                      <button
-                        className="btn btn-outline-secondary btn-sm dropdown-toggle"
-                        type="button"
-                        onClick={() => setShowFilters(!showFilters)}
-                      >
-                        <i className="bi bi-funnel"></i> Filters
-                      </button>
-                      <div className={`dropdown-menu p-3 ${showFilters ? 'show' : ''}`} style={{ width: '300px' }}>
-                        <div className="mb-3">
-                          <label className="form-label">
-                            <i className="bi bi-search"></i> Search Employee
-                          </label>
-                          <Select
-                            className="basic-single"
-                            classNamePrefix="react-select"
-                            placeholder="Search by name or ID"
-                            isClearable={true}
-                            isSearchable={true}
-                            name="employee"
-                            options={employeeOptions}
-                            onChange={(selectedOption) => {
-                              setSelectedEmployee(selectedOption ? selectedOption.value : '');
-                            }}
-                            value={employeeOptions.find(option => option.value === selectedEmployee) || null}
-                          />
-                        </div>
-                        <div className="mb-3">
-                          <label className="form-label">
-                            <i className="bi bi-calendar-range"></i> Date Range
-                          </label>
-                          <div className="date-range-container">
-                            <input
-                              type="date"
-                              className="form-control form-control-sm"
-                              value={dateRange.startDate}
-                              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                            />
-                            <input
-                              type="date"
-                              className="form-control form-control-sm"
-                              value={dateRange.endDate}
-                              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                            />
-                          </div>
-                        </div>
-                        <div className="d-flex gap-2">
-                          <button
-                            className="btn btn-primary btn-sm w-50"
-                            onClick={() => {
-                              handleSearch();
-                              setShowFilters(false);
-                            }}
-                          >
-                            <i className="bi bi-search"></i> Apply Filters
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-sm w-50"
-                            onClick={() => {
-                              handleReset();
-                              setShowFilters(false);
-                            }}
-                          >
-                            <i className="bi bi-x-circle"></i> Reset
-                          </button>
-                        </div>
-                      </div>
+
+              {/* Compact Search & Filter Bar */}
+              <div className="mb-4">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <h6 className="mb-0 d-flex align-items-center">
+                    <i className="bi bi-funnel me-2 text-primary"></i>
+                    Search & Filters
+                  </h6>
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={handleReset}
+                    title="Reset all filters"
+                  >
+                    <i className="bi bi-arrow-counterclockwise me-1"></i>
+                    Reset
+                  </button>
+                </div>
+
+                <div className="row g-2">
+                  <div className="col-md-5">
+                    <div className="input-group">
+                      <span className="input-group-text bg-white">
+                        <i className="bi bi-search text-primary"></i>
+                      </span>
+                      <Select
+                        styles={selectStyles}
+                        className="basic-single"
+                        classNamePrefix="react-select"
+                        placeholder="Search employee..."
+                        isClearable={true}
+                        isSearchable={true}
+                        name="employee"
+                        options={employeeOptions}
+                        onChange={(selectedOption) => {
+                          setSelectedEmployee(selectedOption ? selectedOption.value : '');
+                          handleSearch();
+                        }}
+                        value={employeeOptions.find(option => option.value === selectedEmployee) || null}
+                      />
                     </div>
-                    {/* Show active filter indicators */}
-                    {(selectedEmployee || dateRange.startDate || dateRange.endDate) && (
-                      <div className="d-flex gap-1 align-items-center">
-                        <span className="badge bg-info">
-                          <i className="bi bi-funnel-fill"></i> Active Filters
-                        </span>
-                        <button
-                          className="btn btn-sm btn-outline-secondary"
-                          onClick={handleReset}
-                          title="Clear all filters"
-                        >
-                          <i className="bi bi-x"></i>
-                        </button>
-                      </div>
-                    )}
+                  </div>
+
+                  <div className="col-md-5">
+                    <div className="input-group">
+                      <span className="input-group-text bg-white">
+                        <i className="bi bi-calendar-range text-primary"></i>
+                      </span>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={dateRange.startDate}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                        placeholder="Start date"
+                      />
+                      <span className="input-group-text bg-white">to</span>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={dateRange.endDate}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                        placeholder="End date"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="col-md-2">
+                    <button
+                      className="btn btn-primary w-100"
+                      onClick={handleSearch}
+                    >
+                      <i className="bi bi-search me-1"></i>
+                      Apply Filters
+                    </button>
                   </div>
                 </div>
-                <div className="d-flex justify-content-start mb-3">
-                  <span className="text-muted">
-                    Showing {filteredRecords.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
-                    {Math.min(indexOfLastItem, filteredRecords.length)} of {filteredRecords.length} entries
-                  </span>
+
+                {/* Active Filters Display */}
+                {(selectedEmployee || dateRange.startDate || dateRange.endDate) && (
+                  <div className="d-flex flex-wrap align-items-center gap-2 mt-2">
+                    <small className="text-muted me-1">Active filters:</small>
+
+                    {selectedEmployee && (
+                      <span className="badge bg-info text-white rounded-pill d-flex align-items-center">
+                        <i className="bi bi-person me-1"></i>
+                        {employeeOptions.find(option => option.value === selectedEmployee)?.label.split(' - ')[1]}
+                        <button
+                          className="btn-close btn-close-white ms-2 p-0"
+                          style={{ fontSize: '0.5rem' }}
+                          onClick={() => {
+                            setSelectedEmployee('');
+                            handleSearch();
+                          }}
+                          aria-label="Remove filter"
+                        ></button>
+                      </span>
+                    )}
+
+                    {dateRange.startDate && dateRange.endDate && (
+                      <span className="badge bg-info text-white rounded-pill d-flex align-items-center">
+                        <i className="bi bi-calendar-range me-1"></i>
+                        {moment(dateRange.startDate).format('MM/DD/YY')} - {moment(dateRange.endDate).format('MM/DD/YY')}
+                        <button
+                          className="btn-close btn-close-white ms-2 p-0"
+                          style={{ fontSize: '0.5rem' }}
+                          onClick={() => {
+                            setDateRange({ startDate: '', endDate: '' });
+                            handleSearch();
+                          }}
+                          aria-label="Remove date range"
+                        ></button>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Records Statistics */}
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="text-muted">
+                  <i className="bi bi-info-circle me-2"></i>
+                  Showing {filteredRecords.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
+                  {Math.min(indexOfLastItem, filteredRecords.length)} of {filteredRecords.length} records
                 </div>
+              </div>
+
+              {/* Enhanced Table */}
+              <div className="table-responsive">
                 <table className="table table-hover table-bordered">
                   <thead className="table-light">
                     <tr>
-                      <th>Date</th>
-                      <th>Employee ID</th>
-                      <th>Employee Name</th>
-                      <th>Time In</th>
-                      <th>Time Out</th>
-                      <th>Cluster ID</th>
-                      <th>Actions</th>
+                      <th scope="col" className="text-center">#</th>
+                      <th scope="col">Date</th>
+                      <th scope="col">Employee</th>
+                      <th scope="col">Time In</th>
+                      <th scope="col">Time Out</th>
+                      <th scope="col" className="text-center">Cluster ID</th>
+                      <th scope="col" className="text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {currentItems.length > 0 ? (
                       currentItems.map((record, index) => (
                         <tr key={index}>
-                          <td>{record.date}</td>
-                          <td>{record.employeeID}</td>
-                          <td>{employees[record.employeeID]?.fullName || record.fullName}</td>
-                          <td>{record.timeIN}</td>
-                          <td>{record.timeOUT}</td>
-                          <td>{record.clusterID}</td>
+                          <td className="text-center">{indexOfFirstItem + index + 1}</td>
                           <td>
                             <div className="d-flex align-items-center">
+                              <i className="bi bi-calendar-date text-primary me-2"></i>
+                              {record.date}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="d-flex flex-column">
+                              <div className="fw-medium">{employees[record.employeeID]?.fullName || record.fullName}</div>
+                              <small className="text-muted">ID: {record.employeeID}</small>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-box-arrow-in-right text-success me-2"></i>
+                              {record.timeIN !== '-' ? moment(record.timeIN).format('hh:mm:ss A') : '-'}
+                              {record.timeIN !== '-' && (
+                                <small className="text-muted ms-2">
+                                  {moment(record.timeIN).format('MMM DD')}
+                                </small>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <i className="bi bi-box-arrow-right text-danger me-2"></i>
+                              {record.timeOUT !== '-' ? moment(record.timeOUT).format('hh:mm:ss A') : '-'}
+                              {record.timeOUT !== '-' && (
+                                <small className="text-muted ms-2">
+                                  {moment(record.timeOUT).format('MMM DD')}
+                                </small>
+                              )}
+                            </div>
+                          </td>
+                          <td className="text-center">
+                            <span className="badge bg-secondary">{record.clusterID}</span>
+                          </td>
+                          <td>
+                            <div className="d-flex justify-content-center gap-2">
                               <button
-                                className="btn btn-warning btn-sm me-2"
+                                className="btn btn-warning btn-sm"
                                 onClick={() => handleEdit(record)}
-                                title="Edit"
+                                title="Edit Record"
                               >
                                 <i className="bi bi-pencil-square"></i>
                               </button>
                               <button
                                 className="btn btn-danger btn-sm"
                                 onClick={() => handleDelete(record)}
-                                title="Delete"
+                                title="Delete Record"
                               >
                                 <i className="bi bi-trash"></i>
                               </button>
@@ -489,105 +579,217 @@ const SupervisorAttendance = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="7" className="text-center">
-                          No attendance records found.
+                        <td colSpan="7" className="text-center py-4">
+                          <div className="d-flex flex-column align-items-center">
+                            <i className="bi bi-calendar-x text-muted mb-2" style={{ fontSize: '2rem' }}></i>
+                            <h6 className="mb-1">No attendance records found</h6>
+                            <p className="text-muted mb-0">
+                              {selectedEmployee || dateRange.startDate || dateRange.endDate
+                                ? 'Try adjusting your filters or clear them to see all records'
+                                : 'No attendance records exist in the system yet'}
+                            </p>
+                          </div>
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
-
-                {filteredRecords.length > 0 && (
-                  <div className="d-flex justify-content-between align-items-center mt-3">
-                    <nav aria-label="Page navigation">
-                      <ul className="pagination mb-0">
-                        <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                          <button
-                            className="page-link"
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                          >
-                            Previous
-                          </button>
-                        </li>
-                        {[...Array(totalPages)].map((_, index) => (
-                          <li
-                            key={index + 1}
-                            className={`page-item ${currentPage === index + 1 ? 'active' : ''}`}
-                          >
-                            <button
-                              className="page-link"
-                              onClick={() => handlePageChange(index + 1)}
-                            >
-                              {index + 1}
-                            </button>
-                          </li>
-                        ))}
-                        <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                          <button
-                            className="page-link"
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                          >
-                            Next
-                          </button>
-                        </li>
-                      </ul>
-                    </nav>
-                  </div>
-                )}
               </div>
+
+              {/* Improved Pagination */}
+              {filteredRecords.length > 0 && (
+                <div className="d-flex justify-content-between align-items-center mt-4">
+                  <div className="d-flex align-items-center">
+                    <select
+                      className="form-select form-select-sm me-2"
+                      style={{ width: 'auto' }}
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        setItemsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <option value="10">10 per page</option>
+                      <option value="15">15 per page</option>
+                      <option value="25">25 per page</option>
+                      <option value="50">50 per page</option>
+                    </select>
+                    <span className="text-muted small">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+
+                  <nav aria-label="Page navigation">
+                    <ul className="pagination mb-0">
+                      <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                        <button
+                          className="page-link"
+                          onClick={() => handlePageChange(1)}
+                          disabled={currentPage === 1}
+                        >
+                          <i className="bi bi-chevron-double-left"></i>
+                        </button>
+                      </li>
+                      <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                        <button
+                          className="page-link"
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage === 1}
+                        >
+                          <i className="bi bi-chevron-left"></i>
+                        </button>
+                      </li>
+
+                      {/* Show limited page numbers with ellipsis */}
+                      {[...Array(totalPages)].map((_, i) => {
+                        // Show first page, last page, and 1 page before and after current page
+                        const pageNum = i + 1;
+                        if (
+                          pageNum === 1 ||
+                          pageNum === totalPages ||
+                          (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                        ) {
+                          return (
+                            <li
+                              key={pageNum}
+                              className={`page-item ${currentPage === pageNum ? 'active' : ''}`}
+                            >
+                              <button
+                                className="page-link"
+                                onClick={() => handlePageChange(pageNum)}
+                              >
+                                {pageNum}
+                              </button>
+                            </li>
+                          );
+                        } else if (
+                          (pageNum === currentPage - 2 && currentPage > 3) ||
+                          (pageNum === currentPage + 2 && currentPage < totalPages - 2)
+                        ) {
+                          return (
+                            <li key={pageNum} className="page-item disabled">
+                              <span className="page-link">...</span>
+                            </li>
+                          );
+                        }
+                        return null;
+                      })}
+
+                      <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                        <button
+                          className="page-link"
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                        >
+                          <i className="bi bi-chevron-right"></i>
+                        </button>
+                      </li>
+                      <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                        <button
+                          className="page-link"
+                          onClick={() => handlePageChange(totalPages)}
+                          disabled={currentPage === totalPages}
+                        >
+                          <i className="bi bi-chevron-double-right"></i>
+                        </button>
+                      </li>
+                    </ul>
+                  </nav>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
+        {/* Improved Edit Modal */}
         {showEditModal && (
-          <div className="modal fade show" style={{ display: 'block' }}>
-            <div className="modal-dialog">
+          <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered">
               <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Edit Attendance Record</h5>
+                <div className="modal-header bg-warning bg-opacity-10">
+                  <h5 className="modal-title d-flex align-items-center">
+                    <i className="bi bi-pencil-square text-warning me-2"></i>
+                    Edit Attendance Record
+                  </h5>
                   <button type="button" className="btn-close" onClick={() => setShowEditModal(false)}></button>
                 </div>
                 <div className="modal-body">
+                  <div className="alert alert-light border mb-3">
+                    <div className="d-flex align-items-center mb-1">
+                      <i className="bi bi-info-circle text-warning me-2"></i>
+                      <small className="text-muted">
+                        Editing attendance for <strong>{employees[editingRecord?.emp_ID]?.fullName || 'Employee'}</strong>
+                      </small>
+                    </div>
+                    <small className="text-muted">ID: {editingRecord?.emp_ID}</small>
+                  </div>
+
                   <form onSubmit={handleEditSubmit}>
-                    <div className="mb-3">
-                      <label htmlFor="timeIN" className="form-label">Time In</label>
-                      <div className="input-group">
-                        <input
-                          type="datetime-local"
-                          className="form-control"
-                          id="timeIN"
-                          value={moment(editForm.timeIN).format('YYYY-MM-DDTHH:mm')}
-                          onChange={(e) => setEditForm({
-                            ...editForm,
-                            timeIN: moment(e.target.value).format('YYYY-MM-DD HH:mm:ss')
-                          })}
-                          required
-                        />
+                    <div className="card shadow-sm mb-3 border-primary">
+                      <div className="card-header bg-primary bg-opacity-10">
+                        <h6 className="mb-0">Time In</h6>
+                      </div>
+                      <div className="card-body">
+                        <div className="mb-0">
+                          <label htmlFor="timeIN" className="form-label d-flex align-items-center">
+                            <i className="bi bi-box-arrow-in-right me-2 text-muted"></i>
+                            Date & Time
+                          </label>
+                          <input
+                            type="datetime-local"
+                            className="form-control"
+                            id="timeIN"
+                            value={moment(editForm.timeIN).format('YYYY-MM-DDTHH:mm')}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              timeIN: moment(e.target.value).format('YYYY-MM-DD HH:mm:ss')
+                            })}
+                            required
+                          />
+                        </div>
                       </div>
                     </div>
-                    <div className="mb-3">
-                      <label htmlFor="timeOUT" className="form-label">Time Out</label>
-                      <div className="input-group">
-                        <input
-                          type="datetime-local"
-                          className="form-control"
-                          id="timeOUT"
-                          value={editForm.timeOUT ? moment(editForm.timeOUT).format('YYYY-MM-DDTHH:mm') : ''}
-                          onChange={(e) => setEditForm({
-                            ...editForm,
-                            timeOUT: e.target.value ? moment(e.target.value).format('YYYY-MM-DD HH:mm:ss') : ''
-                          })}
-                        />
+
+                    <div className="card shadow-sm mb-3 border-danger">
+                      <div className="card-header bg-danger bg-opacity-10">
+                        <h6 className="mb-0">Time Out</h6>
+                      </div>
+                      <div className="card-body">
+                        <div className="mb-0">
+                          <label htmlFor="timeOUT" className="form-label d-flex align-items-center">
+                            <i className="bi bi-box-arrow-right me-2 text-muted"></i>
+                            Date & Time
+                          </label>
+                          <input
+                            type="datetime-local"
+                            className="form-control"
+                            id="timeOUT"
+                            value={editForm.timeOUT ? moment(editForm.timeOUT).format('YYYY-MM-DDTHH:mm') : ''}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              timeOUT: e.target.value ? moment(e.target.value).format('YYYY-MM-DD HH:mm:ss') : ''
+                            })}
+                          />
+                          <small className="form-text text-muted mt-1">
+                            <i className="bi bi-info-circle me-1"></i>
+                            Leave empty if the employee hasn't clocked out yet
+                          </small>
+                        </div>
                       </div>
                     </div>
+
                     <div className="modal-footer">
-                      <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setShowEditModal(false)}
+                      >
+                        <i className="bi bi-x-circle me-1"></i>
                         Cancel
                       </button>
                       <button type="submit" className="btn btn-primary">
-                        Save changes
+                        <i className="bi bi-save me-1"></i>
+                        Save Changes
                       </button>
                     </div>
                   </form>
@@ -596,6 +798,9 @@ const SupervisorAttendance = () => {
             </div>
           </div>
         )}
+
+        {/* Modal backdrop */}
+        {showEditModal && <div className="modal-backdrop fade show" style={{ display: 'none' }}></div>}
       </main>
     </>
   );
