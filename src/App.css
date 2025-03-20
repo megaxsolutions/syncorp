@@ -162,10 +162,15 @@
 .card {
   margin-bottom: 30px;
   border: none;
-  border-radius: 15px;
+  border-radius: 10px;
   box-shadow: 0px 0 30px rgba(1, 41, 112, 0.1);
   overflow: hidden;
-  transition: transform 0.2s ease-in-out;
+  transition: transform 0.2s ease-in-out, all 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
 .card-header,
@@ -2497,4 +2502,49 @@ ul li {
   .progress-steps-container {
     margin: 0 25px;
   }
+}
+
+.break-column {
+  max-width: 200px;
+}
+
+.table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
+
+.pagination .page-link {
+  border-radius: 4px;
+  margin: 0 2px;
+}
+
+.badge {
+  font-weight: 500;
+}
+
+.calendar-view .col-md-1-7 {
+  padding: 0;
+}
+
+.calendar-view .border {
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.calendar-view .border:hover {
+  background-color: #f0f7ff !important;
+}
+
+.summary-card {
+  border-left: 4px solid;
+  transition: all 0.3s;
+}
+
+.summary-card:hover {
+  transform: translateY(-3px);
+}
+
+.summary-card h2 {
+  font-weight: 600;
 }

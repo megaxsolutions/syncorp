@@ -40,6 +40,7 @@ import EmployeeProtectedLayout from "./pages/EmployeeProtectedLayout";
 import SupervisorProtectedLayout from "./pages/SupervisorProtectedLayout";
 import './App.css';
 import AdminCoaching from "./pages/Coaching";
+import Accounts from "./pages/Accounts";
 
 function App() {
   return (
@@ -72,6 +73,7 @@ function App() {
         <Route path="/approvals/leave-request" element={<ApproveLeaveRequest />} />
         <Route path="/approvals/overtime-request" element={<ApproveOvertime />} />
         <Route path="/approvals/bonus" element={<ApproveBonus />} />
+        <Route path="/settings/accounts" element={<Accounts />} />
       </Route>
 
       {/* Employee Routes */}

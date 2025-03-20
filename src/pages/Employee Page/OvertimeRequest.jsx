@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
 import EmployeeNavbar from "../../components/EmployeeNavbar";
 import EmployeeSidebar from "../../components/EmployeeSidebar";
 import axios from "axios";
@@ -137,12 +138,12 @@ const OvertimeRequest = () => {
   };
 
   return (
-    <div>
+    <div className="overtime-request-page">
       <EmployeeNavbar />
       <EmployeeSidebar />
       <main id="main" className="main">
-        <div className="container-fluid" id="pagetitle">
-          <div className="pagetitle">
+        <div className="container-fluid">
+          <div className="pagetitle mb-4">
             <h1>Overtime Request</h1>
             <nav>
               <ol className="breadcrumb">
@@ -153,62 +154,155 @@ const OvertimeRequest = () => {
               </ol>
             </nav>
           </div>
-          <div className="row">
-            {/* Left side: Overtime History Table */}
-            <div className="col-md-6">
+
+          <div className="row g-4">
+            <div className="col-12 col-md-5 order-md-1">
+              <div className="card shadow-sm h-100">
+                <div className="card-body p-4">
+                  <h5 className="card-title d-flex align-items-center mb-4">
+                    <i className="bi bi-clock-history me-2 text-primary"></i>
+                    Request Overtime
+                  </h5>
+                  <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+                    <div className="form-group mb-4">
+                      <label htmlFor="date" className="form-label">
+                        <i className="bi bi-calendar3 me-2"></i>Date
+                        <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        className={`form-control form-control-lg ${selectedDate ? 'is-valid' : ''}`}
+                        id="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group mb-4">
+                      <label htmlFor="hours" className="form-label">
+                        <i className="bi bi-hourglass-split me-2"></i>Hours
+                        <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        className={`form-control form-control-lg ${hours ? 'is-valid' : ''}`}
+                        id="hours"
+                        min="1"
+                        max="24"
+                        value={hours}
+                        onChange={(e) => setHours(e.target.value)}
+                        placeholder="Enter overtime hours"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group mb-4">
+                      <label htmlFor="otType" className="form-label">
+                        <i className="bi bi-list-check me-2"></i>OT Type
+                        <span className="text-danger">*</span>
+                      </label>
+                      <select
+                        className={`form-select form-select-lg ${otType ? 'is-valid' : ''}`}
+                        id="otType"
+                        value={otType}
+                        onChange={(e) => setOtType(e.target.value)}
+                        required
+                      >
+                        <option value="">Select OT Type</option>
+                        {otTypes.map((type) => (
+                          <option key={type.id} value={type.id}>
+                            {type.type}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
+                      disabled={!selectedDate || !hours || !otType}
+                    >
+                      <i className="bi bi-send-fill"></i>
+                      Submit Request
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-7">
               <div className="card shadow-sm">
                 <div className="card-body">
-                  <h5 className="card-title">Overtime History</h5>
+                  <h5 className="card-title d-flex align-items-center justify-content-between">
+                    <span>
+                      <i className="bi bi-clock-history me-2"></i>
+                      Overtime History
+                    </span>
+                    <small className="text-muted">
+                      Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, otHistory.length)} of {otHistory.length} entries
+                    </small>
+                  </h5>
                   {error && (
-                    <div className="alert alert-danger" role="alert">
+                    <div className="alert alert-danger d-flex align-items-center" role="alert">
+                      <i className="bi bi-exclamation-triangle-fill me-2"></i>
                       {error}
                     </div>
                   )}
                   <div className="table-responsive">
-                    <table className="table table-striped table-bordered">
-                      <thead>
-                        <tr><th>Date</th><th>Hours</th><th>OT Type</th><th>Status</th></tr>
+                    <table className="table table-hover align-middle">
+                      <thead className="table-light">
+                        <tr>
+                          <th>Date</th>
+                          <th>Hours</th>
+                          <th>OT Type</th>
+                          <th>Status</th>
+                        </tr>
                       </thead>
                       <tbody>
                         {currentItems.length > 0 ? (
                           currentItems.map((record) => (
                             <tr key={record.id}>
-                              <td>{record.date}</td>
-                              <td>{record.hrs}</td>
+                              <td>{new Date(record.date).toLocaleDateString()}</td>
+                              <td>{record.hrs} hrs</td>
                               <td>
                                 {otTypes.find(type => type.id === parseInt(record.ot_type))?.type || record.ot_type}
                               </td>
                               <td>
-                                {record.status ? (
-                                  <span className={`badge ${
-                                    record.status.toLowerCase() === "approved" ? 'bg-success' :
-                                    record.status.toLowerCase() === "rejected" ? 'bg-danger' : 'bg-warning text-dark'
-                                  }`}>
-                                    {record.status.charAt(0).toUpperCase() + record.status.slice(1).toLowerCase()}
-                                  </span>
-                                ) : (
-                                  <span className="badge bg-warning text-dark">Pending</span>
-                                )}
+                                <span className={`badge rounded-pill ${
+                                  record.status?.toLowerCase() === "approved" ? 'bg-success' :
+                                  record.status?.toLowerCase() === "rejected" ? 'bg-danger' : 'bg-warning text-dark'
+                                }`}>
+                                  <i className={`bi ${
+                                    record.status?.toLowerCase() === "approved" ? 'bi-check-circle' :
+                                    record.status?.toLowerCase() === "rejected" ? 'bi-x-circle' : 'bi-clock'
+                                  } me-1`}></i>
+                                  {record.status ? record.status.charAt(0).toUpperCase() + record.status.slice(1).toLowerCase() : 'Pending'}
+                                </span>
                               </td>
                             </tr>
                           ))
                         ) : (
-                          <tr><td colSpan="4" className="text-center">No overtime records found.</td></tr>
+                          <tr>
+                            <td colSpan="4" className="text-center py-4 text-muted">
+                              <i className="bi bi-inbox-fill fs-4 d-block mb-2"></i>
+                              No overtime records found.
+                            </td>
+                          </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
-                  {/* Add pagination controls after the table */}
                   {otHistory.length > itemsPerPage && (
-                    <nav aria-label="Page navigation" className="mt-3">
-                      <ul className="pagination justify-content-center">
+                    <nav aria-label="Page navigation" className="mt-4">
+                      <ul className="pagination pagination-md justify-content-center">
                         <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
                           <button
                             className="page-link"
                             onClick={() => handlePageChange(currentPage - 1)}
                             disabled={currentPage === 1}
                           >
-                            Previous
+                            <i className="bi bi-chevron-left"></i>
                           </button>
                         </li>
 
@@ -232,73 +326,12 @@ const OvertimeRequest = () => {
                             onClick={() => handlePageChange(currentPage + 1)}
                             disabled={currentPage === totalPages}
                           >
-                            Next
+                            <i className="bi bi-chevron-right"></i>
                           </button>
                         </li>
                       </ul>
                     </nav>
                   )}
-                </div>
-              </div>
-            </div>
-            {/* Right side: Overtime Request Form */}
-            <div className="col-md-6">
-              <div className="card shadow-sm">
-                <div className="card-body">
-                  <h5 className="card-title">Request Overtime</h5>
-                  <div className="mb-3">
-                    <label htmlFor="date" className="form-label">
-                      Date
-                    </label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      id="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="hours" className="form-label">
-                      Hours
-                    </label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      id="hours"
-                      value={hours}
-                      onChange={(e) => setHours(e.target.value)}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="otType" className="form-label">
-                      OT Type
-                    </label>
-                    <select
-                      className="form-select"
-                      id="otType"
-                      value={otType}
-                      onChange={(e) => setOtType(e.target.value)}
-                    >
-                      <option value="">Select OT Type</option>
-                      {otTypes && otTypes.length > 0 ? (
-                        otTypes.map((type) => (
-                          <option key={type.id} value={type.id}>
-                            {type.type}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="" disabled>Loading overtime types...</option>
-                      )}
-                    </select>
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    onClick={handleSubmit}
-                  >
-                    Submit
-                  </button>
                 </div>
               </div>
             </div>

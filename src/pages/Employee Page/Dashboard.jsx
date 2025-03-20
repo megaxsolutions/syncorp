@@ -8,6 +8,8 @@ import axios from 'axios'; // Replace socket.io with axios
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import EmployeeNavbar from '../../components/EmployeeNavbar';
 import config from '../../config';
+import { motion } from 'framer-motion';
+import "../../css/Edasboard.css";
 
 const EmployeeDashboard = () => {
   const location = useLocation();
@@ -84,6 +86,7 @@ const EmployeeDashboard = () => {
     fetchLeaveRequests();
   }, []);
 
+  // Enhanced slider settings
   const settings = {
     dots: true,
     infinite: true,
@@ -104,134 +107,202 @@ const EmployeeDashboard = () => {
       }
     ],
     adaptiveHeight: true,
-    lazyLoad: true
+    lazyLoad: true,
+    prevArrow: <CustomArrow direction="prev" />,
+    nextArrow: <CustomArrow direction="next" />,
+    appendDots: dots => (
+      <div style={{ bottom: "20px" }}>
+        <ul style={{ margin: "0px" }}>{dots}</ul>
+      </div>
+    ),
+    customPaging: i => (
+      <div className="custom-dot"></div>
+    )
   };
 
   return (
-    <div>
+    <div className="dashboard-wrapper bg-light">
       <EmployeeNavbar />
       <EmployeeSidebar />
       <main id="main" className="main">
-        <div className="container-fluid" id="pagetitle">
-          <div className="pagetitle">
-            <h1>Dashboard</h1>
-            <nav>
-              <ol className="breadcrumb">
-                <li className="breadcrumb-item">
-                  <a href="/employee_dashboard">Home</a>
-                </li>
-                <li className="breadcrumb-item active">Dashboard</li>
-              </ol>
-            </nav>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="container-fluid"
+        >
+          {/* Enhanced Page Title */}
+          <div className="pagetitle-wrapper bg-white rounded-3 shadow-sm p-4 mb-4">
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                <h1 className="h3 mb-0">Welcome Back, {localStorage.getItem("name")}!</h1>
+                <p className="text-muted mb-0">Here's what's happening today</p>
+              </div>
+              <div className="current-time">
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </div>
+            </div>
           </div>
 
-          <div className="row">
-            <div className="col-12"> {/* Changed from col-md-10 to col-12 */}
-              <div className="slider-container shadow-sm mb-4">
-                <Slider {...settings}>
-                  {bulletins.length > 0 ? (
-                    bulletins.map((bulletin) => (
-                      <div key={bulletin.id} className="slider-item">
-                        <img
-                          src={bulletin?.file_name
-                            ? `${config.API_BASE_URL}/uploads/${bulletin.file_name}`
-                            : "https://via.placeholder.com/1200x400?text=No+Image"}
-                          className="w-100"
-                          alt={bulletin.file_name}
-                          style={{ height: '800px', objectFit: 'cover' }}
-                        />
-                      </div>
-                    ))
-                  ) : (
-                    <div className="slider-item">
-                      <img
-                        src="https://via.placeholder.com/1200x400?text=No+Bulletins+Available"
-                        className="w-100"
-                        alt="No Bulletins"
-                        style={{ height: '400px', objectFit: 'cover' }}
-                      />
-                      <div className="carousel-caption">
-                        <h5>No Bulletins Available</h5>
-                        <p>Stay tuned for updates.</p>
-                      </div>
-                    </div>
-                  )}
-                </Slider>
-              </div>
-
-              {/* Links Section */}
-              <div className="row g-4">
-                {/* Update each card column to be responsive */}
-                <div className="col-12 col-md-4">
-                  <Link to="/employee_attendance" className="text-decoration-none">
-                    <div className="card h-100 border-0 shadow-sm hover-card">
-                      <div className="card-body d-flex flex-column align-items-center p-4">
-                        <div className={`icon-circle ${isAttendance ? 'bg-primary' : 'bg-light'} mb-3`}>
-                          <i className={`bi bi-calendar-check fs-2 ${isAttendance ? 'text-white' : 'text-primary'}`}></i>
-                        </div>
-                        <h5 className="card-title mb-2">Attendance</h5>
-                        <p className="card-text text-muted text-center mb-0">
-                          View and manage your daily attendance records
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
+          {/* Enhanced Bulletin Section */}
+          <div className="row mb-4">
+            <div className="col-12">
+              <div className="bulletin-wrapper bg-white rounded-3 shadow-sm overflow-hidden p-0">
+                <div className="bulletin-header p-3">
+                  <h5 className="section-title mb-0">
+                    <i className="bi bi-megaphone-fill me-2 text-primary"></i>
+                    Company Bulletins
+                  </h5>
                 </div>
-
-                <div className="col-12 col-md-4">
-                  <Link to="/employee_payslip" className="text-decoration-none">
-                    <div className="card h-100 border-0 shadow-sm hover-card">
-                      <div className="card-body d-flex flex-column align-items-center p-4">
-                        <div className={`icon-circle ${isPayslip ? 'bg-success' : 'bg-light'} mb-3`}>
-                          <i className={`bi bi-receipt fs-2 ${isPayslip ? 'text-white' : 'text-success'}`}></i>
-                        </div>
-                        <h5 className="card-title mb-2">Payslip</h5>
-                        <p className="card-text text-muted text-center mb-0">
-                          Access and download your salary statements
-                        </p>
+                <div className="slider-container">
+                  <Slider {...settings}>
+                    {bulletins.length > 0 ? (
+                      bulletins.map((bulletin) => (
+                        <motion.div
+                          key={bulletin.id}
+                          whileHover={{ scale: 1.01 }}
+                          className="slider-item"
+                        >
+                          <div className="bulletin-card position-relative">
+                            <div className="bulletin-image-wrapper">
+                              <img
+                                src={bulletin?.file_name
+                                  ? `${config.API_BASE_URL}/uploads/${bulletin.file_name}`
+                                  : "https://via.placeholder.com/1920x1080?text=No+Image"}
+                                className="bulletin-image"
+                                alt={bulletin.title || 'Bulletin'}
+                                loading="lazy"
+                              />
+                            </div>
+                            {bulletin.title && (
+                              <div className="bulletin-content">
+                                <div className="content-wrapper">
+                                  <h4 className="bulletin-title">{bulletin.title}</h4>
+                                  <p className="bulletin-description">{bulletin.description}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="no-bulletins text-center py-5">
+                        <i className="bi bi-newspaper text-muted display-1"></i>
+                        <h5 className="mt-3 text-muted">No Bulletins Available</h5>
+                        <p className="text-muted">Check back later for updates</p>
                       </div>
-                    </div>
-                  </Link>
-                </div>
-
-                <div className="col-12 col-md-4">
-                  <Link to="/employee_leave_request" className="text-decoration-none">
-                    <div className="card h-100 border-0 shadow-sm hover-card">
-                      <div className="card-body d-flex flex-column align-items-center p-4">
-                        <div className={`icon-circle ${isLeaveRequest ? 'bg-warning' : 'bg-light'} mb-3 position-relative`}>
-                          <i className={`bi bi-arrow-right-square fs-2 ${isLeaveRequest ? 'text-white' : 'text-warning'}`}></i>
-                          {latestLeaveStatus && (
-                            <span className={`position-absolute top-0 start-100 translate-middle badge rounded-pill ${
-                              latestLeaveStatus === 'approved' ? 'bg-success' :
-                              latestLeaveStatus === 'rejected' ? 'bg-danger' : 'bg-secondary'
-                            }`}>
-                              {latestLeaveStatus.charAt(0).toUpperCase() + latestLeaveStatus.slice(1)}
-                            </span>
-                          )}
-                        </div>
-                        <h5 className="card-title mb-2">Leave Request</h5>
-                        <p className="card-text text-muted text-center mb-0">
-                          Submit and track your leave applications
-                        </p>
-                        {latestLeaveStatus && (
-                          <small className={`mt-2 text-${
-                            latestLeaveStatus === 'approved' ? 'success' :
-                            latestLeaveStatus === 'rejected' ? 'danger' : 'secondary'
-                          }`}>
-                            Latest request: {latestLeaveStatus.charAt(0).toUpperCase() + latestLeaveStatus.slice(1)}
-                          </small>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
+                    )}
+                  </Slider>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+
+          {/* Enhanced Quick Links Section */}
+          <div className="row g-4">
+            <motion.div
+              className="col-12 col-md-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Link to="/employee_attendance" className="text-decoration-none">
+                <div className="quick-link-card bg-white rounded-3 shadow-sm p-4 h-100">
+                  <div className="d-flex align-items-center mb-3">
+                    <div className={`icon-circle ${isAttendance ? 'bg-primary' : 'bg-light'} me-3`}>
+                      <i className={`bi bi-calendar-check ${isAttendance ? 'text-white' : 'text-primary'}`}></i>
+                    </div>
+                    <h5 className="mb-0">Attendance</h5>
+                  </div>
+                  <p className="text-muted mb-3">Track your daily attendance and view history</p>
+                  <div className="card-footer bg-transparent border-0 p-0">
+                    <small className="text-primary">
+                      View Details <i className="bi bi-arrow-right ms-1"></i>
+                    </small>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              className="col-12 col-md-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <Link to="/employee_payslip" className="text-decoration-none">
+                <div className="quick-link-card bg-white rounded-3 shadow-sm p-4 h-100">
+                  <div className="d-flex align-items-center mb-3">
+                    <div className={`icon-circle ${isPayslip ? 'bg-success' : 'bg-light'} me-3`}>
+                      <i className={`bi bi-receipt ${isPayslip ? 'text-white' : 'text-success'}`}></i>
+                    </div>
+                    <h5 className="mb-0">Payslip</h5>
+                  </div>
+                  <p className="text-muted mb-3">Access and download your salary statements</p>
+                  <div className="card-footer bg-transparent border-0 p-0">
+                    <small className="text-success">
+                      View Details <i className="bi bi-arrow-right ms-1"></i>
+                    </small>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              className="col-12 col-md-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <Link to="/employee_leave_request" className="text-decoration-none">
+                <div className="quick-link-card bg-white rounded-3 shadow-sm p-4 h-100">
+                  <div className="d-flex align-items-center mb-3">
+                    <div className={`icon-circle ${isLeaveRequest ? 'bg-warning' : 'bg-light'} me-3 position-relative`}>
+                      <i className={`bi bi-arrow-right-square ${isLeaveRequest ? 'text-white' : 'text-warning'}`}></i>
+                      {latestLeaveStatus && (
+                        <span className={`position-absolute top-0 start-100 translate-middle badge rounded-pill ${
+                          latestLeaveStatus === 'approved' ? 'bg-success' :
+                          latestLeaveStatus === 'rejected' ? 'bg-danger' : 'bg-secondary'
+                        }`}>
+                          {latestLeaveStatus.charAt(0).toUpperCase() + latestLeaveStatus.slice(1)}
+                        </span>
+                      )}
+                    </div>
+                    <h5 className="mb-0">Leave Request</h5>
+                  </div>
+                  <p className="text-muted mb-3">Submit and track your leave applications</p>
+                  {latestLeaveStatus && (
+                    <small className={`mt-2 text-${
+                      latestLeaveStatus === 'approved' ? 'success' :
+                      latestLeaveStatus === 'rejected' ? 'danger' : 'secondary'
+                    }`}>
+                      Latest request: {latestLeaveStatus.charAt(0).toUpperCase() + latestLeaveStatus.slice(1)}
+                    </small>
+                  )}
+                </div>
+              </Link>
+            </motion.div>
+          </div>
+        </motion.div>
       </main>
     </div>
   );
 };
+
+// Custom Arrow Component for Slider
+const CustomArrow = ({ direction, onClick }) => (
+  <button
+    className={`slider-arrow ${direction}`}
+    onClick={onClick}
+    aria-label={direction === "prev" ? "Previous" : "Next"}
+  >
+    <i className={`bi bi-chevron-${direction === "prev" ? "left" : "right"}`}></i>
+  </button>
+);
 
 export default EmployeeDashboard;

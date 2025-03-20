@@ -88,6 +88,9 @@ const SupervisorSchedule = () => {
     thisMonth: false
   });
 
+  // Add this state for schedule type selection
+  const [deleteScheduleType, setDeleteScheduleType] = useState('both'); // Options: 'both', 'regular', 'overtime'
+
   // Calendar Navigation
   const handlePrevMonth = () => {
     setCurrentDate(prev => moment(prev).subtract(1, 'month'));
@@ -271,7 +274,7 @@ const SupervisorSchedule = () => {
     setShowRemoveModal(false);
   };
 
-  // Update the handleScheduleSubmit function
+  // Update the handleScheduleSubmit function to properly handle weekend scheduling
 const handleScheduleSubmit = async () => {
   try {
     // Validate selections
@@ -284,30 +287,78 @@ const handleScheduleSubmit = async () => {
       return;
     }
 
+    // Validate that at least one schedule type is selected OR autoOffWeekend is selected
+    if (!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth && !scheduleTypes.autoOffWeekend) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please select at least one schedule type or use Auto Off Weekend'
+      });
+      return;
+    }
+
     // Get selected days based on schedule types
-    const selectedDays = [];
+    let selectedDays = [];
     const startOfWeek = moment(currentDate).startOf('week');
     const startOfMonth = moment(currentDate).startOf('month');
 
-    if (scheduleTypes.currentDay) {
-      selectedDays.push(currentDate.format('YYYY-MM-DD'));
-    }
+    // Special case: If only autoOffWeekend is selected, we'll set weekends only for the current week
+    if (scheduleTypes.autoOffWeekend &&
+        !scheduleTypes.currentDay &&
+        !scheduleTypes.thisWeek &&
+        !scheduleTypes.thisMonth) {
 
-    if (scheduleTypes.thisWeek) {
-      for (let i = 1; i <= 5; i++) { // Monday to Friday
-        selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
+      // Add only Saturday and Sunday of current week
+      selectedDays.push(moment(startOfWeek).format('YYYY-MM-DD')); // Sunday
+      selectedDays.push(moment(startOfWeek).add(6, 'days').format('YYYY-MM-DD')); // Saturday
+    } else {
+      // Regular logic for when specific schedule types are selected
+      if (scheduleTypes.currentDay) {
+        // Always add current day regardless of weekend status when explicitly selected
+        selectedDays.push(currentDate.format('YYYY-MM-DD'));
       }
-    }
 
-    if (scheduleTypes.thisMonth) {
-      const daysInMonth = currentDate.daysInMonth();
-      for (let i = 1; i <= daysInMonth; i++) {
-        const day = moment(startOfMonth).add(i - 1, 'days');
-        if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
-          selectedDays.push(day.format('YYYY-MM-DD'));
+      if (scheduleTypes.thisWeek) {
+        if (scheduleTypes.autoOffWeekend) {
+          // For this week, add only Saturday and Sunday when autoOffWeekend is checked
+          selectedDays.push(moment(startOfWeek).format('YYYY-MM-DD')); // Sunday
+          selectedDays.push(moment(startOfWeek).add(6, 'days').format('YYYY-MM-DD')); // Saturday
+        } else {
+          // Add all days of the week when autoOffWeekend is not checked
+          for (let i = 0; i <= 6; i++) {
+            selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
+          }
+        }
+      }
+
+      if (scheduleTypes.thisMonth) {
+        const daysInMonth = currentDate.daysInMonth();
+        for (let i = 1; i <= daysInMonth; i++) {
+          const day = moment(startOfMonth).add(i - 1, 'days');
+          // If autoOffWeekend is checked, only add weekend days
+          // Otherwise add all days
+          if (scheduleTypes.autoOffWeekend) {
+            if (day.day() === 0 || day.day() === 6) { // Sunday or Saturday
+              selectedDays.push(day.format('YYYY-MM-DD'));
+            }
+          } else {
+            selectedDays.push(day.format('YYYY-MM-DD'));
+          }
         }
       }
     }
+
+    // Remove duplicates from selectedDays
+    selectedDays = [...new Set(selectedDays)];
+
+    // Show loading
+    Swal.fire({
+      title: 'Creating schedules...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
 
     // Prepare request data
     const requestData = {
@@ -318,15 +369,6 @@ const handleScheduleSubmit = async () => {
       array_selected_days: selectedDays,
       schedule_type_id: 1 // Regular schedule type
     };
-
-    // Show loading
-    Swal.fire({
-      title: 'Creating schedules...',
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      }
-    });
 
     const response = await axios.post(
       `${config.API_BASE_URL}/shift_schedules/add_shift_schedule_multiple_day`,
@@ -529,6 +571,7 @@ const handleBulkDeleteSubmit = async () => {
     const selectedDays = [];
     const startOfWeek = moment(currentDate).startOf('week');
     const startOfMonth = moment(currentDate).startOf('month');
+    const endOfMonth = moment(currentDate).endOf('month');
 
     if (scheduleTypes.currentDay) {
       selectedDays.push(currentDate.format('YYYY-MM-DD'));
@@ -550,9 +593,26 @@ const handleBulkDeleteSubmit = async () => {
       }
     }
 
+    // Modified weekend handling
+    if (scheduleTypes.autoOffWeekend) {
+      let currentDay = moment(startOfMonth);
+
+      // Loop through all days in the month
+      while (currentDay.isSameOrBefore(endOfMonth)) {
+        // Check if day is Saturday (6) or Sunday (0)
+        if (currentDay.day() === 0 || currentDay.day() === 6) {
+          selectedDays.push(currentDay.format('YYYY-MM-DD'));
+        }
+        currentDay.add(1, 'day');
+      }
+    }
+
+    // Remove duplicates from selectedDays
+    const uniqueSelectedDays = [...new Set(selectedDays)];
+
     const result = await Swal.fire({
       title: 'Are you sure?',
-      text: "This will remove both regular and overtime schedules!",
+      text: `This will remove ${deleteScheduleType === 'both' ? 'all' : deleteScheduleType} schedules for the selected period!`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc3545',
@@ -569,65 +629,86 @@ const handleBulkDeleteSubmit = async () => {
         }
       });
 
-      // Delete overtime schedules for each overtime type
-      const overtimePromises = overtimeTypes.map(async (type) => {
-        try {
-          return await axios.delete(
-            `${config.API_BASE_URL}/shift_schedules/delete_shift_schedule_multiple_day_overtime/${type.id}`,
-            {
-              headers: {
-                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-              },
-              data: {
-                array_employee_emp_id: selectedEmployees,
-                array_selected_days: selectedDays
+      let deletePromises = [];
+
+      if (deleteScheduleType === 'both' || deleteScheduleType === 'overtime') {
+        // Delete overtime schedules for each overtime type
+        const overtimePromises = overtimeTypes.map(async (type) => {
+          try {
+            return await axios.delete(
+              `${config.API_BASE_URL}/shift_schedules/delete_shift_schedule_multiple_day_overtime/${type.id}`,
+              {
+                headers: {
+                  "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                  "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+                },
+                data: {
+                  array_employee_emp_id: selectedEmployees,
+                  array_selected_days: uniqueSelectedDays
+                }
               }
-            }
-          );
-        } catch (error) {
-          console.error(`Error deleting overtime type ${type.id}:`, error);
-          return null;
-        }
-      });
-
-      // Delete regular schedules
-      const regularPromise = axios.delete(
-        `${config.API_BASE_URL}/shift_schedules/delete_shift_schedule_multiple_day/1`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          },
-          data: {
-            array_employee_emp_id: selectedEmployees,
-            array_selected_days: selectedDays
+            );
+          } catch (error) {
+            console.error(`Error deleting overtime type ${type.id}:`, error);
+            return null;
           }
-        }
-      );
+        });
+        deletePromises = [...deletePromises, ...overtimePromises];
+      }
 
-      // Wait for all delete operations to complete
-      await Promise.all([...overtimePromises, regularPromise]);
+      if (deleteScheduleType === 'both' || deleteScheduleType === 'regular') {
+        // Delete regular schedules
+        const regularPromise = axios.delete(
+          `${config.API_BASE_URL}/shift_schedules/delete_shift_schedule_multiple_day/1`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+            data: {
+              array_employee_emp_id: selectedEmployees,
+              array_selected_days: uniqueSelectedDays
+            }
+          }
+        );
+        deletePromises.push(regularPromise);
+      }
 
-      setShowDeleteModal(false);
+      try {
+        // Wait for all delete operations to complete
+        await Promise.all(deletePromises);
 
-      await Swal.fire({
-        icon: 'success',
-        title: 'Deleted!',
-        text: 'All schedules have been removed successfully',
-        timer: 1500,
-        showConfirmButton: false
-      });
+        // Close loading state
+        await Swal.close();
 
-      // Reset form and refresh schedules
-      setScheduleTypes({
-        currentDay: false,
-        thisWeek: false,
-        thisMonth: false,
-        autoOffWeekend: false
-      });
+        // Close delete modal
+        setShowDeleteModal(false);
 
-      fetchSchedules();
+        // Show success message
+        await Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: `Selected ${deleteScheduleType} schedules have been removed successfully`,
+          timer: 1500,
+          showConfirmButton: false
+        });
+
+        // Reset form
+        setScheduleTypes({
+          currentDay: false,
+          thisWeek: false,
+          thisMonth: false,
+          autoOffWeekend: false
+        });
+
+        // Refresh schedules
+        await fetchSchedules();
+
+      } catch (error) {
+        // Close loading state on error
+        await Swal.close();
+        throw error;
+      }
     }
   } catch (error) {
     console.error('Error deleting schedules:', error);
@@ -1355,81 +1436,87 @@ useEffect(() => {
                   </div>
 
                   <fieldset className="border rounded p-3">
-                    <legend className="float-none w-auto px-2 fs-6 text-muted">Apply To</legend>
-                    <div className="row row-cols-1 row-cols-md-2 g-3">
-                      <div className="col">
-                        <div className="form-check mb-2">
-                          <input
-                            type="checkbox"
-                            className="form-check-input"
-                            id="currentDay"
-                            checked={scheduleTypes.currentDay}
-                            onChange={(e) => setScheduleTypes(prev => ({
-                              ...prev,
-                              currentDay: e.target.checked
-                            }))}
-                          />
-                          <label className="form-check-label" htmlFor="currentDay">
-                            <i className="bi bi-calendar-date text-primary me-2"></i>
-                            Current Day Only
-                          </label>
-                        </div>
+  <legend className="float-none w-auto px-2 fs-6 text-muted">Apply To</legend>
+  <div className="row row-cols-1 row-cols-md-2 g-3">
+    <div className="col">
+      <div className="form-check mb-2">
+        <input
+          type="checkbox"
+          className="form-check-input"
+          id="currentDay"
+          checked={scheduleTypes.currentDay}
+          onChange={(e) => setScheduleTypes(prev => ({
+            ...prev,
+            currentDay: e.target.checked
+          }))}
+        />
+        <label className="form-check-label" htmlFor="currentDay">
+          <i className="bi bi-calendar-date text-primary me-2"></i>
+          Current Day Only
+        </label>
+      </div>
 
-                        <div className="form-check">
-                          <input
-                            type="checkbox"
-                            className="form-check-input"
-                            id="thisWeek"
-                            checked={scheduleTypes.thisWeek}
-                            onChange={(e) => setScheduleTypes(prev => ({
-                              ...prev,
-                              thisWeek: e.target.checked
-                            }))}
-                          />
-                          <label className="form-check-label" htmlFor="thisWeek">
-                            <i className="bi bi-calendar-week text-primary me-2"></i>
-                            This Week (Mon-Fri)
-                          </label>
-                        </div>
-                      </div>
+      <div className="form-check">
+        <input
+          type="checkbox"
+          className="form-check-input"
+          id="thisWeek"
+          checked={scheduleTypes.thisWeek}
+          onChange={(e) => setScheduleTypes(prev => ({
+            ...prev,
+            thisWeek: e.target.checked
+          }))}
+        />
+        <label className="form-check-label" htmlFor="thisWeek">
+          <i className="bi bi-calendar-week text-primary me-2"></i>
+          This Week (All Days)
+        </label>
+      </div>
+    </div>
 
-                      <div className="col">
-                        <div className="form-check mb-2">
-                          <input
-                            type="checkbox"
-                            className="form-check-input"
-                            id="thisMonth"
-                            checked={scheduleTypes.thisMonth}
-                            onChange={(e) => setScheduleTypes(prev => ({
-                              ...prev,
-                              thisMonth: e.target.checked
-                            }))}
-                          />
-                          <label className="form-check-label" htmlFor="thisMonth">
-                            <i className="bi bi-calendar-month text-primary me-2"></i>
-                            This Month (Weekdays)
-                          </label>
-                        </div>
+    <div className="col">
+      <div className="form-check mb-2">
+        <input
+          type="checkbox"
+          className="form-check-input"
+          id="thisMonth"
+          checked={scheduleTypes.thisMonth}
+          onChange={(e) => setScheduleTypes(prev => ({
+            ...prev,
+            thisMonth: e.target.checked
+          }))}
+        />
+        <label className="form-check-label" htmlFor="thisMonth">
+          <i className="bi bi-calendar-month text-primary me-2"></i>
+          This Month (All Days)
+        </label>
+      </div>
+    </div>
+  </div>
 
-                        <div className="form-check">
-                          <input
-                            type="checkbox"
-                            className="form-check-input"
-                            id="autoOffWeekend"
-                            checked={scheduleTypes.autoOffWeekend}
-                            onChange={(e) => setScheduleTypes(prev => ({
-                              ...prev,
-                              autoOffWeekend: e.target.checked
-                            }))}
-                          />
-                          <label className="form-check-label" htmlFor="autoOffWeekend">
-                            <i className="bi bi-calendar2-x text-primary me-2"></i>
-                            Auto Off Weekend (Sat-Sun)
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </fieldset>
+  <hr className="my-3" />
+
+  <div className="form-check">
+    <input
+      type="checkbox"
+      className="form-check-input"
+      id="autoOffWeekend"
+      checked={scheduleTypes.autoOffWeekend}
+      onChange={(e) => setScheduleTypes(prev => ({
+        ...prev,
+        autoOffWeekend: e.target.checked
+      }))}
+    />
+    <label className="form-check-label" htmlFor="autoOffWeekend">
+      <i className="bi bi-calendar2-x text-danger me-2"></i>
+      <strong>Weekend Only Schedule (Saturday-Sunday)</strong>
+    </label>
+    <div className="form-text ms-4">
+      When checked, this will schedule only weekends (Saturday and Sunday).
+      If used alone, it applies to the current week's weekends.
+    </div>
+  </div>
+</fieldset>
                 </div>
 
                 <div className="modal-footer">
@@ -1444,14 +1531,27 @@ useEffect(() => {
                     type="button"
                     className="btn btn-primary"
                     onClick={() => {
-                      if (!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth) {
+                      // Change this validation to also accept when only autoOffWeekend is checked
+                      if (!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth && !scheduleTypes.autoOffWeekend) {
                         Swal.fire({
                           icon: 'warning',
                           title: 'No Schedule Type Selected',
-                          text: 'Please select at least one schedule type'
+                          text: 'Please select at least one schedule type or use Auto Off Weekend'
                         });
                         return;
                       }
+
+                      // If only autoOffWeekend is selected, automatically select "thisWeek" as well
+                      if (scheduleTypes.autoOffWeekend &&
+                          !scheduleTypes.currentDay &&
+                          !scheduleTypes.thisWeek &&
+                          !scheduleTypes.thisMonth) {
+                        setScheduleTypes(prev => ({
+                          ...prev,
+                          thisWeek: true
+                        }));
+                      }
+
                       handleScheduleSubmit();
                     }}
                   >
@@ -1729,7 +1829,7 @@ useEffect(() => {
                 <div className="modal-body">
                   <div className="alert alert-warning d-flex align-items-center">
                     <i className="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
-                    <div>This action will remove both regular and overtime schedules for the selected period.</div>
+                    <div>Please select which type of schedules to remove for the selected period.</div>
                   </div>
 
                   <div className="alert alert-light border mb-3">
@@ -1740,87 +1840,164 @@ useEffect(() => {
                     <small className="text-muted">Current date: {currentDate.format('MMMM D, YYYY')}</small>
                   </div>
 
+                  {/* Add Schedule Type Selection */}
                   <div className="card shadow-sm mb-4 border-danger">
                     <div className="card-header bg-danger bg-opacity-10">
-                      <h6 className="mb-0">Select Period to Remove</h6>
+                      <h6 className="mb-0">Schedule Type to Remove</h6>
                     </div>
                     <div className="card-body">
-                      <div className="row row-cols-1 row-cols-md-2 g-3">
-                        <div className="col">
-                          <div className="form-check mb-3">
-                            <input
-                              type="checkbox"
-                              className="form-check-input"
-                              id="removeCurrentDay"
-                              checked={scheduleTypes.currentDay}
-                              onChange={(e) => setScheduleTypes(prev => ({
-                                ...prev,
-                                currentDay: e.target.checked
-                              }))}
-                            />
-                            <label className="form-check-label" htmlFor="removeCurrentDay">
-                              <i className="bi bi-calendar-date text-danger me-2"></i>
-                              Current Day Only
-                            </label>
-                            <div className="form-text small ms-4">
-                              {currentDate.format('MMM DD, YYYY (dddd)')}
-                            </div>
-                          </div>
-                        </div>
+                      <div className="btn-group w-100" role="group">
+                        <input
+                          type="radio"
+                          className="btn-check"
+                          name="deleteType"
+                          id="deleteBoth"
+                          value="both"
+                          checked={deleteScheduleType === 'both'}
+                          onChange={(e) => setDeleteScheduleType(e.target.value)}
+                        />
+                        <label className="btn btn-outline-danger" htmlFor="deleteBoth">
+                          <i className="bi bi-calendar2-x me-1"></i>
+                          Both Types
+                        </label>
 
-                        <div className="col">
-                          <div className="form-check mb-3">
-                            <input
-                              type="checkbox"
-                              className="form-check-input"
-                              id="removeThisWeek"
-                              checked={scheduleTypes.thisWeek}
-                              onChange={(e) => setScheduleTypes(prev => ({
-                                ...prev,
-                                thisWeek: e.target.checked
-                              }))}
-                            />
-                            <label className="form-check-label" htmlFor="removeThisWeek">
-                              <i className="bi bi-calendar-week text-danger me-2"></i>
-                              This Week (Mon-Fri)
-                            </label>
-                            <div className="form-text small ms-4">
-                              {moment(currentDate).startOf('week').add(1, 'days').format('MMM DD')} - {moment(currentDate).startOf('week').add(5, 'days').format('MMM DD')}
-                            </div>
-                          </div>
-                        </div>
+                        <input
+                          type="radio"
+                          className="btn-check"
+                          name="deleteType"
+                          id="deleteRegular"
+                          value="regular"
+                          checked={deleteScheduleType === 'regular'}
+                          onChange={(e) => setDeleteScheduleType(e.target.value)}
+                        />
+                        <label className="btn btn-outline-danger" htmlFor="deleteRegular">
+                          <i className="bi bi-calendar2-check me-1"></i>
+                          Regular Only
+                        </label>
 
-                        <div className="col">
-                          <div className="form-check">
-                            <input
-                              type="checkbox"
-                              className="form-check-input"
-                              id="removeThisMonth"
-                              checked={scheduleTypes.thisMonth}
-                              onChange={(e) => setScheduleTypes(prev => ({
-                                ...prev,
-                                thisMonth: e.target.checked
-                              }))}
-                            />
-                            <label className="form-check-label" htmlFor="removeThisMonth">
-                              <i className="bi bi-calendar-month text-danger me-2"></i>
-                              This Month (Weekdays)
-                            </label>
-                            <div className="form-text small ms-4">
-                              All weekdays in {currentDate.format('MMMM YYYY')}
-                            </div>
-                          </div>
-                        </div>
+                        <input
+                          type="radio"
+                          className="btn-check"
+                          name="deleteType"
+                          id="deleteOvertime"
+                          value="overtime"
+                          checked={deleteScheduleType === 'overtime'}
+                          onChange={(e) => setDeleteScheduleType(e.target.value)}
+                        />
+                        <label className="btn btn-outline-danger" htmlFor="deleteOvertime">
+                          <i className="bi bi-clock-history me-1"></i>
+                          Overtime Only
+                        </label>
                       </div>
-
-                      {!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth && (
-                        <div className="alert alert-danger mt-3 mb-0 py-2 d-flex align-items-center">
-                          <i className="bi bi-exclamation-circle-fill me-2"></i>
-                          <small>Please select at least one period</small>
-                        </div>
-                      )}
                     </div>
                   </div>
+
+                  {/* Existing Period Selection */}
+                  <div className="card shadow-sm mb-4 border-danger">
+  <div className="card-header bg-danger bg-opacity-10">
+    <h6 className="mb-0">Select Period to Remove</h6>
+  </div>
+  <div className="card-body">
+    <div className="row row-cols-1 row-cols-md-2 g-3">
+      <div className="col">
+        <div className="form-check mb-3">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="removeCurrentDay"
+            checked={scheduleTypes.currentDay}
+            onChange={(e) => setScheduleTypes(prev => ({
+              ...prev,
+              currentDay: e.target.checked
+            }))}
+          />
+          <label className="form-check-label" htmlFor="removeCurrentDay">
+            <i className="bi bi-calendar-date text-danger me-2"></i>
+            Current Day Only
+          </label>
+          <div className="form-text small ms-4">
+            {currentDate.format('MMM DD, YYYY (dddd)')}
+          </div>
+        </div>
+      </div>
+
+      <div className="col">
+        <div className="form-check mb-3">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="removeThisWeek"
+            checked={scheduleTypes.thisWeek}
+            onChange={(e) => setScheduleTypes(prev => ({
+              ...prev,
+              thisWeek: e.target.checked
+            }))}
+          />
+          <label className="form-check-label" htmlFor="removeThisWeek">
+            <i className="bi bi-calendar-week text-danger me-2"></i>
+            This Week (Mon-Fri)
+          </label>
+          <div className="form-text small ms-4">
+            {moment(currentDate).startOf('week').add(1, 'days').format('MMM DD')} - {moment(currentDate).startOf('week').add(5, 'days').format('MMM DD')}
+          </div>
+        </div>
+      </div>
+
+      <div className="col">
+        <div className="form-check mb-3">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="removeThisMonth"
+            checked={scheduleTypes.thisMonth}
+            onChange={(e) => setScheduleTypes(prev => ({
+              ...prev,
+              thisMonth: e.target.checked
+            }))}
+          />
+          <label className="form-check-label" htmlFor="removeThisMonth">
+            <i className="bi bi-calendar-month text-danger me-2"></i>
+            This Month (Weekdays)
+          </label>
+          <div className="form-text small ms-4">
+            All weekdays in {currentDate.format('MMMM YYYY')}
+          </div>
+        </div>
+      </div>
+
+      {/* Add Weekend Option */}
+      <div className="col">
+        <div className="form-check">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="removeWeekend"
+            checked={scheduleTypes.autoOffWeekend}
+            onChange={(e) => setScheduleTypes(prev => ({
+              ...prev,
+              autoOffWeekend: e.target.checked
+            }))}
+          />
+          <label className="form-check-label" htmlFor="removeWeekend">
+            <i className="bi bi-calendar2-x text-danger me-2"></i>
+            Weekend
+          </label>
+          <div className="form-text small ms-4">
+            {moment(currentDate).startOf('week').format('MMM DD')} (Sun) & {moment(currentDate).startOf('week').add(6, 'days').format('MMM DD')} (Sat)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth && !scheduleTypes.autoOffWeekend && (
+      <div className="alert alert-danger mt-3 mb-0 py-2 d-flex align-items-center">
+        <i className="bi bi-exclamation-circle-fill me-2"></i>
+        <small>Please select at least one period</small>
+      </div>
+    )}
+  </div>
+</div>
+
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>
@@ -1841,7 +2018,7 @@ useEffect(() => {
                       handleBulkDeleteSubmit();
                     }}
                   >
-                    <i className="bi bi-trash me-1"></i> Remove All Schedules
+                    <i className="bi bi-trash me-1"></i> Remove Schedules
                   </button>
                 </div>
               </div>
