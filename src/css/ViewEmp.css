@@ -1,0 +1,139 @@
+/* Custom styles for employee management */
+
+/* Tab styling */
+.nav-tabs-custom {
+  border-bottom: 1px solid #dee2e6;
+  padding: 0 1rem;
+  background-color: #f8f9fa;
+}
+
+.nav-tabs-custom .nav-link {
+  border: none;
+  color: #495057;
+  padding: 1rem 1.5rem;
+  font-weight: 500;
+  position: relative;
+}
+
+.nav-tabs-custom .nav-link.active {
+  color: #4e73df;
+  background-color: transparent;
+  border-bottom: 2px solid #4e73df;
+}
+
+.nav-tabs-custom .nav-link:hover {
+  color: #4e73df;
+}
+
+/* Form styling */
+.form-label {
+  font-weight: 500;
+  color: #495057;
+}
+
+/* Photo upload styling */
+.photo-preview {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.photo-preview:hover {
+  opacity: 0.9;
+}
+
+.file-input {
+  display: none;
+}
+
+.pointer-label {
+  cursor: pointer;
+}
+
+/* Card styling */
+.card {
+  border-radius: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  margin-bottom: 1.5rem;
+}
+
+.card-header {
+  border-top-left-radius: 0.5rem !important;
+  border-top-right-radius: 0.5rem !important;
+  padding: 1rem 1.25rem;
+}
+
+.card-footer {
+  border-bottom-left-radius: 0.5rem !important;
+  border-bottom-right-radius: 0.5rem !important;
+  padding: 1rem 1.25rem;
+}
+
+/* Button styling */
+.btn {
+  border-radius: 0.25rem;
+  padding: 0.375rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-primary {
+  background-color: #4e73df;
+  border-color: #4e73df;
+}
+
+.btn-primary:hover {
+  background-color: #2e59d9;
+  border-color: #2653d4;
+}
+
+.btn-success {
+  background-color: #1cc88a;
+  border-color: #1cc88a;
+}
+
+.btn-success:hover {
+  background-color: #17a673;
+  border-color: #169b6b;
+}
+
+/* Progress bar styling */
+.progress {
+  height: 0.5rem;
+  border-radius: 1rem;
+  background-color: #eaecf4;
+}
+
+.progress-bar {
+  background-color: #4e73df;
+}
+
+/* Form validation styling */
+.is-invalid {
+  border-color: #e74a3b !important;
+}
+
+.invalid-feedback {
+  color: #e74a3b;
+  font-size: 80%;
+  margin-top: 0.25rem;
+}
+
+/* Badge styling */
+.badge {
+  font-weight: 500;
+  padding: 0.35em 0.65em;
+}
+
+/* Animation for loading */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
