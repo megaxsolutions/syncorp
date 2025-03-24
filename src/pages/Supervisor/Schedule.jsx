@@ -756,6 +756,42 @@ const handleBulkDeleteSubmit = async () => {
             return null;
           }
         });
+        deletePromises = [...deletePromises, ...overtimePromises];
+      }
+
+      if (deleteScheduleType === 'both' || deleteScheduleType === 'regular') {
+        // Delete regular schedules
+        const regularPromise = axios.delete(
+          `${config.API_BASE_URL}/shift_schedules/delete_shift_schedule_multiple_day/1`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+            data: {
+              array_employee_emp_id: selectedEmployees,
+              array_selected_days: uniqueSelectedDays
+            }
+          }
+        );
+        deletePromises.push(regularPromise);
+      }
+
+      try {
+        // Wait for all delete operations to complete
+        await Promise.all(deletePromises);
+
+        // Close loading state
+        await Swal.close();
+
+        // Close delete modal
+        setShowDeleteModal(false);
+
+        // Show success message
+        await Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: `Selected ${deleteScheduleType} schedules have been removed successfully`,
           timer: 1500,
           showConfirmButton: false
         });
