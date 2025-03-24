@@ -8,6 +8,7 @@ import moment from 'moment';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import logo from '../../assets/logo.png'; // Adjust path as needed
+import { Toaster, toast } from 'sonner'; // Import Sonner toast
 
 const Payslip = () => {
   const [selectedPayslip, setSelectedPayslips] = useState(null);
@@ -58,18 +59,106 @@ const Payslip = () => {
     comments: 'This is a sample payslip preview to check the design layout.',
   };
 
-  const mockEmployeeData = {
-    emp_ID: localStorage.getItem('X-EMP-ID') || '1000001',
-    position: 'Software Engineer',
-    fullName: localStorage.getItem('X-NAME') || 'Juan Dela Cruz',
-    dateHired: '2022-06-15',
-    sss: '33-1234567-8',
-    pagibig: '1234-5678-9012',
-    tin: '123-456-789-000',
-    philhealth: '01-234567890-1',
-    basicPay: 30000,
-    semiMonthlyRate: 15000,
-  };
+  // Check for missing documents using direct API fetch
+  useEffect(() => {
+    const checkEmployeeDocuments = async () => {
+      try {
+        const token = localStorage.getItem("X-JWT-TOKEN");
+        const empId = localStorage.getItem("X-EMP-ID");
+
+        if (token && empId) {
+          // Fetch employee data directly from API
+          const response = await axios.get(
+            `${config.API_BASE_URL}/employees/get_employee/${empId}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": token,
+                "X-EMP-ID": empId,
+              },
+            }
+          );
+
+          if (response.data && response.data.data && response.data.data.length > 0) {
+            // Use the first employee record from the response
+            const userData = response.data.data[0];
+
+            // Check for missing documents
+            const missingDocuments = [];
+
+            // Check for required documents (strings/numbers)
+            if (!userData.healthcare || userData.healthcare === "0" || userData.healthcare === 0)
+              missingDocuments.push("Healthcare ID");
+            if (!userData.sss || userData.sss === "0" || userData.sss === 0)
+              missingDocuments.push("SSS Number");
+            if (!userData.pagibig || userData.pagibig === "0" || userData.pagibig === 0)
+              missingDocuments.push("Pag-IBIG ID");
+            if (!userData.philhealth || userData.philhealth === "0" || userData.philhealth === 0)
+              missingDocuments.push("PhilHealth ID");
+            if (!userData.tin || userData.tin === "0" || userData.tin === 0)
+              missingDocuments.push("TIN");
+
+            // Check for pre-employment documents (stored as 0/1 in database)
+            // These fields should be checked if they're exactly 0 or null
+            if (userData.nbi_clearance === 0 || userData.nbi_clearance === null)
+              missingDocuments.push("NBI Clearance");
+            if (userData.med_cert === 0 || userData.med_cert === null)
+              missingDocuments.push("Medical Certificate");
+            if (userData.xray === 0 || userData.xray === null)
+              missingDocuments.push("X-Ray Result");
+            if (userData.drug_test === 0 || userData.drug_test === null)
+              missingDocuments.push("Drug Test");
+
+            console.log("Document status from API:", {
+              healthcare: userData.healthcare,
+              sss: userData.sss,
+              pagibig: userData.pagibig,
+              philhealth: userData.philhealth,
+              tin: userData.tin,
+              nbi: userData.nbi_clearance,
+              med_cert: userData.med_cert,
+              xray: userData.xray,
+              drug_test: userData.drug_test,
+              missingDocuments
+            });
+
+            // Display toast if there are missing documents
+            if (missingDocuments.length > 0) {
+              console.log("Displaying toast for missing documents:", missingDocuments);
+
+              toast.error(
+                <div>
+                  <strong>Missing Documents</strong>
+                  <ul className="mb-0 ps-3 mt-2">
+                    {missingDocuments.map((doc, index) => (
+                      <li key={index}>{doc}</li>
+                    ))}
+                  </ul>
+                  <div className="mt-2">
+                    <small>Please submit these documents to HR.</small>
+                  </div>
+                </div>,
+                {
+                  position: "bottom-center",
+                  duration: 8000,
+                  style: {
+                    width: '360px',
+                    backgroundColor: '#f8d7da',
+                    color: '#721c24',
+                    border: '1px solid #f5c6cb'
+                  }
+                }
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error checking employee documents:", error);
+      }
+    };
+
+    // Call the function to check documents
+    checkEmployeeDocuments();
+  }, []);
 
   useEffect(() => {
     // Get employee ID from localStorage
@@ -355,6 +444,9 @@ const Payslip = () => {
       <EmployeeNavbar />
       <EmployeeSidebar />
       <main id="main" className="main">
+        {/* Add Toaster component for toast notifications */}
+        <Toaster richColors position="bottom-center" />
+
         <div className="container-fluid" id="pagetitle">
           <div className="pagetitle">
             <h1>Payslip</h1>

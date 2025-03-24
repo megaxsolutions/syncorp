@@ -91,6 +91,11 @@ const SupervisorSchedule = () => {
   // Add this state for schedule type selection
   const [deleteScheduleType, setDeleteScheduleType] = useState('both'); // Options: 'both', 'regular', 'overtime'
 
+  // 1. First, add a state to store break schedules
+  const [breakSchedules, setBreakSchedules] = useState([]);
+
+  const [selectedDates, setSelectedDates] = useState([]);
+
   // Calendar Navigation
   const handlePrevMonth = () => {
     setCurrentDate(prev => moment(prev).subtract(1, 'month'));
@@ -160,7 +165,7 @@ const SupervisorSchedule = () => {
             headers: {
               "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
               "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
+            }
           }
         );
 
@@ -176,6 +181,31 @@ const SupervisorSchedule = () => {
     fetchOvertimeTypes();
   }, []);
 
+  // 2. Add a function to fetch break schedules
+  const fetchBreakSchedules = async () => {
+    try {
+      const supervisorId = localStorage.getItem("X-EMP-ID");
+      const response = await axios.get(
+        `${config.API_BASE_URL}/break_schedules/get_break_shift_schedule_day_supervisor/${supervisorId}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": supervisorId,
+          }
+        }
+      );
+
+      if (response.data && response.data.data) {
+        setBreakSchedules(response.data.data);
+      } else {
+        setBreakSchedules([]);
+      }
+    } catch (error) {
+      console.error("Error fetching break schedules:", error);
+    }
+  };
+
+  // 3. Update the fetchSchedules function to also call fetchBreakSchedules
   const fetchSchedules = async () => {
     try {
       setError(null);
@@ -203,6 +233,9 @@ const SupervisorSchedule = () => {
 
       setRegularSchedules(regularResponse.data.data || []);
       setOvertimeSchedules(overtimeResponse.data.data || []);
+
+      // Fetch break schedules
+      await fetchBreakSchedules();
     } catch (error) {
       console.error("Error fetching schedules:", error);
       setError("Failed to load schedules");
@@ -274,7 +307,7 @@ const SupervisorSchedule = () => {
     setShowRemoveModal(false);
   };
 
-  // Update the handleScheduleSubmit function to properly handle weekend scheduling
+  // Update the handleScheduleSubmit function to properly handle weekend scheduling and specific dates
 const handleScheduleSubmit = async () => {
   try {
     // Validate selections
@@ -287,62 +320,70 @@ const handleScheduleSubmit = async () => {
       return;
     }
 
-    // Validate that at least one schedule type is selected OR autoOffWeekend is selected
-    if (!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth && !scheduleTypes.autoOffWeekend) {
+    // Modified validation to accept either selected dates OR schedule types
+    if (!scheduleTypes.currentDay &&
+        !scheduleTypes.thisWeek &&
+        !scheduleTypes.thisMonth &&
+        !scheduleTypes.autoOffWeekend &&
+        selectedDates.length === 0) {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Please select at least one schedule type or use Auto Off Weekend'
+        text: 'Please select either specific dates or a schedule type'
       });
       return;
     }
 
     // Get selected days based on schedule types
-    let selectedDays = [];
-    const startOfWeek = moment(currentDate).startOf('week');
-    const startOfMonth = moment(currentDate).startOf('month');
+    let selectedDays = [...selectedDates]; // Start with manually selected dates
 
-    // Special case: If only autoOffWeekend is selected, we'll set weekends only for the current week
-    if (scheduleTypes.autoOffWeekend &&
-        !scheduleTypes.currentDay &&
-        !scheduleTypes.thisWeek &&
-        !scheduleTypes.thisMonth) {
+    // Only add days from schedule types if at least one is selected
+    if (scheduleTypes.currentDay || scheduleTypes.thisWeek || scheduleTypes.thisMonth || scheduleTypes.autoOffWeekend) {
+      const startOfWeek = moment(currentDate).startOf('week');
+      const startOfMonth = moment(currentDate).startOf('month');
 
-      // Add only Saturday and Sunday of current week
-      selectedDays.push(moment(startOfWeek).format('YYYY-MM-DD')); // Sunday
-      selectedDays.push(moment(startOfWeek).add(6, 'days').format('YYYY-MM-DD')); // Saturday
-    } else {
-      // Regular logic for when specific schedule types are selected
-      if (scheduleTypes.currentDay) {
-        // Always add current day regardless of weekend status when explicitly selected
-        selectedDays.push(currentDate.format('YYYY-MM-DD'));
-      }
+      // Special case: If only autoOffWeekend is selected, we'll set weekends only for the current week
+      if (scheduleTypes.autoOffWeekend &&
+          !scheduleTypes.currentDay &&
+          !scheduleTypes.thisWeek &&
+          !scheduleTypes.thisMonth) {
 
-      if (scheduleTypes.thisWeek) {
-        if (scheduleTypes.autoOffWeekend) {
-          // For this week, add only Saturday and Sunday when autoOffWeekend is checked
-          selectedDays.push(moment(startOfWeek).format('YYYY-MM-DD')); // Sunday
-          selectedDays.push(moment(startOfWeek).add(6, 'days').format('YYYY-MM-DD')); // Saturday
-        } else {
-          // Add all days of the week when autoOffWeekend is not checked
-          for (let i = 0; i <= 6; i++) {
-            selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
+        // Add only Saturday and Sunday of current week
+        selectedDays.push(moment(startOfWeek).format('YYYY-MM-DD')); // Sunday
+        selectedDays.push(moment(startOfWeek).add(6, 'days').format('YYYY-MM-DD')); // Saturday
+      } else {
+        // Regular logic for when specific schedule types are selected
+        if (scheduleTypes.currentDay) {
+          // Always add current day regardless of weekend status when explicitly selected
+          selectedDays.push(currentDate.format('YYYY-MM-DD'));
+        }
+
+        if (scheduleTypes.thisWeek) {
+          if (scheduleTypes.autoOffWeekend) {
+            // For this week, add only Saturday and Sunday when autoOffWeekend is checked
+            selectedDays.push(moment(startOfWeek).format('YYYY-MM-DD')); // Sunday
+            selectedDays.push(moment(startOfWeek).add(6, 'days').format('YYYY-MM-DD')); // Saturday
+          } else {
+            // Add all days of the week when autoOffWeekend is not checked
+            for (let i = 0; i <= 6; i++) {
+              selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
+            }
           }
         }
-      }
 
-      if (scheduleTypes.thisMonth) {
-        const daysInMonth = currentDate.daysInMonth();
-        for (let i = 1; i <= daysInMonth; i++) {
-          const day = moment(startOfMonth).add(i - 1, 'days');
-          // If autoOffWeekend is checked, only add weekend days
-          // Otherwise add all days
-          if (scheduleTypes.autoOffWeekend) {
-            if (day.day() === 0 || day.day() === 6) { // Sunday or Saturday
+        if (scheduleTypes.thisMonth) {
+          const daysInMonth = currentDate.daysInMonth();
+          for (let i = 1; i <= daysInMonth; i++) {
+            const day = moment(startOfMonth).add(i - 1, 'days');
+            // If autoOffWeekend is checked, only add weekend days
+            // Otherwise add all days
+            if (scheduleTypes.autoOffWeekend) {
+              if (day.day() === 0 || day.day() === 6) { // Sunday or Saturday
+                selectedDays.push(day.format('YYYY-MM-DD'));
+              }
+            } else {
               selectedDays.push(day.format('YYYY-MM-DD'));
             }
-          } else {
-            selectedDays.push(day.format('YYYY-MM-DD'));
           }
         }
       }
@@ -350,6 +391,16 @@ const handleScheduleSubmit = async () => {
 
     // Remove duplicates from selectedDays
     selectedDays = [...new Set(selectedDays)];
+
+    // Check if there are any selected days after processing
+    if (selectedDays.length === 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No days selected for scheduling'
+      });
+      return;
+    }
 
     // Show loading
     Swal.fire({
@@ -404,6 +455,8 @@ const handleScheduleSubmit = async () => {
       autoOffWeekend: false
     });
 
+    // After success, also clear the selectedDates
+    setSelectedDates([]);
   } catch (error) {
     console.error('Error creating schedules:', error);
     Swal.fire({
@@ -436,13 +489,24 @@ const handleOTSubmit = async () => {
       return;
     }
 
+    // Determine which dates to use
+    let daysToSchedule = [];
+
+    if (selectedDates.length > 0) {
+      // Use the selected dates if available
+      daysToSchedule = [...selectedDates];
+    } else {
+      // Fall back to current date if no dates selected
+      daysToSchedule = [currentDate.format('YYYY-MM-DD')];
+    }
+
     // Prepare request data
     const requestData = {
       array_employee_emp_id: selectedEmployees,
       admin_emp_id: localStorage.getItem("X-EMP-ID"),
       shift_in: shiftInTime,
       shift_out: shiftOutTime,
-      array_selected_days: [currentDate.format('YYYY-MM-DD')],
+      array_selected_days: daysToSchedule,
       schedule_type_id: otType
     };
 
@@ -469,6 +533,9 @@ const handleOTSubmit = async () => {
 
     // Close modal and show success message
     setShowOTModal(false);
+
+    // Clear selected dates after successful submission
+    setSelectedDates([]);
 
     await Swal.fire({
       icon: 'success',
@@ -610,6 +677,15 @@ const handleBulkDeleteSubmit = async () => {
     // Remove duplicates from selectedDays
     const uniqueSelectedDays = [...new Set(selectedDays)];
 
+    if (uniqueSelectedDays.length === 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Please select at least one period'
+      });
+      return;
+    }
+
     const result = await Swal.fire({
       title: 'Are you sure?',
       text: `This will remove ${deleteScheduleType === 'both' ? 'all' : deleteScheduleType} schedules for the selected period!`,
@@ -630,6 +706,33 @@ const handleBulkDeleteSubmit = async () => {
       });
 
       let deletePromises = [];
+
+      // Handle the new breaks deletion
+      if (deleteScheduleType === 'both' || deleteScheduleType === 'breaks') {
+        // Delete break schedules for each break type (1=first break, 2=second break, 3=lunch break)
+        const breakTypes = [1, 2, 3];
+        const breakPromises = breakTypes.map(async (type) => {
+          try {
+            return await axios.delete(
+              `${config.API_BASE_URL}/break_schedules/delete_break_shift_schedule_multiple_day/${type}`,
+              {
+                headers: {
+                  "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                  "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+                },
+                data: {
+                  array_employee_emp_id: selectedEmployees,
+                  array_selected_days: uniqueSelectedDays
+                }
+              }
+            );
+          } catch (error) {
+            console.error(`Error deleting break type ${type}:`, error);
+            return null;
+          }
+        });
+        deletePromises = [...deletePromises, ...breakPromises];
+      }
 
       if (deleteScheduleType === 'both' || deleteScheduleType === 'overtime') {
         // Delete overtime schedules for each overtime type
@@ -653,42 +756,6 @@ const handleBulkDeleteSubmit = async () => {
             return null;
           }
         });
-        deletePromises = [...deletePromises, ...overtimePromises];
-      }
-
-      if (deleteScheduleType === 'both' || deleteScheduleType === 'regular') {
-        // Delete regular schedules
-        const regularPromise = axios.delete(
-          `${config.API_BASE_URL}/shift_schedules/delete_shift_schedule_multiple_day/1`,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
-            data: {
-              array_employee_emp_id: selectedEmployees,
-              array_selected_days: uniqueSelectedDays
-            }
-          }
-        );
-        deletePromises.push(regularPromise);
-      }
-
-      try {
-        // Wait for all delete operations to complete
-        await Promise.all(deletePromises);
-
-        // Close loading state
-        await Swal.close();
-
-        // Close delete modal
-        setShowDeleteModal(false);
-
-        // Show success message
-        await Swal.fire({
-          icon: 'success',
-          title: 'Deleted!',
-          text: `Selected ${deleteScheduleType} schedules have been removed successfully`,
           timer: 1500,
           showConfirmButton: false
         });
@@ -720,27 +787,33 @@ const handleBulkDeleteSubmit = async () => {
   }
 };
 
-  const getSchedulesForDay = (day) => {
-    if (!day) return [];
+  // 4. Update the getSchedulesForDay function to include breaks
+const getSchedulesForDay = (day) => {
+  if (!day) return { regular: [], overtime: [], breaks: [] };
 
-    const dateStr = moment(currentDate).date(day).format('YYYY-MM-DD');
+  const dateStr = moment(currentDate).date(day).format('YYYY-MM-DD');
 
-    const regular = regularSchedules.filter(schedule =>
-      moment(schedule.day).format('YYYY-MM-DD') === dateStr
-    );
+  const regular = regularSchedules.filter(schedule =>
+    moment(schedule.day).format('YYYY-MM-DD') === dateStr
+  );
 
-    const overtime = overtimeSchedules.filter(schedule =>
-      moment(schedule.day).format('YYYY-MM-DD') === dateStr
-    );
+  const overtime = overtimeSchedules.filter(schedule =>
+    moment(schedule.day).format('YYYY-MM-DD') === dateStr
+  );
 
-    return { regular, overtime };
-  };
+  const breaks = breakSchedules.filter(schedule =>
+    moment(schedule.day).format('YYYY-MM-DD') === dateStr
+  );
+
+  return { regular, overtime, breaks };
+};
 
   // Add resetOTForm function
 const resetOTForm = () => {
   setShiftInTime('08:00');
   setShiftOutTime('17:00');
   setOtType('');
+  setSelectedDates([]); // Clear selected dates when resetting the form
 };
 
   // Add a handleBreaks function:
@@ -756,42 +829,62 @@ const resetOTForm = () => {
     setShowBreaksModal(true);
   };
 
-  // Add a new function to handle the submission of breaks
+  // 5. Update the handleBreakSubmit function to refresh the calendar after setting breaks
 const handleBreakSubmit = async () => {
   try {
-    // Validate that at least one schedule type is selected
-    if (!breakScheduleTypes.currentDay && !breakScheduleTypes.thisWeek && !breakScheduleTypes.thisMonth) {
+    // Validate that at least one schedule type is selected or specific dates are selected
+    if (!breakScheduleTypes.currentDay &&
+        !breakScheduleTypes.thisWeek &&
+        !breakScheduleTypes.thisMonth &&
+        selectedDates.length === 0) {
       Swal.fire({
         icon: 'warning',
-        title: 'No Schedule Type Selected',
-        text: 'Please select at least one schedule type'
+        title: 'No Schedule Selected',
+        text: 'Please select specific dates or a schedule type'
       });
       return;
     }
 
     // Get selected days based on schedule types
-    const selectedDays = [];
-    const startOfWeek = moment(currentDate).startOf('week');
-    const startOfMonth = moment(currentDate).startOf('month');
+    let selectedDays = [...selectedDates]; // Start with manually selected dates
 
-    if (breakScheduleTypes.currentDay) {
-      selectedDays.push(currentDate.format('YYYY-MM-DD'));
-    }
+    // Only add days from schedule types if at least one is selected
+    if (breakScheduleTypes.currentDay || breakScheduleTypes.thisWeek || breakScheduleTypes.thisMonth) {
+      const startOfWeek = moment(currentDate).startOf('week');
+      const startOfMonth = moment(currentDate).startOf('month');
 
-    if (breakScheduleTypes.thisWeek) {
-      for (let i = 1; i <= 5; i++) { // Monday to Friday
-        selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
+      if (breakScheduleTypes.currentDay) {
+        selectedDays.push(currentDate.format('YYYY-MM-DD'));
       }
-    }
 
-    if (breakScheduleTypes.thisMonth) {
-      const daysInMonth = currentDate.daysInMonth();
-      for (let i = 1; i <= daysInMonth; i++) {
-        const day = moment(startOfMonth).add(i - 1, 'days');
-        if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
-          selectedDays.push(day.format('YYYY-MM-DD'));
+      if (breakScheduleTypes.thisWeek) {
+        for (let i = 1; i <= 5; i++) { // Monday to Friday
+          selectedDays.push(moment(startOfWeek).add(i, 'days').format('YYYY-MM-DD'));
         }
       }
+
+      if (breakScheduleTypes.thisMonth) {
+        const daysInMonth = currentDate.daysInMonth();
+        for (let i = 1; i <= daysInMonth; i++) {
+          const day = moment(startOfMonth).add(i - 1, 'days');
+          if (day.day() !== 0 && day.day() !== 6) { // Skip weekends
+            selectedDays.push(day.format('YYYY-MM-DD'));
+          }
+        }
+      }
+    }
+
+    // Remove duplicates from selectedDays
+    selectedDays = [...new Set(selectedDays)];
+
+    // Check if there are any selected days after processing
+    if (selectedDays.length === 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No days selected for scheduling breaks'
+      });
+      return;
     }
 
     // Prepare request data
@@ -799,21 +892,24 @@ const handleBreakSubmit = async () => {
       array_employee_emp_id: selectedEmployees,
       admin_emp_id: localStorage.getItem("X-EMP-ID"),
       array_selected_days: selectedDays,
-      breaks: [
+      array_break: [
         {
           name: 'First Break',
-          start_time: firstBreakStart,
-          end_time: firstBreakEnd
+          shift_in: firstBreakStart,
+          shift_out: firstBreakEnd,
+          schedule_type: 1 // Break type identifier
         },
         {
           name: 'Second Break',
-          start_time: secondBreakStart,
-          end_time: secondBreakEnd
+          shift_in: secondBreakStart,
+          shift_out: secondBreakEnd,
+          schedule_type: 2 // Break type identifier
         },
         {
           name: 'Lunch Break',
-          start_time: lunchBreakStart,
-          end_time: lunchBreakEnd
+          shift_in: lunchBreakStart,
+          shift_out: lunchBreakEnd,
+          schedule_type: 3 // Break type identifier
         }
       ]
     };
@@ -827,35 +923,9 @@ const handleBreakSubmit = async () => {
       }
     });
 
-    // In a real implementation, you would make an API call here
-    // For now, we'll simulate success after a short delay
-    setTimeout(() => {
-      console.log('Break data to be submitted:', breakData);
-
-      // Close modal
-      setShowBreaksModal(false);
-
-      // Show success message
-      Swal.fire({
-        icon: 'success',
-        title: 'Success',
-        text: 'Breaks have been set successfully',
-        timer: 1500,
-        showConfirmButton: false
-      });
-
-      // Reset form
-      setBreakScheduleTypes({
-        currentDay: false,
-        thisWeek: false,
-        thisMonth: false
-      });
-    }, 1000);
-
-    // In a real implementation, your API call would look like this:
-    /*
+    // Make the API call to set breaks
     const response = await axios.post(
-      `${config.API_BASE_URL}/shift_schedules/add_break_schedules`,
+      `${config.API_BASE_URL}/break_schedules/add_break_shift_schedule_multiple_day`,
       breakData,
       {
         headers: {
@@ -868,6 +938,9 @@ const handleBreakSubmit = async () => {
     // Close modal
     setShowBreaksModal(false);
 
+    // Clear selected dates after successful submission
+    setSelectedDates([]);
+
     // Show success message
     Swal.fire({
       icon: 'success',
@@ -876,7 +949,16 @@ const handleBreakSubmit = async () => {
       timer: 1500,
       showConfirmButton: false
     });
-    */
+
+    // Reset form
+    setBreakScheduleTypes({
+      currentDay: false,
+      thisWeek: false,
+      thisMonth: false
+    });
+
+    // After success
+    await fetchBreakSchedules(); // Refresh break schedules
 
   } catch (error) {
     console.error('Error setting breaks:', error);
@@ -927,6 +1009,73 @@ useEffect(() => {
     document.head.removeChild(styleEl);
   };
 }, []);
+
+// Update the handleDeleteBreak function to correctly delete break schedules
+const handleDeleteBreak = async (empId, day, scheduleType) => {
+  try {
+    // Show confirmation dialog
+    const result = await Swal.fire({
+      title: 'Delete Break Schedule?',
+      text: "This will remove the break schedule for this employee on this day",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      // Show loading state
+      Swal.fire({
+        title: 'Deleting break schedule...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      // Make API call to delete the break schedule
+      const response = await axios.delete(
+        `${config.API_BASE_URL}/break_schedules/delete_break_shift_schedule_multiple_day/${scheduleType}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+          data: {
+            array_employee_emp_id: [empId],
+            array_selected_days: [day]
+          }
+        }
+      );
+
+      // Close loading state
+      await Swal.close();
+
+      // Immediately fetch updated break schedules to refresh the display
+      await fetchBreakSchedules();
+
+      // Show success message
+      await Swal.fire({
+        icon: 'success',
+        title: 'Deleted!',
+        text: 'Break schedule has been removed',
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      // Refresh the entire schedule data to ensure UI is in sync
+      await fetchSchedules();
+    }
+  } catch (error) {
+    console.error('Error deleting break schedule:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: error.response?.data?.error || 'Failed to delete break schedule'
+    });
+  }
+};
 
   return (
     <>
@@ -1209,6 +1358,10 @@ useEffect(() => {
           <small className="text-muted">Overtime</small>
         </div>
         <div className="d-flex align-items-center">
+          <div className="bg-success rounded me-1" style={{ width: '12px', height: '12px' }}></div>
+          <small className="text-muted">Breaks</small>
+        </div>
+        <div className="d-flex align-items-center">
           <div className="bg-info rounded me-1" style={{ width: '12px', height: '12px' }}></div>
           <small className="text-muted">Today</small>
         </div>
@@ -1333,6 +1486,46 @@ useEffect(() => {
                                 </div>
                               </div>
                             ))}
+                            {/* Replace the current break schedules rendering with this updated code */}
+{getSchedulesForDay(day).breaks.map((schedule, idx) => {
+  // Get break type name based on schedule_type
+  let breakTypeName = "Break";
+  if (schedule.schedule_type === 1) breakTypeName = "First Break";
+  if (schedule.schedule_type === 2) breakTypeName = "Second Break";
+  if (schedule.schedule_type === 3) breakTypeName = "Lunch Break";
+
+  return (
+    <div
+      key={`break-${idx}`}
+      className="schedule-item bg-success text-white p-1 mb-1 rounded"
+      style={{ fontSize: '0.7rem' }}
+      title={`${breakTypeName}: ${moment(schedule.shift_in).format('HH:mm')} - ${moment(schedule.shift_out).format('HH:mm')}`}
+    >
+      <div className="d-flex justify-content-between align-items-center">
+        <div className="text-truncate" style={{ maxWidth: '75px' }}>
+          <div>{employees.find(emp => emp.emp_ID === schedule.emp_ID)?.fName || schedule.emp_ID}</div>
+          <small>
+            {breakTypeName}: {moment(schedule.shift_in).format('HH:mm')}
+          </small>
+        </div>
+        <button
+          className="btn btn-link text-white p-0 ms-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteBreak(
+              schedule.emp_ID,
+              moment(schedule.day).format('YYYY-MM-DD'),
+              schedule.schedule_type
+            );
+          }}
+          title={`Delete ${breakTypeName}`}
+        >
+          <i className="bi bi-x-circle-fill"></i>
+        </button>
+      </div>
+    </div>
+  );
+})}
                           </div>
                         </>
                       )}
@@ -1437,6 +1630,70 @@ useEffect(() => {
 
                   <fieldset className="border rounded p-3">
   <legend className="float-none w-auto px-2 fs-6 text-muted">Apply To</legend>
+
+  {/* Add multi-date selector */}
+  <div className="mb-3">
+    <label className="form-label d-flex align-items-center">
+      <i className="bi bi-calendar-date text-primary me-2"></i>
+      Select Specific Dates
+    </label>
+    <div className="input-group">
+      <input
+        type="date"
+        className="form-control"
+        id="multiDateInput"
+        onChange={(e) => {
+          const newDate = e.target.value;
+          // Add to selectedDates if not already there
+          if (newDate && !selectedDates.includes(newDate)) {
+            setSelectedDates([...selectedDates, newDate]);
+          }
+          // Clear the input after adding
+          e.target.value = '';
+        }}
+      />
+      <button
+        className="btn btn-outline-primary"
+        type="button"
+        onClick={() => document.getElementById('multiDateInput').click()}
+      >
+        <i className="bi bi-plus-lg"></i> Add Date
+      </button>
+    </div>
+
+    {/* Display and manage selected dates */}
+    {selectedDates.length > 0 && (
+      <div className="mt-2 p-2 border rounded bg-light">
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <small className="text-muted">Selected dates ({selectedDates.length})</small>
+          <button
+            className="btn btn-sm btn-outline-danger"
+            onClick={() => setSelectedDates([])}
+          >
+            Clear All
+          </button>
+        </div>
+        <div className="d-flex flex-wrap gap-1">
+          {selectedDates.map((date, index) => (
+            <div key={index} className="badge bg-primary d-flex align-items-center px-2 py-1">
+              {moment(date).format('MMM DD, YYYY')}
+              <button
+                type="button"
+                className="btn-close btn-close-white ms-1"
+                style={{ fontSize: '0.5rem' }}
+                onClick={() => {
+                  const newDates = [...selectedDates];
+                  newDates.splice(index, 1);
+                  setSelectedDates(newDates);
+                }}
+              ></button>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+
   <div className="row row-cols-1 row-cols-md-2 g-3">
     <div className="col">
       <div className="form-check mb-2">
@@ -1531,12 +1788,18 @@ useEffect(() => {
                     type="button"
                     className="btn btn-primary"
                     onClick={() => {
-                      // Change this validation to also accept when only autoOffWeekend is checked
-                      if (!scheduleTypes.currentDay && !scheduleTypes.thisWeek && !scheduleTypes.thisMonth && !scheduleTypes.autoOffWeekend) {
+                      // Modified validation to accept either selected dates OR schedule types
+                      if (
+                        (!scheduleTypes.currentDay &&
+                        !scheduleTypes.thisWeek &&
+                        !scheduleTypes.thisMonth &&
+                        !scheduleTypes.autoOffWeekend &&
+                        selectedDates.length === 0)
+                      ) {
                         Swal.fire({
                           icon: 'warning',
-                          title: 'No Schedule Type Selected',
-                          text: 'Please select at least one schedule type or use Auto Off Weekend'
+                          title: 'No Schedule Selected',
+                          text: 'Please select specific dates or at least one schedule type'
                         });
                         return;
                       }
@@ -1592,13 +1855,77 @@ useEffect(() => {
                   <div className="card shadow-sm mb-3 border-warning">
                     <div className="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
                       <h6 className="mb-0">Date Selection</h6>
-                      <span className="badge bg-warning text-dark">Single Day</span>
+                      <span className="badge bg-warning text-dark">Select Dates</span>
                     </div>
                     <div className="card-body">
-                      <div className="mb-0">
-                        <label htmlFor="otDate" className="form-label d-flex align-items-center">
+                      {/* Multi-date selector for overtime */}
+                      <div className="mb-3">
+                        <label htmlFor="otMultiDateInput" className="form-label d-flex align-items-center">
                           <i className="bi bi-calendar3 me-2 text-muted"></i>
-                          Select Date
+                          Select Specific Dates
+                        </label>
+                        <div className="input-group">
+                          <input
+                            type="date"
+                            className="form-control"
+                            id="otMultiDateInput"
+                            onChange={(e) => {
+                              const newDate = e.target.value;
+                              // Add to selectedDates if not already there
+                              if (newDate && !selectedDates.includes(newDate)) {
+                                setSelectedDates([...selectedDates, newDate]);
+                              }
+                              // Clear the input after adding
+                              e.target.value = '';
+                            }}
+                          />
+                          <button
+                            className="btn btn-outline-warning text-dark"
+                            type="button"
+                            onClick={() => document.getElementById('otMultiDateInput').click()}
+                          >
+                            <i className="bi bi-plus-lg"></i> Add Date
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Display and manage selected dates */}
+                      {selectedDates.length > 0 && (
+                        <div className="mt-2 p-2 border rounded bg-light">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <small className="text-muted">Selected dates ({selectedDates.length})</small>
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => setSelectedDates([])}
+                            >
+                              Clear All
+                            </button>
+                          </div>
+                          <div className="d-flex flex-wrap gap-1">
+                            {selectedDates.map((date, index) => (
+                              <div key={index} className="badge bg-warning text-dark d-flex align-items-center px-2 py-1">
+                                {moment(date).format('MMM DD, YYYY')}
+                                <button
+                                  type="button"
+                                  className="btn-close btn-close-dark ms-1"
+                                  style={{ fontSize: '0.5rem' }}
+                                  onClick={() => {
+                                    const newDates = [...selectedDates];
+                                    newDates.splice(index, 1);
+                                    setSelectedDates(newDates);
+                                  }}
+                                ></button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Keep the single date selector as a fallback */}
+                      <div className="mb-0">
+                        <label htmlFor="otDate" className="form-label d-flex align-items-center mt-2">
+                          <i className="bi bi-calendar-date me-2 text-muted"></i>
+                          Current Date (if no dates selected)
                         </label>
                         <input
                           type="date"
@@ -1607,6 +1934,10 @@ useEffect(() => {
                           value={currentDate.format('YYYY-MM-DD')}
                           onChange={(e) => setCurrentDate(moment(e.target.value))}
                         />
+                        <div className="form-text text-muted">
+                          <i className="bi bi-info-circle me-1"></i>
+                          This date will be used if no specific dates are selected above
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1842,55 +2173,69 @@ useEffect(() => {
 
                   {/* Add Schedule Type Selection */}
                   <div className="card shadow-sm mb-4 border-danger">
-                    <div className="card-header bg-danger bg-opacity-10">
-                      <h6 className="mb-0">Schedule Type to Remove</h6>
-                    </div>
-                    <div className="card-body">
-                      <div className="btn-group w-100" role="group">
-                        <input
-                          type="radio"
-                          className="btn-check"
-                          name="deleteType"
-                          id="deleteBoth"
-                          value="both"
-                          checked={deleteScheduleType === 'both'}
-                          onChange={(e) => setDeleteScheduleType(e.target.value)}
-                        />
-                        <label className="btn btn-outline-danger" htmlFor="deleteBoth">
-                          <i className="bi bi-calendar2-x me-1"></i>
-                          Both Types
-                        </label>
+  <div className="card-header bg-danger bg-opacity-10">
+    <h6 className="mb-0">Schedule Type to Remove</h6>
+  </div>
+  <div className="card-body">
+    <div className="btn-group w-100" role="group">
+      <input
+        type="radio"
+        className="btn-check"
+        name="deleteType"
+        id="deleteBoth"
+        value="both"
+        checked={deleteScheduleType === 'both'}
+        onChange={(e) => setDeleteScheduleType(e.target.value)}
+      />
+      <label className="btn btn-outline-danger" htmlFor="deleteBoth">
+        <i className="bi bi-calendar2-x me-1"></i>
+        Both Types
+      </label>
 
-                        <input
-                          type="radio"
-                          className="btn-check"
-                          name="deleteType"
-                          id="deleteRegular"
-                          value="regular"
-                          checked={deleteScheduleType === 'regular'}
-                          onChange={(e) => setDeleteScheduleType(e.target.value)}
-                        />
-                        <label className="btn btn-outline-danger" htmlFor="deleteRegular">
-                          <i className="bi bi-calendar2-check me-1"></i>
-                          Regular Only
-                        </label>
+      <input
+        type="radio"
+        className="btn-check"
+        name="deleteType"
+        id="deleteRegular"
+        value="regular"
+        checked={deleteScheduleType === 'regular'}
+        onChange={(e) => setDeleteScheduleType(e.target.value)}
+      />
+      <label className="btn btn-outline-danger" htmlFor="deleteRegular">
+        <i className="bi bi-calendar2-check me-1"></i>
+        Regular Only
+      </label>
 
-                        <input
-                          type="radio"
-                          className="btn-check"
-                          name="deleteType"
-                          id="deleteOvertime"
-                          value="overtime"
-                          checked={deleteScheduleType === 'overtime'}
-                          onChange={(e) => setDeleteScheduleType(e.target.value)}
-                        />
-                        <label className="btn btn-outline-danger" htmlFor="deleteOvertime">
-                          <i className="bi bi-clock-history me-1"></i>
-                          Overtime Only
-                        </label>
-                      </div>
-                    </div>
-                  </div>
+      <input
+        type="radio"
+        className="btn-check"
+        name="deleteType"
+        id="deleteOvertime"
+        value="overtime"
+        checked={deleteScheduleType === 'overtime'}
+        onChange={(e) => setDeleteScheduleType(e.target.value)}
+      />
+      <label className="btn btn-outline-danger" htmlFor="deleteOvertime">
+        <i className="bi bi-clock-history me-1"></i>
+        Overtime Only
+      </label>
+
+      <input
+        type="radio"
+        className="btn-check"
+        name="deleteType"
+        id="deleteBreaks"
+        value="breaks"
+        checked={deleteScheduleType === 'breaks'}
+        onChange={(e) => setDeleteScheduleType(e.target.value)}
+      />
+      <label className="btn btn-outline-danger" htmlFor="deleteBreaks">
+        <i className="bi bi-pause-circle me-1"></i>
+        Breaks Only
+      </label>
+    </div>
+  </div>
+</div>
 
                   {/* Existing Period Selection */}
                   <div className="card shadow-sm mb-4 border-danger">
@@ -2216,6 +2561,70 @@ useEffect(() => {
                   {/* Schedule Type Selection */}
                   <fieldset className="border rounded p-3">
                     <legend className="float-none w-auto px-2 fs-6 text-muted">Apply To</legend>
+
+                    {/* Add multi-date selector for breaks */}
+                    <div className="mb-3">
+                      <label className="form-label d-flex align-items-center">
+                        <i className="bi bi-calendar-date text-info me-2"></i>
+                        Select Specific Dates
+                      </label>
+                      <div className="input-group">
+                        <input
+                          type="date"
+                          className="form-control"
+                          id="breakMultiDateInput"
+                          onChange={(e) => {
+                            const newDate = e.target.value;
+                            // Add to selectedDates if not already there
+                            if (newDate && !selectedDates.includes(newDate)) {
+                              setSelectedDates([...selectedDates, newDate]);
+                            }
+                            // Clear the input after adding
+                            e.target.value = '';
+                          }}
+                        />
+                        <button
+                          className="btn btn-outline-info"
+                          type="button"
+                          onClick={() => document.getElementById('breakMultiDateInput').click()}
+                        >
+                          <i className="bi bi-plus-lg"></i> Add Date
+                        </button>
+                      </div>
+
+                      {/* Display and manage selected dates */}
+                      {selectedDates.length > 0 && (
+                        <div className="mt-2 p-2 border rounded bg-light">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <small className="text-muted">Selected dates ({selectedDates.length})</small>
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => setSelectedDates([])}
+                            >
+                              Clear All
+                            </button>
+                          </div>
+                          <div className="d-flex flex-wrap gap-1">
+                            {selectedDates.map((date, index) => (
+                              <div key={index} className="badge bg-info d-flex align-items-center px-2 py-1">
+                                {moment(date).format('MMM DD, YYYY')}
+                                <button
+                                  type="button"
+                                  className="btn-close btn-close-white ms-1"
+                                  style={{ fontSize: '0.5rem' }}
+                                  onClick={() => {
+                                    const newDates = [...selectedDates];
+                                    newDates.splice(index, 1);
+                                    setSelectedDates(newDates);
+                                  }}
+                                ></button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="row">
                       <div className="col-md-4">
                         <div className="form-check">

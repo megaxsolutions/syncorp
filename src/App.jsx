@@ -41,6 +41,9 @@ import SupervisorProtectedLayout from "./pages/SupervisorProtectedLayout";
 import './App.css';
 import AdminCoaching from "./pages/Coaching";
 import Accounts from "./pages/Accounts";
+import CoachingRecords from "./pages/CoachingRecords";
+import MyPerformance from "./pages/Employee Page/MyPerformance";
+import TimeAdjustment from "./pages/Employee Page/TimeAdjustment";
 
 function App() {
   return (
@@ -74,6 +77,7 @@ function App() {
         <Route path="/approvals/overtime-request" element={<ApproveOvertime />} />
         <Route path="/approvals/bonus" element={<ApproveBonus />} />
         <Route path="/settings/accounts" element={<Accounts />} />
+        <Route path="/coaching-records" element={<CoachingRecords />} />
       </Route>
 
       {/* Employee Routes */}
@@ -83,6 +87,8 @@ function App() {
         <Route path="/employee_payslip" element={<EmployeePayslip />} />
         <Route path="/employee_overtime_request" element={<OvertimeRequest />} />
         <Route path="/employee_leave_request" element={<LeaveRequest />} />
+        <Route path="/employee_my_performance" element={<MyPerformance />} />
+        <Route path="/employee_time_adjustment" element={<TimeAdjustment />} />
       </Route>
 
       <Route element={<SupervisorProtectedLayout />}>

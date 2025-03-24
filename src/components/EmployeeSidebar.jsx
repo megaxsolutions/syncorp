@@ -17,14 +17,18 @@ const EmployeeSidebar = () => {
   const isActive = (path) => location.pathname === path;
 
   // Navigation items for better organization
-  const navItems = [
-    { path: "/employee_dashboard", icon: "bi-grid", label: "Dashboard" },
-    { path: "/employee_attendance", icon: "bi-calendar-check", label: "Attendance" },
-    { path: "/employee_payslip", icon: "bi-cash-stack", label: "Payslip" },
-    { path: "/employee_leave_request", icon: "bi-arrow-right-square", label: "Leave Request" },
-    { path: "/employee_overtime_request", icon: "bi-clock-history", label: "Overtime Request" }
-  ];
-
+   // Navigation items for better organization
+const navItems = [
+  { path: "/employee_dashboard", icon: "bi-grid", label: "Dashboard" },
+  { path: "/employee_attendance", icon: "bi-calendar-check", label: "Attendance" },
+  { path: "/employee_payslip", icon: "bi-cash-stack", label: "Payslip" },
+  { path: "/employee_leave_request", icon: "bi-arrow-right-square", label: "Leave Request" },
+  { path: "/employee_overtime_request", icon: "bi-clock-history", label: "Overtime Request" },
+  { path: "/employee_time_adjustment", icon: "bi-calendar-plus", label: "Time Adjustment" },
+  { path: "/employee_my_performance", icon: "bi-graph-up", label: "My Performance" },
+  { path: "/employee_lms", icon: "bi-book", label: "LMS" },
+  { path: "/employee_eod", icon: "bi-trophy", label: "EDO" }
+];
   // State for attendance tracking
   const [isLoading, setIsLoading] = useState(false);
   const [dateTime, setDateTime] = useState(
@@ -306,17 +310,7 @@ const EmployeeSidebar = () => {
 
   return (
     <aside id="sidebar" className={`sidebar employee-sidebar ${collapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-toggle d-xl-none">
-        <button
-          className="hamburger hamburger--spin"
-          type="button"
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          <span className="hamburger-box">
-            <span className="hamburger-inner"></span>
-          </span>
-        </button>
-      </div>
+
 
       <div className="sidebar-header">
         <div className="d-flex flex-column align-items-center mt-4">
@@ -400,18 +394,6 @@ const EmployeeSidebar = () => {
             </li>
           ))}
         </ul>
-      </div>
-
-      <div className="sidebar-footer">
-        <div className="sidebar-collapse-btn d-none d-xl-block">
-          <button
-            className="btn btn-sm btn-icon"
-            onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <i className={`bi ${collapsed ? 'bi-chevron-right' : 'bi-chevron-left'}`}></i>
-          </button>
-        </div>
       </div>
     </aside>
   );

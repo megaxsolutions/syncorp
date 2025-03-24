@@ -1,340 +1,242 @@
-import React from "react";
-import { useLocation, Link } from "react-router-dom";
-import "bootstrap/dist/css/bootstrap.min.css";
-import "bootstrap/dist/js/bootstrap.bundle.min.js";
+import { useState } from "react"
+import { useLocation, Link } from "react-router-dom"
+import "bootstrap/dist/css/bootstrap.min.css"
+import "bootstrap-icons/font/bootstrap-icons.css"
+import "../css/AdminNav.css"
 
 const Sidebar = () => {
-  const location = useLocation();
-  const isDashboard = location.pathname === "/dashboard";
-  const isAddEmployee = location.pathname === "/add-employee";
-  const isViewEmployee = location.pathname === "/view-employee";
-  const isSettingsActive = location.pathname.startsWith("/settings");
-  const isAttendance = location.pathname === "/attendance";
-  const isDTR = location.pathname === "/dtr";
-  const isPayroll = location.pathname === "/payroll";
-  const isLeaveType = location.pathname === "/settings/leave-type";
-  const isApprovalsActive = location.pathname.startsWith("/approvals");
-  const isLeaveRequest = location.pathname === "/approvals/leave-request";
-  const isOvertimeRequest = location.pathname === "/approvals/overtime-request";
-  const isBonusRequest = location.pathname === "/approvals/bonus-request";
-  const isAccounts = location.pathname === "/settings/accounts";
+  const location = useLocation()
+  const [expandedMenus, setExpandedMenus] = useState({
+    employees: location.pathname.startsWith("/add-employee") || location.pathname.startsWith("/view-employee"),
+    settings: location.pathname.startsWith("/settings"),
+    approvals: location.pathname.startsWith("/approvals"),
+  })
 
-  const handleDropdownClick = (event, targetId) => {
-    event.preventDefault();
-    const targetElement = document.querySelector(targetId);
-    const bsCollapse = new bootstrap.Collapse(targetElement, {
-      toggle: true,
-    });
-  };
+  const toggleMenu = (menu) => {
+    setExpandedMenus((prev) => ({
+      ...prev,
+      [menu]: !prev[menu],
+    }))
+  }
+
+  const isActive = (path) => location.pathname === path
+  const isActiveStartsWith = (path) => location.pathname.startsWith(path)
 
   return (
-    <aside id="sidebar" className="sidebar">
-      <ul className="sidebar-nav" id="sidebar-nav">
-        {/* Dashboard */}
-        <li className="nav-item">
-          <Link
-            to="/dashboard"
-            className={`nav-link ${isDashboard ? "active" : ""}`}
-          >
-            <i className="bi bi-grid"></i>
-            <span>Dashboard</span>
-          </Link>
-        </li>
+    <aside
+      className="sidebar bg-white shadow-sm border-end"
+      style={{ width: "280px", height: "100vh", overflowY: "auto" }}
+    >
+      <div className="d-flex flex-column h-100">
+        {/* Brand/Logo Area */}
+        <div className="p-3 border-bottom">
+          <h5 className="fw-bold text-primary mb-0 d-flex align-items-center ">
+            <i className="bi bi-building me-1"></i>
+            Admin Management
+          </h5>
+        </div>
 
-        {/* Employees dropdown */}
-        <li className="nav-item">
-          <button
-            className={`nav-link ${
-              isAddEmployee || isViewEmployee ? "" : "collapsed"
-            }`}
-            onClick={(e) => handleDropdownClick(e, "#employees-nav")}
-            style={{ background: "none", border: "none" }}
-          >
-            <i className="bi bi-menu-button-wide"></i>
-            <span>Employees</span>
-            <i className="bi bi-chevron-down ms-auto"></i>
-          </button>
-          <ul
-            id="employees-nav"
-            className={`nav-content collapse ${
-              isAddEmployee || isViewEmployee ? "show" : ""
-            }`}
-            data-bs-parent="#sidebar-nav"
-          >
-            <li className="mt-2">
+        {/* Navigation */}
+        <ul className="nav flex-column p-2">
+          {/* Dashboard */}
+          <li className="nav-item mb-1">
+            <Link
+              to="/dashboard"
+              className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                isActive("/dashboard") ? "bg-primary text-white" : "text-dark hover-bg-light"
+              }`}
+            >
+              <i className={`bi bi-grid me-3 ${isActive("/dashboard") ? "text-white" : "text-primary"}`}></i>
+              <span>Dashboard</span>
+            </Link>
+          </li>
+
+          {/* Employees dropdown */}
+          <li className="nav-item mb-1">
+            <button
+              onClick={() => toggleMenu("employees")}
+              className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center justify-content-between w-100 border-0 ${
+                isActiveStartsWith("/add-employee") || isActiveStartsWith("/view-employee")
+                  ? "bg-primary text-white"
+                  : "text-dark hover-bg-light"
+              }`}
+              style={{ background: expandedMenus.employees ? "rgba(13, 110, 253, 0.1)" : "transparent" }}
+            >
+              <div className="d-flex align-items-center">
+                <i
+                  className={`bi bi-people me-3 ${
+                    isActiveStartsWith("/add-employee") || isActiveStartsWith("/view-employee")
+                      ? "text-white"
+                      : "text-primary"
+                  }`}
+                ></i>
+                <span>Employees</span>
+              </div>
+              <i className={`bi ${expandedMenus.employees ? "bi-chevron-up" : "bi-chevron-down"}`}></i>
+            </button>
+
+            <div className={`ms-4 mt-1 ${expandedMenus.employees ? "d-block" : "d-none"}`}>
               <Link
                 to="/add-employee"
-                className={`nav-link ${isAddEmployee ? "active" : ""}`}
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/add-employee") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
               >
-                <i className="bi bi-person-plus-fill"></i>
+                <i
+                  className={`bi bi-person-plus me-2 ${isActive("/add-employee") ? "text-white" : "text-primary"}`}
+                ></i>
                 <span>Add Employee</span>
               </Link>
-            </li>
-            <li className="mt-2">
               <Link
                 to="/view-employee"
-                className={`nav-link ${isViewEmployee ? "active" : ""}`}
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                  isActive("/view-employee") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
               >
-                <i className="bi bi-person-lines-fill"></i>
+                <i
+                  className={`bi bi-person-lines-fill me-2 ${isActive("/view-employee") ? "text-white" : "text-primary"}`}
+                ></i>
                 <span>View Employee</span>
               </Link>
-            </li>
-          </ul>
-        </li>
+            </div>
+          </li>
 
-        {/* Settings dropdown */}
-        <li className="nav-item">
-          <button
-            className={`nav-link ${isSettingsActive ? "" : "collapsed"}`}
-            onClick={(e) => handleDropdownClick(e, "#settings-nav")}
-            style={{ background: "none", border: "none" }}
-          >
-            <i className="bi bi-gear"></i>
-            <span>Settings</span>
-            <i className="bi bi-chevron-down ms-auto"></i>
-          </button>
-          <ul
-            id="settings-nav"
-            className={`nav-content collapse ${isSettingsActive ? "show" : ""}`}
-            data-bs-parent="#sidebar-nav"
-          >
-            <li className="mt-2">
-              <Link
-                to="/settings/site"
-                className={`nav-link ${
-                  location.pathname === "/settings/site" ? "active" : ""
-                }`}
-              >
-                <i className="bi bi-house"></i>
-                <span>Site</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/department"
-                className={`nav-link ${
-                  location.pathname === "/settings/department" ? "active" : ""
-                }`}
-              >
-                <i className="bi bi-building"></i>
-                <span>Department</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/cluster"
-                className={`nav-link ${
-                  location.pathname === "/settings/cluster" ? "active" : ""
-                }`}
-              >
-                <i className="bi bi-diagram-3"></i>
-                <span>Cluster</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/accounts"
-                className={`nav-link ${isAccounts ? "active" : ""}`}
-              >
-                <i className="bi bi-person-badge-fill"></i>
-                <span>Accounts</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/position"
-                className={`nav-link ${
-                  location.pathname === "/settings/position" ? "active" : ""
-                }`}
-              >
-                <i className="bi bi-briefcase"></i>
-                <span>Position</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/employee-level"
-                className={`nav-link ${
-                  location.pathname === "/settings/employee-level"
-                    ? "active"
-                    : ""
-                }`}
-              >
-                <i className="bi bi-graph-up"></i>
-                <span>Employee Level</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/admin-level"
-                className={`nav-link ${
-                  location.pathname === "/settings/admin-level" ? "active" : ""
-                }`}
-              >
-                <i className="bi bi-shield-lock"></i>
-                <span>Admin Level</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/holiday-calendar"
-                className={`nav-link ${
-                  location.pathname === "/settings/holiday-calendar"
-                    ? "active"
-                    : ""
-                }`}
-              >
-                <i className="bi bi-calendar-event"></i>
-                <span>Holiday Calendar</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/overtime-type"
-                className={`nav-link ${
-                  location.pathname === "/settings/overtime-type"
-                    ? "active"
-                    : ""
-                }`}
-              >
-                <i className="bi bi-hourglass-split"></i>
-                <span>Overtime Type</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/leave-type"
-                className={`nav-link ${isLeaveType ? "active" : ""}`}
-              >
-                <i className="bi bi-calendar2-x"></i>
-                <span>Leave Type</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/cut-off"
-                className={`nav-link ${
-                  location.pathname === "/settings/cut-off" ? "active" : ""
-                }`}
-              >
-                <i className="bi bi-clock"></i>
-                <span>Cut off</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/admin-user"
-                className={`nav-link ${
-                  location.pathname === "/settings/admin-user" ? "active" : ""
-                }`}
-              >
-                <i className="bi bi-person-badge"></i>
-                <span>Admin user</span>
-              </Link>
-            </li>
-            <li className="mt-2">
-              <Link
-                to="/settings/bulletin"
-                className={`nav-link ${
-                  location.pathname === "/settings/bulletin" ? "active" : ""
-                }`}
-              >
-                <i className="bi bi-newspaper"></i>
-                <span>Bulletin</span>
-              </Link>
-            </li>
-             <li className="mt-2">
-              <Link
-                to="/settings/coaching"
-                className={`nav-link ${
-                  location.pathname === "/settings/coaching" ? "active" : ""
-                }`}
-              >
-                <i className="bi bi-person-workspace"></i>
-                <span>Coaching</span>
-              </Link>
-            </li>
-          </ul>
-        </li>
+          {/* Settings dropdown */}
+          <li className="nav-item mb-1">
+            <button
+              onClick={() => toggleMenu("settings")}
+              className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center justify-content-between w-100 border-0 ${
+                isActiveStartsWith("/settings") ? "bg-primary text-white" : "text-dark hover-bg-light"
+              }`}
+              style={{ background: expandedMenus.settings ? "rgba(13, 110, 253, 0.1)" : "transparent" }}
+            >
+              <div className="d-flex align-items-center">
+                <i className={`bi bi-gear me-3 ${isActiveStartsWith("/settings") ? "text-white" : "text-primary"}`}></i>
+                <span>Settings</span>
+              </div>
+              <i className={`bi ${expandedMenus.settings ? "bi-chevron-up" : "bi-chevron-down"}`}></i>
+            </button>
 
-        {/* Approvals dropdown */}
-        <li className="nav-item">
-          <button
-            className={`nav-link ${isApprovalsActive ? "" : "collapsed"}`}
-            onClick={(e) => handleDropdownClick(e, "#approvals-nav")}
-            style={{ background: "none", border: "none" }}
-          >
-            <i className="bi bi-check2-square"></i>
-            <span>Approvals</span>
-            <i className="bi bi-chevron-down ms-auto"></i>
-          </button>
-          <ul
-            id="approvals-nav"
-            className={`nav-content collapse ${isApprovalsActive ? "show" : ""}`}
-            data-bs-parent="#sidebar-nav"
-          >
-            <li className="mt-2">
+            <div className={`ms-4 mt-1 ${expandedMenus.settings ? "d-block" : "d-none"}`}>
+              {[
+                { path: "/settings/site", icon: "bi-house", label: "Site" },
+                { path: "/settings/department", icon: "bi-building", label: "Department" },
+                { path: "/settings/cluster", icon: "bi-diagram-3", label: "Cluster" },
+                { path: "/settings/accounts", icon: "bi-person-badge-fill", label: "Accounts" },
+                { path: "/settings/position", icon: "bi-briefcase", label: "Position" },
+                { path: "/settings/employee-level", icon: "bi-graph-up", label: "Employee Level" },
+                { path: "/settings/admin-level", icon: "bi-shield-lock", label: "Admin Level" },
+                { path: "/settings/holiday-calendar", icon: "bi-calendar-event", label: "Holiday Calendar" },
+                { path: "/settings/overtime-type", icon: "bi-hourglass-split", label: "Overtime Type" },
+                { path: "/settings/leave-type", icon: "bi-calendar2-x", label: "Leave Type" },
+                { path: "/settings/cut-off", icon: "bi-clock", label: "Cut off" },
+                { path: "/settings/admin-user", icon: "bi-person-badge", label: "Admin user" },
+                { path: "/settings/bulletin", icon: "bi-newspaper", label: "Bulletin" },
+                { path: "/settings/coaching", icon: "bi-person-workspace", label: "Coaching" },
+              ].map((item, index) => (
+                <Link
+                  key={index}
+                  to={item.path}
+                  className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                    isActive(item.path) ? "bg-primary text-white" : "text-dark hover-bg-light"
+                  }`}
+                >
+                  <i className={`bi ${item.icon} me-2 ${isActive(item.path) ? "text-white" : "text-primary"}`}></i>
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </li>
+
+          {/* Approvals dropdown */}
+          <li className="nav-item mb-1">
+            <button
+              onClick={() => toggleMenu("approvals")}
+              className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center justify-content-between w-100 border-0 ${
+                isActiveStartsWith("/approvals") ? "bg-primary text-white" : "text-dark hover-bg-light"
+              }`}
+              style={{ background: expandedMenus.approvals ? "rgba(13, 110, 253, 0.1)" : "transparent" }}
+            >
+              <div className="d-flex align-items-center">
+                <i
+                  className={`bi bi-check2-square me-3 ${isActiveStartsWith("/approvals") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>Approvals</span>
+              </div>
+              <i className={`bi ${expandedMenus.approvals ? "bi-chevron-up" : "bi-chevron-down"}`}></i>
+            </button>
+
+            <div className={`ms-4 mt-1 ${expandedMenus.approvals ? "d-block" : "d-none"}`}>
               <Link
                 to="/approvals/leave-request"
-                className={`nav-link ${isLeaveRequest ? "active" : ""}`}
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/approvals/leave-request") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
               >
-                <i className="bi bi-calendar2-x"></i>
+                <i
+                  className={`bi bi-calendar2-x me-2 ${isActive("/approvals/leave-request") ? "text-white" : "text-primary"}`}
+                ></i>
                 <span>Leave Request</span>
               </Link>
-            </li>
-            <li className="mt-2">
               <Link
                 to="/approvals/overtime-request"
-                className={`nav-link ${isOvertimeRequest ? "active" : ""}`}
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/approvals/overtime-request") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
               >
-                <i className="bi bi-clock-history"></i>
+                <i
+                  className={`bi bi-clock-history me-2 ${isActive("/approvals/overtime-request") ? "text-white" : "text-primary"}`}
+                ></i>
                 <span>Overtime Request</span>
               </Link>
-            </li>
-            <li className="mt-2">
               <Link
                 to="/approvals/bonus"
-                className={`nav-link ${isBonusRequest ? "active" : ""}`}
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                  isActive("/approvals/bonus") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
               >
-                <i className="bi bi-cash"></i>
+                <i className={`bi bi-cash me-2 ${isActive("/approvals/bonus") ? "text-white" : "text-primary"}`}></i>
                 <span>Bonus Request</span>
               </Link>
+            </div>
+          </li>
+
+          {/* Other menu items */}
+          {[
+            { path: "/coaching-records", icon: "bi-journal-text", label: "Coaching Records" },
+            { path: "/attendance", icon: "bi-calendar-check", label: "Attendance" },
+            { path: "/dtr", icon: "bi-clock-history", label: "DTR" },
+            { path: "/payroll", icon: "bi-cash-stack", label: "Payroll" },
+          ].map((item, index) => (
+            <li key={index} className="nav-item mb-1">
+              <Link
+                to={item.path}
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                  isActive(item.path) ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i className={`bi ${item.icon} me-3 ${isActive(item.path) ? "text-white" : "text-primary"}`}></i>
+                <span>{item.label}</span>
+              </Link>
             </li>
-          </ul>
-        </li>
+          ))}
+        </ul>
 
-        {/* Attendance */}
-        <li className="nav-item mt-2">
-          <Link
-            to="/attendance"
-            className={`nav-link ${isAttendance ? "active" : ""}`}
-          >
-            <i className="bi bi-calendar-check"></i>
-            <span>Attendance</span>
-          </Link>
-        </li>
-
-        {/* DTR */}
-        <li className="nav-item mt-2">
-          <Link to="/dtr" className={`nav-link ${isDTR ? "active" : ""}`}>
-            <i className="bi bi-clock-history"></i>
-            <span>DTR</span>
-          </Link>
-        </li>
-
-        {/* Payroll */}
-        <li className="nav-item mt-2">
-          <Link
-            to="/payroll"
-            className={`nav-link ${isPayroll ? "active" : ""}`}
-          >
-            <i className="bi bi-cash-stack"></i>
-            <span>Payroll</span>
-          </Link>
-        </li>
-      </ul>
+        {/* Footer */}
+        <div className="mt-auto p-3 mb-5 border-top">
+          <div className="d-flex align-items-center">
+            <div className="rounded-circle bg-light p-2 me-2">
+              <i className="bi bi-person text-primary"></i>
+            </div>
+            <div>
+              <small className="d-block text-muted">Logged in as</small>
+              <span className="fw-medium">Admin</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </aside>
-  );
-};
+  )
+}
 
-export default Sidebar;
+export default Sidebar

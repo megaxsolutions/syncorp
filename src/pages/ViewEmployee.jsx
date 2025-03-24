@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import config from "../config";
 import Swal from "sweetalert2"; // Add this import at the top
+import { Modal } from "react-bootstrap";
 
 
 // Add this helper function at the top of your component

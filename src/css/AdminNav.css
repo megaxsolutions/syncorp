@@ -1,0 +1,61 @@
+/* Add this CSS to your project */
+.hover-bg-light:hover {
+  background-color: rgba(65, 84, 241, 0.05) !important;
+  transition: background-color 0.2s ease;
+}
+
+.header {
+  transition: all 0.3s ease;
+  height: 60px;
+  background-color: #ffffff;
+}
+
+.header .nav-link {
+  transition: all 0.2s ease;
+}
+
+.header .dropdown-menu {
+  animation: fadeIn 0.2s ease-in-out;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.notification-item {
+  transition: background-color 0.2s ease;
+}
+
+.notification-icon {
+  transition: transform 0.2s ease;
+}
+
+.notification-item:hover .notification-icon {
+  transform: scale(1.1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom scrollbar for notification list */
+.notification-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.notification-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.notification-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

@@ -1,0 +1,35 @@
+/* Add this CSS to your project */
+.hover-bg-light:hover {
+  background-color: rgba(13, 110, 253, 0.1) !important;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar .nav-link {
+  transition: all 0.2s ease;
+}
+
+.sidebar .nav-link:hover {
+  transform: translateX(3px);
+}
+
+.sidebar {
+  transition: width 0.3s ease;
+}
+
+/* Custom scrollbar for the sidebar */
+.sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
