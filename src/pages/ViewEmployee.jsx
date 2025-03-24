@@ -1,249 +1,288 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
-import config from "../config";
-import Swal from "sweetalert2"; // Add this import at the top
-import { Modal } from "react-bootstrap";
+"use client"
 
+import { useState, useEffect } from "react"
+import axios from "axios"
+import Navbar from "../components/Navbar"
+import Sidebar from "../components/Sidebar"
+import config from "../config"
+import Swal from "sweetalert2"
+import {
+  Modal,
+  Tabs,
+  Tab,
+  Badge,
+  Spinner,
+  Form,
+  Button,
+  Card,
+  Container,
+  Row,
+  Col,
+  Table,
+  Pagination,
+  InputGroup,
+} from "react-bootstrap"
+import { Search, PencilSquare, Eye, PersonCircle, FileEarmarkCheck, FileEarmarkX } from "react-bootstrap-icons"
 
-// Add this helper function at the top of your component
+// Helper functions for date formatting
 const formatDateForInput = (dateString) => {
-  if (!dateString) return "";
-  // First try parsing as is
-  let date = new Date(dateString);
+  if (!dateString) return ""
+  let date = new Date(dateString)
   if (isNaN(date.getTime())) {
-    // If invalid, try parsing with manual split (for DD-MM-YYYY format)
-    const parts = dateString.split("-");
+    const parts = dateString.split("-")
     if (parts.length === 3) {
-      // Assume parts are in YYYY-MM-DD format
-      date = new Date(parts[0], parts[1] - 1, parts[2]);
+      date = new Date(parts[0], parts[1] - 1, parts[2])
     }
   }
-  if (isNaN(date.getTime())) return "";
+  if (isNaN(date.getTime())) return ""
+  return date.toISOString().split("T")[0]
+}
 
-  // Format as YYYY-MM-DD
-  return date.toISOString().split("T")[0];
-};
-
-// Add a function to format dates for display
 const formatDateForDisplay = (dateString) => {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString;
-  return date.toISOString().split("T")[0];
-};
+  if (!dateString) return "N/A"
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return dateString
+
+  // Format as DD-MMM-YYYY (e.g., 15-Jan-2023)
+  const options = { day: "2-digit", month: "short", year: "numeric" }
+  return date.toLocaleDateString("en-US", options)
+}
+
+// Fix the getImageUrl function to handle non-string photo values
+const getImageUrl = (photo) => {
+  if (!photo) return null
+  // Check if photo is a string before using string methods
+  if (typeof photo === "string") {
+    if (photo.startsWith("http")) return photo
+    return `${config.API_BASE_URL}/uploads/${photo}`
+  }
+  // If photo is not a string (e.g., File object or other type), return null
+  return null
+}
 
 function ViewEmployee() {
-  const [employees, setEmployees] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasSearchResults, setHasSearchResults] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  // State management
+  const [employees, setEmployees] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
   const [selectedEmployee, setSelectedEmployee] = useState({
-    // Ensure these fields exist so they can be viewed & edited
-    nbi: false,
-    medicalCert: false,
+    nbi_clearance: false,
+    med_cert: false,
     xray: false,
-    drugTest: false,
-  });
-  const [showModal, setShowModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-
-  const getValidEmployees = (employees) => {
-    // Create a Map to store unique employees by emp_ID
-    const uniqueEmployees = new Map();
-
-    employees.forEach((emp) => {
-      if (
-        emp.fName !== null &&
-        emp.lName !== null &&
-        emp.departmentID !== null
-      ) {
-        // Only store if it's not already in the Map, or update if it has more complete data
-        if (
-          !uniqueEmployees.has(emp.emp_ID) ||
-          (uniqueEmployees.get(emp.emp_ID).departmentID === null &&
-            emp.departmentID !== null)
-        ) {
-          uniqueEmployees.set(emp.emp_ID, emp);
-        }
-      }
-    });
-
-    // Convert Map values back to array
-    return Array.from(uniqueEmployees.values());
-  };
-
-  // Update the getImageUrl function
-  const getImageUrl = (photo) => {
-    if (!photo) return null;
-    if (photo.startsWith("http")) return photo;
-    return `${config.API_BASE_URL}/uploads/${photo}`; // Adjust the path according to your backend storage
-  };
-
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const response = await axios.get(
-          `${config.API_BASE_URL}/employees/get_all_employee`,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
-          }
-        );
-
-        // Filter out duplicates and invalid entries
-        const validEmployees = getValidEmployees(response.data.data);
-        setEmployees(validEmployees);
-      } catch (error) {
-        console.error("Error fetching employees:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchEmployees();
-  }, []);
-
-  const [preview, setPreview] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+    drug_test: false,
+  })
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [preview, setPreview] = useState(null)
   const [dropdownData, setDropdownData] = useState({
     positions: [],
     departments: [],
     clusters: [],
     sites: [],
     employee_levels: [],
-  });
+  })
+  const [activeTab, setActiveTab] = useState("profile")
+  const [isSaving, setIsSaving] = useState(false)
 
-  useEffect(() => {
-    const fetchDropdownData = async () => {
-      try {
-        const response = await axios.get(
-          `${config.API_BASE_URL}/main/get_all_dropdown_data`,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
-          }
-        );
-        setDropdownData(response.data.data);
-      } catch (error) {
-        console.error("Error fetching dropdown data:", error);
+  // Mock functions to get names based on IDs
+  // Fix the getDepartmentName function
+const getDepartmentName = (id) => {
+  if (!id) return 'N/A';
+  const department = dropdownData.departments.find((dept) =>
+    dept.id === id || dept.departmentID === id
+  );
+  return department ? department.departmentName : 'N/A';
+}
+
+// Fix the getPositionName function
+const getPositionName = (id) => {
+  if (!id) return 'N/A';
+  const position = dropdownData.positions.find((pos) =>
+    pos.id === id || pos.positionID === id
+  );
+  return position ? position.position : 'N/A';
+}
+
+// Fix the getClusterName function
+const getClusterName = (id) => {
+  if (!id) return 'N/A';
+  const cluster = dropdownData.clusters.find((cluster) =>
+    cluster.id === id || cluster.clusterID === id
+  );
+  return cluster ? cluster.clusterName : 'N/A';
+}
+
+// Fix the getSiteName function
+const getSiteName = (id) => {
+  if (!id) return 'N/A';
+  const site = dropdownData.sites.find((site) =>
+    site.id === id || site.siteID === id
+  );
+  return site ? site.siteName : 'N/A';
+}
+
+// Fix the getEmployeeLevelName function
+const getEmployeeLevelName = (id) => {
+  if (!id) return 'N/A';
+  const level = dropdownData.employee_levels.find((level) =>
+    level.id === id || level.levelID === id
+  );
+  return level ? (level.e_level || level.level_name) : 'N/A';
+}
+
+  // Fetch employee data and dropdown data on component mount
+ // Fix the missing initializer error in ViewEmployee.jsx
+
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+
+      // Fetch employee data
+      const employeeResponse = await axios.get(`${config.API_BASE_URL}/employees/get_all_employee`, {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+        },
+      });
+
+      // Fetch all dropdown data with a single API call
+      const dropdownResponse = await axios.get(`${config.API_BASE_URL}/main/get_all_dropdown_data`, {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+        },
+      });
+
+      console.log(dropdownResponse.data);
+
+      const employeesData = employeeResponse.data.data;
+      const validEmployees = getValidEmployees(employeesData);
+      setEmployees(validEmployees);
+
+      // Assuming the response structure has these properties
+      // Adjust according to your actual API response structure
+    // Update this part of your code to better handle the API response structure
+setDropdownData({
+  positions: dropdownResponse.data.data?.positions || [],
+  departments: dropdownResponse.data.data?.departments || [],
+  clusters: dropdownResponse.data.data?.clusters || [],
+  sites: dropdownResponse.data.data?.sites || [],
+  employee_levels: dropdownResponse.data.data?.employee_levels ||
+                  dropdownResponse.data.data?.admin_level || [],
+});
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load data",
+        confirmButtonColor: "#d33",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
+
+  // Filter employees to get valid ones
+  const getValidEmployees = (employees) => {
+    const uniqueEmployees = new Map()
+    employees.forEach((emp) => {
+      if (emp.fName !== null && emp.lName !== null && emp.departmentID !== null) {
+        if (
+          !uniqueEmployees.has(emp.emp_ID) ||
+          (uniqueEmployees.get(emp.emp_ID).departmentID === null && emp.departmentID !== null)
+        ) {
+          uniqueEmployees.set(emp.emp_ID, emp)
+        }
       }
-    };
+    })
+    return Array.from(uniqueEmployees.values())
+  }
 
-    fetchDropdownData();
-  }, []);
-
-  const getPositionName = (positionId) => {
-    const position = dropdownData.positions.find((p) => p.id === positionId);
-    return position ? position.position : positionId; // Changed from name to position
-  };
-
-  const getDepartmentName = (departmentId) => {
-    const department = dropdownData.departments.find(
-      (d) => d.id === departmentId
-    );
-    return department ? department.departmentName : departmentId; // Changed from name to departmentName
-  };
-
-  const getClusterName = (clusterId) => {
-    const cluster = dropdownData.clusters.find((c) => c.id === clusterId);
-    return cluster ? cluster.clusterName : clusterId; // Changed from name to clusterName
-  };
-
-  const getSiteName = (siteId) => {
-    const site = dropdownData.sites.find((s) => s.id === siteId);
-    return site ? site.siteName : siteId; // Changed from name to siteName
-  };
-
-  const getEmployeeLevelName = (levelId) => {
-    const level = dropdownData.employee_levels.find((l) => l.id === levelId);
-    return level ? level.e_level : levelId; // Changed from name to e_level
-  };
-
+  // Handle edit button click
+  // Fix the handleEditClick function to properly handle boolean conversion
   const handleEditClick = (emp) => {
     setSelectedEmployee({
       ...emp,
-      nbi: emp.nbi || false,
-      medicalCert: emp.medicalCert || false,
-      xray: emp.xray || false,
-      drugTest: emp.drugTest || false,
-    });
-    setPreview(emp.file_uploaded);
-    setShowModal(true);
-  };
+      // Convert 0/1/true/false to boolean for UI interaction
+      nbi_clearance: emp.nbi_clearance === 1 || emp.nbi_clearance === true,
+      med_cert: emp.med_cert === 1 || emp.med_cert === true,
+      xray: emp.xray === 1 || emp.xray === true,
+      drug_test: emp.drug_test === 1 || emp.drug_test === true,
+    })
+    setPreview(emp.file_uploaded)
+    setShowEditModal(true)
+    setActiveTab("profile")
+  }
 
+  // Handle view details button click
   const handleViewDetailsClick = (emp) => {
     setSelectedEmployee({
       ...emp,
-      nbi: emp.nbi || false,
-      medicalCert: emp.medicalCert || false,
+      nbi_clearance: emp.nbi_clearance || false,
+      med_cert: emp.med_cert || false,
       xray: emp.xray || false,
-      drugTest: emp.drugTest || false,
-    });
-    setShowDetailsModal(true);
-  };
+      drug_test: emp.drug_test || false,
+    })
+    setShowDetailsModal(true)
+    setActiveTab("profile")
+  }
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-  };
-
-  const handleCloseDetailsModal = () => {
-    setShowDetailsModal(false);
-  };
-
+  // Handle form field changes
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type, checked } = e.target
     setSelectedEmployee((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
-    }));
-  };
+    }))
+  }
 
-  // Update the handleFileChange function
+  // Handle file upload
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files[0]
     if (file) {
       if (file.size > 5242880) {
         // 5MB limit
         Swal.fire({
-          icon: 'error',
-          title: 'File Too Large',
-          text: 'File size should be less than 5MB',
-          confirmButtonColor: '#d33'
-        });
-        return;
+          icon: "error",
+          title: "File Too Large",
+          text: "File size should be less than 5MB",
+          confirmButtonColor: "#d33",
+        })
+        return
       }
 
-      const reader = new FileReader();
+      const reader = new FileReader()
       reader.onloadend = () => {
-        setPreview(reader.result);
+        setPreview(reader.result)
         setSelectedEmployee((prev) => ({
           ...prev,
-          photo: file, // Changed from file_uploaded to photo
-        }));
-      };
-      reader.readAsDataURL(file);
+          photo: file,
+        }))
+      }
+      reader.readAsDataURL(file)
     }
-  };
+  }
 
-  // Update the handleUpdate function
+  // Handle employee update
   const handleUpdate = async () => {
+    setIsSaving(true)
     try {
-      const formData = new FormData();
+      const formData = new FormData()
 
       // Map the form data to match backend field names
       const mappedData = {
-        birthdate: formatDateForInput(selectedEmployee.bDate), // Format date
+        birthdate: formatDateForInput(selectedEmployee.bDate),
         fname: selectedEmployee.fName,
         mname: selectedEmployee.mName,
         lname: selectedEmployee.lName,
-        date_hired: formatDateForInput(selectedEmployee.date_hired), // Format date
+        date_hired: formatDateForInput(selectedEmployee.date_hired),
         department_id: selectedEmployee.departmentID,
         cluster_id: selectedEmployee.clusterID,
         site_id: selectedEmployee.siteID,
@@ -261,21 +300,21 @@ function ViewEmployee() {
         positionID: selectedEmployee.positionID,
         employee_level: selectedEmployee.employee_level,
         healthcare: selectedEmployee.healthcare,
-        nbi: selectedEmployee.nbi,
-        medicalCert: selectedEmployee.medicalCert,
-        xray: selectedEmployee.xray,
-        drugTest: selectedEmployee.drugTest,
-      };
+        nbi_clearance: selectedEmployee.nbi_clearance ? 1 : 0,
+        med_cert: selectedEmployee.med_cert ? 1 : 0,
+        xray: selectedEmployee.xray ? 1 : 0,
+        drug_test: selectedEmployee.drug_test ? 1 : 0,
+      }
 
       // Append all mapped data to formData
       Object.entries(mappedData).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          formData.append(key, value);
+          formData.append(key, value)
         }
-      });
+      })
 
       if (selectedEmployee.photo instanceof File) {
-        formData.append("file_uploaded", selectedEmployee.photo); // Change to file_uploaded
+        formData.append("file_uploaded", selectedEmployee.photo)
       }
 
       const response = await axios.put(
@@ -287,80 +326,100 @@ function ViewEmployee() {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
           },
-        }
-      );
+        },
+      )
 
       if (response.data.success) {
         // Fetch the updated employee data
-        const updatedEmployeeResponse = await axios.get(
-          `${config.API_BASE_URL}/employees/get_all_employee`,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
-          }
-        );
+        const updatedEmployeeResponse = await axios.get(`${config.API_BASE_URL}/employees/get_all_employee`, {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        })
 
         const updatedEmployeeData = updatedEmployeeResponse.data.data.find(
-          (emp) => emp.emp_ID === selectedEmployee.emp_ID
-        );
+          (emp) => emp.emp_ID === selectedEmployee.emp_ID,
+        )
 
         // Update local state with the fresh data
         const updatedEmployees = employees.map((emp) =>
-          emp.emp_ID === selectedEmployee.emp_ID ? updatedEmployeeData : emp
-        );
+          emp.emp_ID === selectedEmployee.emp_ID ? updatedEmployeeData : emp,
+        )
 
-        setEmployees(updatedEmployees);
-        setSelectedEmployee(updatedEmployeeData);
-        setPreview(null); // Reset preview
-        setShowModal(false);
+        setEmployees(updatedEmployees)
+        setSelectedEmployee(updatedEmployeeData)
+        setPreview(null)
+        setShowEditModal(false)
 
-        // Replace alert with SweetAlert2
         Swal.fire({
-          icon: 'success',
-          title: 'Success',
+          icon: "success",
+          title: "Success",
           text: response.data.success,
-          confirmButtonColor: '#3085d6'
-        });
+          confirmButtonColor: "#3085d6",
+        })
       }
     } catch (error) {
-      console.error("Error updating employee:", error);
-      // Replace alert with SweetAlert2
+      console.error("Error updating employee:", error)
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error.response?.data?.error || 'Failed to update employee',
-        confirmButtonColor: '#d33'
-      });
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.error || "Failed to update employee",
+        confirmButtonColor: "#d33",
+      })
+    } finally {
+      setIsSaving(false)
     }
-  };
+  }
 
-  // Update the filteredEmployees filter function
+  // Filter employees based on search term
   const filteredEmployees = employees.filter((emp) => {
-    const searchString = `${emp.emp_ID || ""} ${emp.fName || ""} ${
-      emp.mName || ""
-    } ${emp.lName || ""}`.toLowerCase();
-    return searchString.includes(searchTerm.toLowerCase());
-  });
+    const searchString = `${emp.emp_ID || ""} ${emp.fName || ""} ${emp.mName || ""} ${emp.lName || ""}`.toLowerCase()
+    return searchString.includes(searchTerm.toLowerCase())
+  })
 
+  // Update search results status
   useEffect(() => {
-    setHasSearchResults(filteredEmployees.length > 0);
-  }, [filteredEmployees]);
+    setCurrentPage(1)
+  }, [searchTerm])
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentItems = filteredEmployees.slice(indexOfFirstItem, indexOfLastItem)
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage)
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredEmployees.slice(
-    indexOfFirstItem,
-    indexOfLastItem
-  );
-  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+  const paginate = (pageNumber) => setCurrentPage(pageNumber)
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  // Generate pagination items
+  const paginationItems = []
+  for (let number = 1; number <= totalPages; number++) {
+    paginationItems.push(
+      <Pagination.Item key={number} active={number === currentPage} onClick={() => paginate(number)}>
+        {number}
+      </Pagination.Item>,
+    )
+  }
+
+  // Render employee status badge
+  const renderStatusBadge = (status) => {
+    if (!status) return <Badge bg="secondary">Unknown</Badge>
+
+    switch (status.toLowerCase()) {
+      case "active":
+        return <Badge bg="success">Active</Badge>
+      case "inactive":
+        return (
+          <Badge bg="warning" text="dark">
+            Inactive
+          </Badge>
+        )
+      case "terminated":
+        return <Badge bg="danger">Terminated</Badge>
+      default:
+        return <Badge bg="secondary">{status}</Badge>
+    }
+  }
 
   return (
     <>
@@ -368,865 +427,827 @@ function ViewEmployee() {
       <Sidebar />
 
       <main className="main" id="main">
-        <div className="pagetitle">
-          <h1>View Employee</h1>
-          <nav>
-            <ol className="breadcrumb">
-              <li className="breadcrumb-item">
-                <a href="/dashboard">Home</a>
-              </li>
-              <li className="breadcrumb-item active">View Employee</li>
-            </ol>
-          </nav>
-        </div>
-        <section className="section">
-          <div className="row">
-            <div className="col-lg-12">
-              <div className="card">
-                <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h5 className="card-title mb-0">Employee Table</h5>
-                    <input
-                      type="text"
-                      className="form-control w-auto"
-                      placeholder="Search by ID or Name..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
+        <Container fluid className="py-4">
+          <div className="d-sm-flex align-items-center justify-content-between mb-4">
+            <h1 className="h3 mb-0 text-gray-800">Employee Management</h1>
+            <nav aria-label="breadcrumb">
+              <ol className="breadcrumb mb-0">
+                <li className="breadcrumb-item">
+                  <a href="/dashboard">Home</a>
+                </li>
+                <li className="breadcrumb-item active" aria-current="page">
+                  View Employees
+                </li>
+              </ol>
+            </nav>
+          </div>
 
-                  {isLoading ? (
-                    <div className="text-center">
-                      <div
-                        className="spinner-border text-primary"
-                        role="status"
-                      >
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
-                    </div>
-                  ) : !hasSearchResults ? (
-                    <div className="alert alert-info text-center" role="alert">
-                      <i className="bi bi-info-circle me-2"></i>
-                      No employees found matching "{searchTerm}"
-                    </div>
-                  ) : (
-                    <>
-                      <table className="table table-striped table-hover table-bordered align-middle">
-                        <thead className="table-primary">
-                          <tr>
-                            <th>Employee ID</th>
-                            <th>Full Name</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Department</th>
-                            <th>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {currentItems.map((emp) => (
-                            <tr key={emp.emp_ID}>
-                              <td>{emp.emp_ID}</td>
-                              <td>
-                                {emp.fName} {emp.mName} {emp.lName}
-                              </td>
-                              <td>{emp.email || "N/A"}</td>
-                              <td>{emp.phone || "N/A"}</td>
-                              <td>
-                                {getDepartmentName(emp.departmentID) || "N/A"}
-                              </td>
-                              <td>
-                                <button
-                                  className="btn btn-warning btn-sm me-2"
-                                  onClick={() => handleEditClick(emp)}
-                                >
-                                  <i className="bi bi-pencil"></i> Edit
-                                </button>
-                                <button
-                                  className="btn btn-primary btn-sm"
-                                  onClick={() => handleViewDetailsClick(emp)}
-                                >
-                                  <i className="bi bi-eye"></i> View
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <div className="d-flex justify-content-between align-items-center mt-3">
-                        <div>
-                          Showing {indexOfFirstItem + 1} -{" "}
-                          {Math.min(indexOfLastItem, filteredEmployees.length)}{" "}
-                          of {filteredEmployees.length} entries
-                        </div>
-                        <nav>
-                          <ul className="pagination mb-0">
-                            <li
-                              className={`page-item ${
-                                currentPage === 1 ? "disabled" : ""
-                              }`}
-                            >
-                              <button
-                                className="page-link"
-                                onClick={() => paginate(currentPage - 1)}
-                                disabled={currentPage === 1}
-                              >
-                                Previous
-                              </button>
-                            </li>
-                            {[...Array(totalPages)].map((_, index) => (
-                              <li
-                                key={index + 1}
-                                className={`page-item ${
-                                  currentPage === index + 1 ? "active" : ""
-                                }`}
-                              >
-                                <button
-                                  className="page-link"
-                                  onClick={() => paginate(index + 1)}
-                                >
-                                  {index + 1}
-                                </button>
-                              </li>
-                            ))}
-                            <li
-                              className={`page-item ${
-                                currentPage === totalPages ? "disabled" : ""
-                              }`}
-                            >
-                              <button
-                                className="page-link"
-                                onClick={() => paginate(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                              >
-                                Next
-                              </button>
-                            </li>
-                          </ul>
-                        </nav>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Edit Modal */}
-                  {showModal && (
-                    <Modal show={showModal} onHide={handleCloseModal}>
-                      <Modal.Header>
-                        <Modal.Title>Edit Employee</Modal.Title>
-                      </Modal.Header>
-                      <Modal.Body>
-                        <h5>Profile</h5>
-                        <hr />
-                        <div className="row g-3">
-                          {/* Update the edit modal photo preview section */}
-                          <div className="col-12 text-start mb-3 d-flex align-items-center">
-                            <div className="position-relative photo-preview">
-                              {preview ? (
+          <Card className="shadow mb-4">
+            <Card.Header className="py-3 d-flex flex-row align-items-center justify-content-between bg-white">
+              <h6 className="m-0 font-weight-bold text-primary">Employee Directory</h6>
+              <InputGroup className="w-auto">
+                <InputGroup.Text>
+                  <Search />
+                </InputGroup.Text>
+                <Form.Control
+                  type="text"
+                  placeholder="Search employees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </InputGroup>
+            </Card.Header>
+            <Card.Body>
+              {isLoading ? (
+                <div className="text-center py-5">
+                  <Spinner animation="border" variant="primary" />
+                  <p className="mt-3">Loading employee data...</p>
+                </div>
+              ) : filteredEmployees.length === 0 ? (
+                <div className="alert alert-info text-center" role="alert">
+                  <i className="bi bi-info-circle me-2"></i>
+                  {searchTerm ? `No employees found matching "${searchTerm}"` : "No employees found in the system"}
+                </div>
+              ) : (
+                <>
+                  <div className="table-responsive">
+                    <Table hover bordered className="align-middle">
+                      <thead>
+                        <tr className="bg-light">
+                          <th>Employee ID</th>
+                          <th>Photo</th>
+                          <th>Full Name</th>
+                          <th>Department</th>
+                          <th>Position</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentItems.map((emp) => (
+                          <tr key={emp.emp_ID}>
+                            <td className="fw-bold">{emp.emp_ID}</td>
+                            {/* Update the image rendering in the table rows */}
+                            <td className="text-center">
+                              {emp.photo ? (
                                 <img
-                                  src={preview}
-                                  alt="Preview"
-                                  style={{
-                                    width: "150px",
-                                    height: "150px",
-                                    objectFit: "cover",
-                                  }}
-                                />
-                              ) : selectedEmployee.photo ? (
-                                <img
-                                  src={`${config.API_BASE_URL}/uploads/${selectedEmployee.photo}`}
-                                  alt="Employee"
-                                  style={{
-                                    width: "150px",
-                                    height: "150px",
-                                    objectFit: "cover",
-                                  }}
+                                  src={
+                                    typeof emp.photo === "string"
+                                      ? getImageUrl(emp.photo)
+                                      : null || "https://avatar.iran.liara.run/public"
+                                  }
+                                  alt={`${emp.fName} ${emp.lName}`}
+                                  className="rounded-circle"
+                                  style={{ width: "40px", height: "40px", objectFit: "cover" }}
                                   onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src =
-                                      "https://via.placeholder.com/150?text=No+Photo";
+                                    e.target.onerror = null
+                                    e.target.src = "https://avatar.iran.liara.run/public"
                                   }}
                                 />
                               ) : (
-                                <label
-                                  htmlFor="photo"
-                                  className="mb-0 pointer-label"
-                                >
-                                  Choose File
-                                </label>
+                                <PersonCircle size={40} className="text-secondary" />
                               )}
-                              <input
-                                type="file"
-                                name="file_uploaded"
-                                id="photo"
-                                onChange={handleFileChange}
-                                className="file-input"
-                                accept="image/*"
-                              />
-                            </div>
-                            <label className="form-label ms-3 mb-0 pointer-label">
-                              Upload a Photo
-                            </label>
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">First Name</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="fName"
-                              value={selectedEmployee.fName || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Middle Name</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="mName"
-                              value={selectedEmployee.mName || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Last Name</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="lName"
-                              value={selectedEmployee.lName || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Birth Date</label>
-                            <input
-                              type="date"
-                              className="form-control"
-                              name="bDate"
-                              value={
-                                formatDateForInput(selectedEmployee.bDate) || ""
-                              }
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Date Hired</label>
-                            <input
-                              type="date"
-                              className="form-control"
-                              name="date_hired"
-                              value={
-                                formatDateForInput(
-                                  selectedEmployee.date_hired
-                                ) || ""
-                              }
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Position</label>
-                            <select
-                              name="positionID" // Changed from position to positionID
-                              className="form-select"
-                              value={selectedEmployee.positionID || ""}
-                              onChange={handleChange}
-                            >
-                              <option value="">Choose...</option>
-                              {dropdownData.positions.map((position) => (
-                                <option key={position.id} value={position.id}>
-                                  {position.position}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Department</label>
-                            <select
-                              name="departmentID" // Changed from department to departmentID
-                              className="form-select"
-                              value={selectedEmployee.departmentID || ""}
-                              onChange={handleChange}
-                            >
-                              <option value="">Choose...</option>
-                              {dropdownData.departments.map((department) => (
-                                <option key={department.id} value={department.id}>
-                                  {department.departmentName}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Cluster</label>
-                            <select
-                              name="clusterID"
-                              className="form-select"
-                              value={selectedEmployee.clusterID || ""}
-                              onChange={handleChange}
-                            >
-                              <option value="">Choose...</option>
-                              {dropdownData.clusters.map((cluster) => (
-                                <option key={cluster.id} value={cluster.id}>
-                                  {cluster.clusterName}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Site</label>
-                            <select
-                              name="siteID"
-                              className="form-select"
-                              value={selectedEmployee.siteID || ""}
-                              onChange={handleChange}
-                            >
-                              <option value="">Choose Site...</option>
-                              {dropdownData.sites.map((site) => (
-                                <option key={site.id} value={site.id}>
-                                  {site.siteName}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Employee Level</label>
-                            <select
-                              name="employee_level"
-                              className="form-select"
-                              value={selectedEmployee.employee_level || ""}
-                              onChange={handleChange}
-                            >
-                              <option value="">Choose Level...</option>
-                              {dropdownData.employee_levels.map((level) => (
-                                <option key={level.id} value={level.id}>
-                                  {level.e_level}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Account Status</label>
-                            <select
-                              name="employee_status" // Changed from status to employee_status
-                              className="form-select"
-                              value={selectedEmployee.employee_status || ""}
-                              onChange={handleChange}
-                            >
-                              <option value="">Choose...</option>
-                              <option value="Active">Active</option>
-                              <option value="Inactive">Inactive</option>
-                              <option value="Terminated">Terminated</option>
-                            </select>
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Basic Pay</label>
-                            <input
-                              type="number"
-                              className="form-control"
-                              name="basicPay"
-                              value={selectedEmployee.basic_pay || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Email</label>
-                            <input
-                              type="email"
-                              className="form-control"
-                              name="email"
-                              value={selectedEmployee.email || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Phone</label>
-                            <input
-                              type="tel"
-                              className="form-control"
-                              name="phone"
-                              value={selectedEmployee.phone || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                        </div>
-                        <h5 className="mt-4">Government Mandatory</h5>
-                        <hr />
-                        <div className="row g-3">
-                          <div className="col-md-4">
-                            <label className="form-label">Healthcare</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="healthcare"
-                              value={selectedEmployee.healthcare || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">SSS</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="sss"
-                              value={selectedEmployee.sss || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Pagibig</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="pagibig"
-                              value={selectedEmployee.pagibig || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Philhealth</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="philhealth"
-                              value={selectedEmployee.philhealth || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Tin</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="tin"
-                              value={selectedEmployee.tin || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                        </div>
-                        <h5 className="mt-4">Contacts</h5>
-                        <hr />
-                        <div className="row g-3">
-                          <div className="col-md-4">
-                            <label className="form-label">Address</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="address"
-                              value={selectedEmployee.address || ""}
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Emergency Person</label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="emergencyPerson"
-                              value={
-                                selectedEmployee.emergency_contact_person || ""
-                              }
-                              onChange={handleChange}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">
-                              Emergency Contact Number
-                            </label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="emergencyContactNumber"
-                              value={
-                                selectedEmployee.emergency_contact_number || ""
-                              }
-                              onChange={handleChange}
-                            />
-                          </div>
-                        </div>
-                        {/* Pre Employment Requirements in a card */}
-                        <div className="card mb-4 mt-3">
-                          <div className="card-header">
-                            <h5>Pre Employment Requirements</h5>
-                          </div>
-                          <div className="card-body">
-                            <div className="row g-3">
-                              <div className="col-md-3 form-check">
-                                <input
-                                  type="checkbox"
-                                  id="nbi"
-                                  name="nbi"
-                                  className="form-check-input"
-                                  checked={selectedEmployee.nbi}
-                                  onChange={handleChange}
-                                />
-                                <label htmlFor="nbi" className="form-check-label">
-                                  NBI
-                                </label>
+                            </td>
+                            <td>
+                              <div className="fw-bold">
+                                {emp.fName} {emp.lName}
                               </div>
-                              <div className="col-md-3 form-check">
-                                <input
-                                  type="checkbox"
-                                  id="medicalCert"
-                                  name="medicalCert"
-                                  className="form-check-input"
-                                  checked={selectedEmployee.medicalCert}
-                                  onChange={handleChange}
-                                />
-                                <label
-                                  htmlFor="medicalCert"
-                                  className="form-check-label"
-                                >
-                                  Medical Certificate
-                                </label>
-                              </div>
-                              <div className="col-md-3 form-check">
-                                <input
-                                  type="checkbox"
-                                  id="xray"
-                                  name="xray"
-                                  className="form-check-input"
-                                  checked={selectedEmployee.xray}
-                                  onChange={handleChange}
-                                />
-                                <label htmlFor="xray" className="form-check-label">
-                                  X-ray
-                                </label>
-                              </div>
-                              <div className="col-md-3 form-check">
-                                <input
-                                  type="checkbox"
-                                  id="drugTest"
-                                  name="drugTest"
-                                  className="form-check-input"
-                                  checked={selectedEmployee.drugTest}
-                                  onChange={handleChange}
-                                />
-                                <label htmlFor="drugTest" className="form-check-label">
-                                  Drug Test
-                                </label>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Modal.Body>
-                      <Modal.Footer>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          onClick={handleCloseModal}
+                              <small className="text-muted">{emp.email || "No email"}</small>
+                            </td>
+                            <td>{getDepartmentName(emp.departmentID)}</td>
+                            <td>{getPositionName(emp.positionID)}</td>
+                            <td>{renderStatusBadge(emp.employee_status)}</td>
+                            <td>
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                className="me-2"
+                                onClick={() => handleViewDetailsClick(emp)}
+                              >
+                                <Eye className="me-1" /> View
+                              </Button>
+                              <Button variant="outline-warning" size="sm" onClick={() => handleEditClick(emp)}>
+                                <PencilSquare className="me-1" /> Edit
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center mt-3">
+                    <div className="text-muted">
+                      Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredEmployees.length)} of{" "}
+                      {filteredEmployees.length} entries
+                    </div>
+                    <Pagination>
+                      <Pagination.Prev onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} />
+                      {paginationItems}
+                      <Pagination.Next
+                        onClick={() => paginate(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                      />
+                    </Pagination>
+                  </div>
+                </>
+              )}
+            </Card.Body>
+          </Card>
+        </Container>
+      </main>
+
+      {/* Edit Employee Modal */}
+      <Modal
+        show={showEditModal}
+        onHide={() => setShowEditModal(false)}
+        size="lg"
+        backdrop="static"
+        aria-labelledby="edit-employee-modal"
+      >
+        <Modal.Header closeButton className="bg-light">
+          <Modal.Title id="edit-employee-modal">
+            Edit Employee: {selectedEmployee.fName} {selectedEmployee.lName}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-0">
+          <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-3 nav-tabs-custom">
+            <Tab eventKey="profile" title="Profile">
+              <div className="p-3">
+                <Row className="mb-4 align-items-center">
+                  <Col md={3} className="text-center">
+                    {/* Fix the image rendering in the edit modal */}
+                    <div className="position-relative photo-preview mb-2">
+                      {preview ? (
+                        <img
+                          src={preview || "https://avatar.iran.liara.run/public"}
+                          alt="Preview"
+                          className="rounded-circle img-thumbnail"
+                          style={{ width: "150px", height: "150px", objectFit: "cover" }}
+                          onError={(e) => {
+                            e.target.onerror = null
+                            e.target.src = "https://avatar.iran.liara.run/public"
+                          }}
+                        />
+                      ) : selectedEmployee.photo ? (
+                        <img
+                          src={
+                            typeof selectedEmployee.photo === "string"
+                              ? getImageUrl(selectedEmployee.photo)
+                              : null || "https://avatar.iran.liara.run/public"
+                          }
+                          alt="Employee"
+                          className="rounded-circle img-thumbnail"
+                          style={{ width: "150px", height: "150px", objectFit: "cover" }}
+                          onError={(e) => {
+                            e.target.onerror = null
+                            e.target.src = "https://avatar.iran.liara.run/public"
+                          }}
+                        />
+                      ) : (
+                        <div
+                          className="rounded-circle bg-light d-flex align-items-center justify-content-center"
+                          style={{ width: "150px", height: "150px" }}
                         >
-                          Close
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={handleUpdate}
-                        >
-                          Save Changes
-                        </button>
-                      </Modal.Footer>
-                    </Modal>
-                  )}
-                  {/* End of Edit Modal */}
-                  {showDetailsModal && (
-                    <div className="modal d-block" tabIndex={-1}>
-                      <div className="modal-dialog modal-lg">
-                        <div className="modal-content shadow-sm rounded">
-                          <div className="modal-header bg-primary text-white">
-                            <h5 className="modal-title">Employee Details</h5>
-                            <button
-                              type="button"
-                              className="btn-close btn-close-white"
-                              onClick={handleCloseDetailsModal}
-                            />
-                          </div>
-                          <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                            <h5 className="mb-3 border-bottom pb-2">Profile</h5>
-                            <div className="row g-3 mb-4">
-                              {/* Update the view modal photo section */}
-                              <div className="col-12 text-center mb-4">
-                                <div
-                                  className="position-relative d-inline-block overflow-hidden"
-                                  style={{
-                                    width: "200px", // Increased from 150px
-                                    height: "200px", // Increased from 150px
-                                    borderRadius: "50%", // Makes it circular
-                                  }}
-                                >
-                                  {selectedEmployee.photo ? (
-                                    <img
-                                      src={getImageUrl(selectedEmployee.photo)}
-                                      alt="Employee Photo"
-                                      style={{
-                                        width: "100%",
-                                        height: "100%",
-                                        objectFit: "cover",
-                                        borderRadius: "50%", // Makes image circular
-                                        border: "3px solid #fff", // Optional: adds a white border
-                                        boxShadow: "0 0 10px rgba(0,0,0,0.1)", // Optional: adds subtle shadow
-                                      }}
-                                      onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src =
-                                          "https://via.placeholder.com/200?text=No+Photo";
-                                      }}
-                                    />
-                                  ) : (
-                                    <div
-                                      className="d-flex align-items-center justify-content-center bg-light"
-                                      style={{
-                                        width: "200px", // Increased from 150px
-                                        height: "200px", // Increased from 150px
-                                        borderRadius: "50%", // Makes it circular
-                                        border: "3px solid #fff", // Optional: adds a white border
-                                        boxShadow: "0 0 10px rgba(0,0,0,0.1)", // Optional: adds subtle shadow
-                                      }}
-                                    >
-                                      <span className="text-muted">
-                                        No photo available
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  First Name
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.fName}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Middle Name
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.mName}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Last Name
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.lName}
-                                </p>
-                              </div>
-                              <div className="col-md-6">
-                                <label className="form-label fw-bold">
-                                  Birth Date
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {formatDateForDisplay(selectedEmployee.bDate)}
-                                </p>
-                              </div>
-                              <div className="col-md-6">
-                                <label className="form-label fw-bold">
-                                  Date Hired
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {formatDateForDisplay(
-                                    selectedEmployee.date_hired
-                                  )}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Position
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {getPositionName(selectedEmployee.positionID)}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Department
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {getDepartmentName(
-                                    selectedEmployee.departmentID
-                                  )}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Cluster
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {getClusterName(selectedEmployee.clusterID)}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Site
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {getSiteName(selectedEmployee.siteID)}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Employee Level
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {getEmployeeLevelName(
-                                    selectedEmployee.employee_level
-                                  )}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Account Status
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.employee_status}
-                                </p>
-                              </div>
-                              <div className="col-md-6">
-                                <label className="form-label fw-bold">Email</label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.email || "N/A"}
-                                </p>
-                              </div>
-                              <div className="col-md-6">
-                                <label className="form-label fw-bold">Phone</label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.phone || "N/A"}
-                                </p>
-                              </div>
-                            </div>
-
-                            <h5 className="mb-3 border-bottom pb-2">
-                              Government Mandatory
-                            </h5>
-                            <div className="row g-3 mb-4">
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Healthcare
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.healthcare}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  SSS
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.sss}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Pagibig
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.pagibig}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Philhealth
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.philhealth}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Tin
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.tin}
-                                </p>
-                              </div>
-                            </div>
-
-                            <h5 className="mb-3 border-bottom pb-2">
-                              Contacts
-                            </h5>
-                            <div className="row g-3">
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Address
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.address}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Emergency Person
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.emergency_contact_person}
-                                </p>
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label fw-bold">
-                                  Emergency Contact Number
-                                </label>
-                                <p className="mb-0 disabled-info">
-                                  {selectedEmployee.emergency_contact_number}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="mb-3 mt-4">
-                              <h5 className="mb-3 border-bottom pb-2">Pre Employment Requirements</h5>
-                              <div className="row g-3">
-                                <div className="col-md-4">
-                                  <label className="form-label fw-bold">
-                                    NBI:
-                                  </label>
-                                  <p className="mb-0 disabled-info">{selectedEmployee.nbi ? "Yes" : "No"}</p>
-                                </div>
-
-
-                                <div className="col-md-4">
-                                  <label className="form-label fw-bold">
-                                    Medical Certificate
-                                  </label>
-                                  <p className="mb-0 disabled-info">{selectedEmployee.medicalCert ? "Yes" : "No"}</p>
-                                </div>
-
-
-                                <div className="col-md-4">
-                                  <label className="form-label fw-bold">
-                                    X-Ray:
-                                  </label>
-                                  <p className="mb-0 disabled-info">{selectedEmployee.xray ? "Yes" : "No"}</p>
-                                </div>
-
-
-                                <div className="col-md-4">
-                                  <label className="form-label fw-bold">
-                                    Drug Test:
-                                  </label>
-                                  <p className="mb-0 disabled-info">{selectedEmployee.drugTest ? "Yes" : "No"}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="modal-footer">
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              onClick={handleCloseDetailsModal}
-                            >
-                              Close
-                            </button>
-                          </div>
+                          <PersonCircle size={80} className="text-secondary" />
                         </div>
-                      </div>
+                      )}
+                    </div>
+                    <Form.Group controlId="photo" className="mt-2">
+                      <Form.Label className="btn btn-sm btn-outline-primary">
+                        Change Photo
+                        <Form.Control
+                          type="file"
+                          name="file_uploaded"
+                          onChange={handleFileChange}
+                          className="d-none"
+                          accept="image/*"
+                        />
+                      </Form.Label>
+                    </Form.Group>
+                  </Col>
+                  <Col md={9}>
+                    <Row>
+                      <Col md={4}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>First Name</Form.Label>
+                          <Form.Control
+                            type="text"
+                            name="fName"
+                            value={selectedEmployee.fName || ""}
+                            onChange={handleChange}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Middle Name</Form.Label>
+                          <Form.Control
+                            type="text"
+                            name="mName"
+                            value={selectedEmployee.mName || ""}
+                            onChange={handleChange}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Last Name</Form.Label>
+                          <Form.Control
+                            type="text"
+                            name="lName"
+                            value={selectedEmployee.lName || ""}
+                            onChange={handleChange}
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Birth Date</Form.Label>
+                          <Form.Control
+                            type="date"
+                            name="bDate"
+                            value={formatDateForInput(selectedEmployee.bDate) || ""}
+                            onChange={handleChange}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Date Hired</Form.Label>
+                          <Form.Control
+                            type="date"
+                            name="date_hired"
+                            value={formatDateForInput(selectedEmployee.date_hired) || ""}
+                            onChange={handleChange}
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Position</Form.Label>
+                      <Form.Select name="positionID" value={selectedEmployee.positionID || ""} onChange={handleChange}>
+                        <option value="">Choose...</option>
+                        {dropdownData.positions.map((position) => (
+                          <option key={position.id} value={position.id}>
+                            {position.position}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Department</Form.Label>
+                      <Form.Select
+                        name="departmentID"
+                        value={selectedEmployee.departmentID || ""}
+                        onChange={handleChange}
+                      >
+                        <option value="">Choose...</option>
+                        {dropdownData.departments.map((department) => (
+                          <option key={department.id} value={department.id}>
+                            {department.departmentName}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Cluster</Form.Label>
+                      <Form.Select name="clusterID" value={selectedEmployee.clusterID || ""} onChange={handleChange}>
+                        <option value="">Choose...</option>
+                        {dropdownData.clusters.map((cluster) => (
+                          <option key={cluster.id} value={cluster.id}>
+                            {cluster.clusterName}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Site</Form.Label>
+                      <Form.Select name="siteID" value={selectedEmployee.siteID || ""} onChange={handleChange}>
+                        <option value="">Choose Site...</option>
+                        {dropdownData.sites.map((site) => (
+                          <option key={site.id} value={site.id}>
+                            {site.siteName}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Employee Level</Form.Label>
+                      <Form.Select
+                        name="employee_level"
+                        value={selectedEmployee.employee_level || ""}
+                        onChange={handleChange}
+                      >
+                        <option value="">Choose Level...</option>
+                        {dropdownData.employee_levels.map((level) => (
+                          <option key={level.id} value={level.id}>
+                            {level.e_level}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Account Status</Form.Label>
+                      <Form.Select
+                        name="employee_status"
+                        value={selectedEmployee.employee_status || ""}
+                        onChange={handleChange}
+                      >
+                        <option value="">Choose...</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Terminated">Terminated</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Basic Pay</Form.Label>
+                      <Form.Control
+                        type="number"
+                        name="basic_pay"
+                        value={selectedEmployee.basic_pay || ""}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Email</Form.Label>
+                      <Form.Control
+                        type="email"
+                        name="email"
+                        value={selectedEmployee.email || ""}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Phone</Form.Label>
+                      <Form.Control
+                        type="tel"
+                        name="phone"
+                        value={selectedEmployee.phone || ""}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </div>
+            </Tab>
+            <Tab eventKey="government" title="Government IDs">
+              <div className="p-3">
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Healthcare</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="healthcare"
+                        value={selectedEmployee.healthcare || ""}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>SSS</Form.Label>
+                      <Form.Control type="text" name="sss" value={selectedEmployee.sss || ""} onChange={handleChange} />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Pagibig</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="pagibig"
+                        value={selectedEmployee.pagibig || ""}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Philhealth</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="philhealth"
+                        value={selectedEmployee.philhealth || ""}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>TIN</Form.Label>
+                      <Form.Control type="text" name="tin" value={selectedEmployee.tin || ""} onChange={handleChange} />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </div>
+            </Tab>
+            <Tab eventKey="contact" title="Contact Information">
+              <div className="p-3">
+                <Row>
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Address</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="address"
+                        value={selectedEmployee.address || ""}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Emergency Contact Person</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="emergency_contact_person"
+                        value={selectedEmployee.emergency_contact_person || ""}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Emergency Contact Number</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="emergency_contact_number"
+                        value={selectedEmployee.emergency_contact_number || ""}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </div>
+            </Tab>
+            <Tab eventKey="requirements" title="Pre-Employment">
+              <div className="p-3">
+                <Card className="border-0 shadow-sm">
+                  <Card.Body>
+                    <Card.Title className="mb-3">Pre-Employment Requirements</Card.Title>
+                    <Row>
+                      <Col md={6}>
+                        <Form.Check
+                          type="switch"
+                          id="edit-nbi-switch"
+                          label="NBI Clearance"
+                          name="nbi_clearance"
+                          checked={selectedEmployee.nbi_clearance}
+                          onChange={handleChange}
+                          className="mb-3"
+                        />
+                        <Form.Check
+                          type="switch"
+                          id="edit-medical-switch"
+                          label="Medical Certificate"
+                          name="med_cert"
+                          checked={selectedEmployee.med_cert}
+                          onChange={handleChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                      <Col md={6}>
+                        <Form.Check
+                          type="switch"
+                          id="edit-xray-switch"
+                          label="X-Ray Results"
+                          name="xray"
+                          checked={selectedEmployee.xray}
+                          onChange={handleChange}
+                          className="mb-3"
+                        />
+                        <Form.Check
+                          type="switch"
+                          id="edit-drug-switch"
+                          label="Drug Test Results"
+                          name="drug_test"
+                          checked={selectedEmployee.drug_test}
+                          onChange={handleChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
+              </div>
+            </Tab>
+          </Tabs>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleUpdate} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-2" />
+                Saving...
+              </>
+            ) : (
+              "Save Changes"
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* View Employee Details Modal */}
+      <Modal
+        show={showDetailsModal}
+        onHide={() => setShowDetailsModal(false)}
+        size="lg"
+        aria-labelledby="view-employee-modal"
+      >
+        <Modal.Header closeButton className="bg-primary text-white">
+          <Modal.Title id="view-employee-modal">Employee Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-0">
+          <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-3 nav-tabs-custom">
+            <Tab eventKey="profile" title="Profile">
+              <div className="p-3">
+                {/* Fix the image rendering in the details modal */}
+                <div className="text-center mb-4">
+                  {selectedEmployee.photo ? (
+                    <img
+                      src={
+                        typeof selectedEmployee.photo === "string"
+                          ? getImageUrl(selectedEmployee.photo)
+                          : null || "https://avatar.iran.liara.run/public"
+                      }
+                      alt="Employee"
+                      className="rounded-circle img-thumbnail"
+                      style={{ width: "200px", height: "200px", objectFit: "cover" }}
+                      onError={(e) => {
+                        e.target.onerror = null
+                        e.target.src = "https://avatar.iran.liara.run/public"
+                      }}
+                    />
+                  ) : (
+                    <div
+                      className="mx-auto rounded-circle bg-light d-flex align-items-center justify-content-center"
+                      style={{ width: "200px", height: "200px" }}
+                    >
+                      <PersonCircle size={100} className="text-secondary" />
                     </div>
                   )}
+                  <h4 className="mt-3 mb-0">
+                    {selectedEmployee.fName} {selectedEmployee.mName} {selectedEmployee.lName}
+                  </h4>
+                  <p className="text-muted">{getPositionName(selectedEmployee.positionID)}</p>
+                  <div className="d-flex justify-content-center gap-2">
+                    {selectedEmployee.email && (
+                      <Badge bg="info" className="px-3 py-2">
+                        {selectedEmployee.email}
+                      </Badge>
+                    )}
+                    {selectedEmployee.phone && (
+                      <Badge bg="secondary" className="px-3 py-2">
+                        {selectedEmployee.phone}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
+
+                <Row className="mt-4">
+                  <Col md={6}>
+                    <Card className="mb-3">
+                      <Card.Header className="bg-light">
+                        <h6 className="mb-0">Personal Information</h6>
+                      </Card.Header>
+                      <Card.Body>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Employee ID:
+                          </Col>
+                          <Col xs={7} className="fw-bold">
+                            {selectedEmployee.emp_ID}
+                          </Col>
+                        </Row>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Birth Date:
+                          </Col>
+                          <Col xs={7}>{formatDateForDisplay(selectedEmployee.bDate)}</Col>
+                        </Row>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Date Hired:
+                          </Col>
+                          <Col xs={7}>{formatDateForDisplay(selectedEmployee.date_hired)}</Col>
+                        </Row>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Status:
+                          </Col>
+                          <Col xs={7}>{renderStatusBadge(selectedEmployee.employee_status)}</Col>
+                        </Row>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                  <Col md={6}>
+                    <Card className="mb-3">
+                      <Card.Header className="bg-light">
+                        <h6 className="mb-0">Work Information</h6>
+                      </Card.Header>
+                      <Card.Body>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Department:
+                          </Col>
+                          <Col xs={7}>{getDepartmentName(selectedEmployee.departmentID)}</Col>
+                        </Row>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Cluster:
+                          </Col>
+                          <Col xs={7}>{getClusterName(selectedEmployee.clusterID)}</Col>
+                        </Row>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Site:
+                          </Col>
+                          <Col xs={7}>{getSiteName(selectedEmployee.siteID)}</Col>
+                        </Row>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Level:
+                          </Col>
+                          <Col xs={7}>{getEmployeeLevelName(selectedEmployee.employee_level)}</Col>
+                        </Row>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                </Row>
               </div>
-            </div>
-          </div>
-        </section>
-      </main>
+            </Tab>
+            <Tab eventKey="government" title="Government IDs">
+              <div className="p-3">
+                <Card>
+                  <Card.Body>
+                    <Row>
+                      <Col md={6}>
+                        <Row className="mb-3">
+                          <Col xs={5} className="text-muted">
+                            Healthcare:
+                          </Col>
+                          <Col xs={7}>{selectedEmployee.healthcare || "N/A"}</Col>
+                        </Row>
+                        <Row className="mb-3">
+                          <Col xs={5} className="text-muted">
+                            SSS:
+                          </Col>
+                          <Col xs={7}>{selectedEmployee.sss || "N/A"}</Col>
+                        </Row>
+                        <Row className="mb-3">
+                          <Col xs={5} className="text-muted">
+                            Pagibig:
+                          </Col>
+                          <Col xs={7}>{selectedEmployee.pagibig || "N/A"}</Col>
+                        </Row>
+                      </Col>
+                      <Col md={6}>
+                        <Row className="mb-3">
+                          <Col xs={5} className="text-muted">
+                            Philhealth:
+                          </Col>
+                          <Col xs={7}>{selectedEmployee.philhealth || "N/A"}</Col>
+                        </Row>
+                        <Row className="mb-3">
+                          <Col xs={5} className="text-muted">
+                            TIN:
+                          </Col>
+                          <Col xs={7}>{selectedEmployee.tin || "N/A"}</Col>
+                        </Row>
+                      </Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
+              </div>
+            </Tab>
+            <Tab eventKey="contact" title="Contact Information">
+              <div className="p-3">
+                <Card>
+                  <Card.Body>
+                    <Row className="mb-3">
+                      <Col xs={4} className="text-muted">
+                        Address:
+                      </Col>
+                      <Col xs={8}>{selectedEmployee.address || "N/A"}</Col>
+                    </Row>
+                    <Row className="mb-3">
+                      <Col xs={4} className="text-muted">
+                        Emergency Contact:
+                      </Col>
+                      <Col xs={8}>{selectedEmployee.emergency_contact_person || "N/A"}</Col>
+                    </Row>
+                    <Row className="mb-3">
+                      <Col xs={4} className="text-muted">
+                        Emergency Number:
+                      </Col>
+                      <Col xs={8}>{selectedEmployee.emergency_contact_number || "N/A"}</Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
+              </div>
+            </Tab>
+            <Tab eventKey="requirements" title="Pre-Employment">
+              <div className="p-3">
+                <Card>
+                  <Card.Body>
+                    <h5 className="mb-4">Pre-Employment Requirements</h5>
+                    <Row>
+                      <Col md={6}>
+                        <div className="d-flex align-items-center mb-3">
+                          {selectedEmployee.nbi_clearance ? (
+                            <FileEarmarkCheck className="text-success me-2" size={24} />
+                          ) : (
+                            <FileEarmarkX className="text-danger me-2" size={24} />
+                          )}
+                          <span>NBI Clearance</span>
+                        </div>
+                        <div className="d-flex align-items-center mb-3">
+                          {selectedEmployee.med_cert ? (
+                            <FileEarmarkCheck className="text-success me-2" size={24} />
+                          ) : (
+                            <FileEarmarkX className="text-danger me-2" size={24} />
+                          )}
+                          <span>Medical Certificate</span>
+                        </div>
+                      </Col>
+                      <Col md={6}>
+                        <div className="d-flex align-items-center mb-3">
+                          {selectedEmployee.xray ? (
+                            <FileEarmarkCheck className="text-success me-2" size={24} />
+                          ) : (
+                            <FileEarmarkX className="text-danger me-2" size={24} />
+                          )}
+                          <span>X-Ray Results</span>
+                        </div>
+                        <div className="d-flex align-items-center mb-3">
+                          {selectedEmployee.drug_test ? (
+                            <FileEarmarkCheck className="text-success me-2" size={24} />
+                          ) : (
+                            <FileEarmarkX className="text-danger me-2" size={24} />
+                          )}
+                          <span>Drug Test Results</span>
+                        </div>
+                      </Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
+              </div>
+            </Tab>
+          </Tabs>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDetailsModal(false)}>
+            Close
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setShowDetailsModal(false)
+              handleEditClick(selectedEmployee)
+            }}
+          >
+            Edit Employee
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
-  );
+  )
 }
 
-export default ViewEmployee;
+export default ViewEmployee
