@@ -44,6 +44,8 @@ import Accounts from "./pages/Accounts";
 import CoachingRecords from "./pages/CoachingRecords";
 import MyPerformance from "./pages/Employee Page/MyPerformance";
 import TimeAdjustment from "./pages/Employee Page/TimeAdjustment";
+import EndOfTheDay from "./pages/Employee Page/EndOfTheDay";
+import ApproveTimeAdjustment from "./pages/ApproveTimeAdjustment";
 
 function App() {
   return (
@@ -78,6 +80,7 @@ function App() {
         <Route path="/approvals/bonus" element={<ApproveBonus />} />
         <Route path="/settings/accounts" element={<Accounts />} />
         <Route path="/coaching-records" element={<CoachingRecords />} />
+        <Route path="/approvals/time-adjustment" element={<ApproveTimeAdjustment />} />
       </Route>
 
       {/* Employee Routes */}
@@ -89,6 +92,7 @@ function App() {
         <Route path="/employee_leave_request" element={<LeaveRequest />} />
         <Route path="/employee_my_performance" element={<MyPerformance />} />
         <Route path="/employee_time_adjustment" element={<TimeAdjustment />} />
+        <Route path="/employee_end_of_the_day" element={<EndOfTheDay />} />
       </Route>
 
       <Route element={<SupervisorProtectedLayout />}>
