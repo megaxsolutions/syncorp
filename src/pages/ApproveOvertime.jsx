@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import config from "../config";
 import moment from "moment";
@@ -27,6 +27,7 @@ const ApproveOvertime = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [refreshKey, setRefreshKey] = useState(0); // Add refresh key
+  const filterDropdownRef = useRef(null);
 
   // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -164,6 +165,22 @@ const ApproveOvertime = () => {
 
     initializeData();
   }, [refreshKey]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target) && showFilters) {
+        setShowFilters(false);
+      }
+    }
+
+    // Attach the event listener
+    document.addEventListener("mousedown", handleClickOutside);
+
+    // Clean up
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [filterDropdownRef, showFilters]);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -559,8 +576,7 @@ const ApproveOvertime = () => {
                 </div>
                 <div className="col-md-6">
                   <div className="d-flex gap-2 justify-content-md-end">
-                    {/* Filter dropdown button and panel */}
-                    <div className="dropdown">
+                    <div className="dropdown position-relative" ref={filterDropdownRef}>
                       <button
                         className={`btn ${(selectedEmployee || dateRange.startDate || dateRange.endDate || statusFilter) ? 'btn-primary' : 'btn-outline-secondary'} btn-sm dropdown-toggle d-flex align-items-center`}
                         type="button"
@@ -571,82 +587,95 @@ const ApproveOvertime = () => {
                           <span className="badge bg-light text-dark ms-2">Active</span>
                         )}
                       </button>
-                      <div className={`dropdown-menu shadow p-3 ${showFilters ? 'show' : ''}`}
-                        style={{ width: '320px', right: 0, left: 'auto' }}>
-                        <h6 className="dropdown-header d-flex align-items-center">
-                          <FaFilter className="me-2" /> Filter Options
-                        </h6>
-                        <div className="mb-3">
-                          <label className="form-label d-flex align-items-center">
-                            <FaSearch className="me-2 text-muted" /> Employee
-                          </label>
-                          <Select
-                            className="basic-single"
-                            classNamePrefix="react-select"
-                            placeholder="Search by name or ID"
-                            isClearable={true}
-                            isSearchable={true}
-                            name="employee"
-                            options={employeeOptions}
-                            onChange={(selectedOption) => {
-                              setSelectedEmployee(selectedOption ? selectedOption.value : '');
-                            }}
-                            value={employeeOptions.find(option => option.value === selectedEmployee) || null}
-                          />
-                        </div>
-                        <div className="mb-3">
-                          <label className="form-label d-flex align-items-center">
-                            <FaCalendarAlt className="me-2 text-muted" /> Date Range
-                          </label>
-                          <div className="input-group input-group-sm">
-                            <span className="input-group-text">From</span>
-                            <input
-                              type="date"
-                              className="form-control"
-                              value={dateRange.startDate}
-                              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+
+                      {showFilters && (
+                        <div
+                          className="shadow p-3 bg-white rounded border"
+                          style={{
+                            width: "320px",
+                            position: "absolute",
+                            right: 0,
+                            top: "calc(100% + 5px)",
+                            zIndex: 1050,
+                            maxHeight: "80vh",
+                            overflowY: "auto"
+                          }}
+                        >
+                          <h6 className="dropdown-header d-flex align-items-center px-0">
+                            <FaFilter className="me-2" /> Filter Options
+                          </h6>
+                          <div className="mb-3">
+                            <label className="form-label d-flex align-items-center">
+                              <FaSearch className="me-2 text-muted" /> Employee
+                            </label>
+                            <Select
+                              className="basic-single"
+                              classNamePrefix="react-select"
+                              placeholder="Search by name or ID"
+                              isClearable={true}
+                              isSearchable={true}
+                              name="employee"
+                              options={employeeOptions}
+                              onChange={(selectedOption) => {
+                                setSelectedEmployee(selectedOption ? selectedOption.value : '');
+                              }}
+                              value={employeeOptions.find(option => option.value === selectedEmployee) || null}
                             />
                           </div>
-                          <div className="input-group input-group-sm mt-2">
-                            <span className="input-group-text">To</span>
-                            <input
-                              type="date"
-                              className="form-control"
-                              value={dateRange.endDate}
-                              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                            />
+                          <div className="mb-3">
+                            <label className="form-label d-flex align-items-center">
+                              <FaCalendarAlt className="me-2 text-muted" /> Date Range
+                            </label>
+                            <div className="input-group input-group-sm">
+                              <span className="input-group-text">From</span>
+                              <input
+                                type="date"
+                                className="form-control"
+                                value={dateRange.startDate}
+                                onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                              />
+                            </div>
+                            <div className="input-group input-group-sm mt-2">
+                              <span className="input-group-text">To</span>
+                              <input
+                                type="date"
+                                className="form-control"
+                                value={dateRange.endDate}
+                                onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                          <div className="mb-3">
+                            <label className="form-label d-flex align-items-center">
+                              <FaTasks className="me-2 text-muted" /> Status
+                            </label>
+                            <select
+                              className="form-select form-select-sm"
+                              value={statusFilter}
+                              onChange={(e) => setStatusFilter(e.target.value)}
+                            >
+                              <option value="">All Statuses</option>
+                              <option value="pending">Pending Final Approval</option>
+                              <option value="approved">Finally Approved</option>
+                              <option value="rejected">Finally Rejected</option>
+                            </select>
+                          </div>
+                          <div className="d-flex gap-2">
+                            <button
+                              className="btn btn-primary btn-sm w-50"
+                              onClick={handleSearch}
+                            >
+                              <i className="bi bi-search me-1"></i> Apply Filters
+                            </button>
+                            <button
+                              className="btn btn-secondary btn-sm w-50"
+                              onClick={handleReset}
+                            >
+                              <i className="bi bi-x-circle me-1"></i> Reset
+                            </button>
                           </div>
                         </div>
-                        <div className="mb-3">
-                          <label className="form-label d-flex align-items-center">
-                            <FaTasks className="me-2 text-muted" /> Status
-                          </label>
-                          <select
-                            className="form-select form-select-sm"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                          >
-                            <option value="">All Statuses</option>
-                            <option value="pending">Pending Final Approval</option>
-                            <option value="approved">Finally Approved</option>
-                            <option value="rejected">Finally Rejected</option>
-                          </select>
-                        </div>
-                        <div className="d-flex gap-2">
-                          <button
-                            className="btn btn-primary btn-sm w-50"
-                            onClick={handleSearch}
-                          >
-                            <i className="bi bi-search me-1"></i> Apply Filters
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-sm w-50"
-                            onClick={handleReset}
-                          >
-                            <i className="bi bi-x-circle me-1"></i> Reset
-                          </button>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>

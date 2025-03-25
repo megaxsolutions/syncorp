@@ -250,17 +250,20 @@ const OvertimeRequest = () => {
         <Toaster richColors position="bottom-center" />
 
         <div className="container-fluid">
-          <div className="pagetitle mb-4">
-            <h1>Overtime Request</h1>
-            <nav>
-              <ol className="breadcrumb">
-                <li className="breadcrumb-item">
-                  <a href="/employee_dashboard">Home</a>
-                </li>
-                <li className="breadcrumb-item active">Overtime Request</li>
-              </ol>
-            </nav>
+          <div className="d-sm-flex align-items-center justify-content-between mb-3">
+            <h1 className="h3 mb-0 text-gray-800">
+              <i className="bi bi-clock-history me-2 text-primary"></i> Overtime Request
+            </h1>
           </div>
+
+          <nav className="mb-4">
+            <ol className="breadcrumb">
+              <li className="breadcrumb-item">
+                <a href="/employee_dashboard">Home</a>
+              </li>
+              <li className="breadcrumb-item active">Overtime Request</li>
+            </ol>
+          </nav>
 
           <div className="row g-4">
             <div className="col-12 col-md-5 order-md-1">

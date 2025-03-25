@@ -164,17 +164,20 @@ const MyPerformance = () => {
       <main id="main" className="main">
         <Toaster richColors position="bottom-center" />
         <div className="container-fluid" id="pagetitle">
-          <div className="pagetitle">
-            <h1>My Performance</h1>
-            <nav>
-              <ol className="breadcrumb">
-                <li className="breadcrumb-item">
-                  <a href="/employee_dashboard">Home</a>
-                </li>
-                <li className="breadcrumb-item active">My Performance</li>
-              </ol>
-            </nav>
+          <div className="d-sm-flex align-items-center justify-content-between mb-3">
+            <h1 className="h3 mb-0 text-gray-800">
+              <i className="bi bi-graph-up text-primary me-2"></i> My Performance
+            </h1>
           </div>
+
+          <nav className="mb-4">
+            <ol className="breadcrumb">
+              <li className="breadcrumb-item">
+                <a href="/employee_dashboard">Home</a>
+              </li>
+              <li className="breadcrumb-item active">My Performance</li>
+            </ol>
+          </nav>
 
           <div className="card shadow-sm mt-4">
             <div className="card-body">

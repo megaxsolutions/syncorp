@@ -409,17 +409,20 @@ const LeaveRequest = () => {
         <Toaster richColors position="bottom-center" />
 
         <div className="container-fluid" id="pagetitle">
-          <div className="pagetitle">
-            <h1><i className="bi bi-calendar-check me-2"></i>Leave Request</h1>
-            <nav>
-              <ol className="breadcrumb">
-                <li className="breadcrumb-item">
-                  <a href="/employee_dashboard">Home</a>
-                </li>
-                <li className="breadcrumb-item active">Leave Request</li>
-              </ol>
-            </nav>
+          <div className="d-sm-flex align-items-center justify-content-between mb-3">
+            <h1 className="h3 mb-0 text-gray-800">
+              <i className="bi bi-calendar-check me-2 text-primary"></i> Leave Request
+            </h1>
           </div>
+
+          <nav className="mb-4">
+            <ol className="breadcrumb">
+              <li className="breadcrumb-item">
+                <a href="/employee_dashboard">Home</a>
+              </li>
+              <li className="breadcrumb-item active">Leave Request</li>
+            </ol>
+          </nav>
 
           <div className="row">
             {/* Leave Request Form - Improved UI/UX */}

@@ -190,6 +190,17 @@ const Sidebar = () => {
                 <span>Overtime Request</span>
               </Link>
               <Link
+                to="/approvals/time-adjustment"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/approvals/time-adjustment") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i
+                  className={`bi bi-calendar-plus me-2 ${isActive("/approvals/time-adjustment") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>Time Adjustment</span>
+              </Link>
+              <Link
                 to="/approvals/bonus"
                 className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
                   isActive("/approvals/bonus") ? "bg-primary text-white" : "text-dark hover-bg-light"
