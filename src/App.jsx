@@ -46,6 +46,8 @@ import MyPerformance from "./pages/Employee Page/MyPerformance";
 import TimeAdjustment from "./pages/Employee Page/TimeAdjustment";
 import EndOfTheDay from "./pages/Employee Page/EndOfTheDay";
 import ApproveTimeAdjustment from "./pages/ApproveTimeAdjustment";
+import LiveAttendance from "./pages/Supervisor/LiveAttendance";
+
 
 function App() {
   return (
@@ -103,6 +105,7 @@ function App() {
         <Route path="/supervisor_schedule" element={<SupervisorSchedule />} />
         <Route path="/supervisor_coaching" element={<Coaching />} />
         <Route path="/supervisor_bonus" element={<Bonus />} />
+        <Route path="/supervisor_live_attendance" element={<LiveAttendance />} />
       </Route>
 
       {/* 404 Page */}

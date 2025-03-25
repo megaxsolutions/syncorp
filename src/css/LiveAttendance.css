@@ -1,0 +1,38 @@
+ .spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .pulse-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #28a745;
+    border-radius: 50%;
+    opacity: 0.6;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(0.8); opacity: 0.6; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.8); opacity: 0.6; }
+  }
+
+  /* Add smooth transitions for table rows */
+  .table-hover tbody tr {
+    transition: background-color 0.3s ease;
+  }
+
+  /* Fade transitions for the table */
+  .table-responsive {
+    transition: opacity 0.2s ease-in-out;
+  }
+
+  /* Smooth transitions for badges */
+  .badge {
+    transition: background-color 0.3s ease;
+  }
