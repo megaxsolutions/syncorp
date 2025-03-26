@@ -15,30 +15,32 @@ const SupervisorSidebar = () => {
   const isActive = (path) => location.pathname === path;
 
   // Group navigation items for better organization
-  const navItems = [
-    {
-      category: "Main",
-      items: [
-        { path: "/supervisor_dashboard", icon: "bi-grid", label: "Dashboard" }
-      ]
-    },
-    {
-      category: "Team Management",
-      items: [
-        { path: "/supervisor_attendance", icon: "bi-calendar-check", label: "Attendance" },
-        { path: "/supervisor_leave_request", icon: "bi-arrow-right-square", label: "Leave Request" },
-        { path: "/supervisor_overtime_request", icon: "bi-clock-history", label: "Overtime Request" },
-        { path: "/supervisor_schedule", icon: "bi-calendar2-week", label: "Schedule" }
-      ]
-    },
-    {
-      category: "Performance",
-      items: [
-        { path: "/supervisor_coaching", icon: "bi-person-workspace", label: "Coaching" },
-        { path: "/supervisor_bonus", icon: "bi-cash-coin", label: "Bonus" }
-      ]
-    }
-  ];
+// Group navigation items for better organization
+const navItems = [
+  {
+    category: "Main",
+    items: [
+      { path: "/supervisor_dashboard", icon: "bi-grid", label: "Dashboard" }
+    ]
+  },
+  {
+    category: "Team Management",
+    items: [
+      { path: "/supervisor_attendance", icon: "bi-calendar-check", label: "Attendance" },
+      { path: "/supervisor_live_attendance", icon: "bi-broadcast", label: "Live Attendance" },
+      { path: "/supervisor_leave_request", icon: "bi-arrow-right-square", label: "Leave Request" },
+      { path: "/supervisor_overtime_request", icon: "bi-clock-history", label: "Overtime Request" },
+      { path: "/supervisor_schedule", icon: "bi-calendar2-week", label: "Schedule" }
+    ]
+  },
+  {
+    category: "Performance",
+    items: [
+      { path: "/supervisor_coaching", icon: "bi-person-workspace", label: "Coaching" },
+      { path: "/supervisor_bonus", icon: "bi-cash-coin", label: "Bonus" }
+    ]
+  }
+];
 
   const [dateTime, setDateTime] = useState(
     moment().tz("Asia/Manila").format("ddd").substring(0, 4).toUpperCase() +

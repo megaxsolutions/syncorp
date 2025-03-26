@@ -35,7 +35,7 @@ const MyPerformance = () => {
       console.log("Fetching coaching records...");
 
       const response = await axios.get(
-        `${config.API_BASE_URL}/coachings/get_employee_coaching_records/${emp_id}`,
+        `${config.API_BASE_URL}/coaching/get_all_user_coaching/${emp_id}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -44,15 +44,38 @@ const MyPerformance = () => {
         }
       );
 
-      // Sort by date (latest first) and format dates
+      console.log("API Response:", response.data);
+
+      // Map coaching types to text
+      const getCoachingTypeText = (typeId) => {
+        switch(typeId) {
+          case 1: return 'Praise';
+          case 2: return 'Improvement';
+          case 3: return 'Disciplinary';
+          default: return 'Other';
+        }
+      };
+
+      // Format data from the backend structure
       const sortedData = (response.data.data || [])
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .sort((a, b) => new Date(b.date_coached) - new Date(a.date_coached))
         .map(record => ({
-          ...record,
-          date: new Date(record.date).toLocaleDateString(),
-          formattedCreatedAt: new Date(record.createdAt).toLocaleDateString(),
+          id: record.id,
+          emp_ID: record.emp_ID,
+          coachingType: getCoachingTypeText(record.coaching_type),
+          date: new Date(record.date_coached).toLocaleDateString(),
+          subject: `Performance Review`,
+          reviewerName: `Coach ID: ${record.coached_by}`,
+          acknowledged: record.acknowledge_datetime !== null,
+          acknowledgedDate: record.acknowledge_datetime,
+          description: record.metrix_1,
+          feedback: record.metrix_2,
+          actionPlan: record.metrix_3,
+          additionalNotes: record.metrix_4,
+          metrix_5: record.metrix_5
         }));
 
+      console.log("Processed Records:", sortedData);
       setCoachingRecords(sortedData);
       setFilteredRecords(sortedData);
     } catch (error) {
@@ -90,11 +113,13 @@ const MyPerformance = () => {
   };
 
   // Handle acknowledging a coaching record
-  const handleAcknowledge = async (recordId) => {
+  const handleAcknowledge = async (coachingId) => {
     try {
+      console.log(`Acknowledging record ID: ${coachingId}`);
+
       await axios.put(
-        `${config.API_BASE_URL}/coaching/acknowledge_coaching/${recordId}`,
-        { acknowledged: true },
+        `${config.API_BASE_URL}/coaching/update_coaching_acknowledgement/${emp_id}/${coachingId}`,
+        {},
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -319,7 +344,7 @@ const MyPerformance = () => {
                               {!record.acknowledged && (
                                 <button
                                   className="btn btn-sm btn-success"
-                                  onClick={() => handleAcknowledge(record._id)}
+                                  onClick={() => handleAcknowledge(record.id)}
                                 >
                                   <i className="bi bi-check-circle me-1"></i> Acknowledge
                                 </button>
@@ -432,7 +457,7 @@ const MyPerformance = () => {
                   type="button"
                   className="btn btn-success"
                   onClick={() => {
-                    handleAcknowledge(selectedRecord._id);
+                    handleAcknowledge(selectedRecord.id);
                     setShowDetailsModal(false);
                   }}
                 >

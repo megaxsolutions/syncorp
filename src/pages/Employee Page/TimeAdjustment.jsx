@@ -25,53 +25,7 @@ const TimeAdjustment = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [submissions, setSubmissions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Mock data for time adjustment requests
-  const mockTimeAdjustments = [
-    {
-      id: 1,
-      date: "2025-03-24",
-      time_in: "08:30",
-      time_out: "17:30",
-      reason: "Forgot to time in due to urgent client call in the morning. Stayed late to complete project deliverables.",
-      status: "Pending",
-      created_at: "2025-03-24T18:30:00",
-    },
-    {
-      id: 2,
-      date: "2025-03-20",
-      time_in: "09:00",
-      time_out: "18:00",
-      reason: "System was down during time in. Had to work on an urgent bug fix after regular hours.",
-      status: "Approved",
-      created_at: "2025-03-20T18:15:00",
-      approved_at: "2025-03-21T10:25:00",
-      approved_by: "John Manager"
-    },
-    {
-      id: 3,
-      date: "2025-03-15",
-      time_in: "08:45",
-      time_out: "17:45",
-      reason: "Internet outage prevented me from logging in on time. Completed work tasks from home after hours.",
-      status: "Rejected",
-      created_at: "2025-03-15T17:45:00",
-      rejected_at: "2025-03-16T09:30:00",
-      rejected_by: "Sarah Supervisor",
-      rejection_reason: "Insufficient evidence provided for system unavailability."
-    },
-    {
-      id: 4,
-      date: "2025-03-10",
-      time_in: "09:15",
-      time_out: "18:15",
-      reason: "Late arrival due to heavy traffic and road accident. Worked additional hour to complete daily tasks.",
-      status: "Approved",
-      created_at: "2025-03-10T18:20:00",
-      approved_at: "2025-03-11T11:05:00",
-      approved_by: "John Manager"
-    }
-  ];
+  const emp_id = localStorage.getItem("X-EMP-ID");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -111,43 +65,90 @@ const TimeAdjustment = () => {
 
     setIsSubmitting(true);
     try {
-      // Simulate successful API call
-      setTimeout(() => {
-        // Create a new mock request based on form data
-        const newRequest = {
-          id: Math.floor(Math.random() * 1000) + 10, // Generate random ID
-          ...formData,
-          status: "Pending",
-          created_at: new Date().toISOString(),
-        };
+      // First, get all user attendance records
+      const attendanceResponse = await axios.get(
+        `${config.API_BASE_URL}/attendances/get_all_user_attendance/${emp_id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
 
-        // Add to beginning of submissions array
-        setSubmissions([newRequest, ...submissions]);
+      console.log("Attendance data:", attendanceResponse.data);
 
+      // Find the attendance record for the selected date
+      const selectedDate = formData.date;
+      const attendanceRecord = attendanceResponse.data.data.find(record => {
+        // Check if the date in the record matches the selected date
+        // You might need to adjust this comparison based on your date format
+        return record.date && record.date.split('T')[0] === selectedDate;
+      });
+
+      if (!attendanceRecord || !attendanceRecord.id) {
         Swal.fire({
-          icon: "success",
-          title: "Success!",
-          text: "Your time adjustment request has been submitted successfully.",
+          icon: "error",
+          title: "No Attendance Record",
+          text: "No attendance record found for the selected date. You can only adjust existing attendance records.",
         });
-
-        // Reset form
-        setFormData({
-          date: moment().format("YYYY-MM-DD"),
-          time_in: "",
-          time_out: "",
-          reason: ""
-        });
-
         setIsSubmitting(false);
-      }, 1000); // Simulate API delay
+        return;
+      }
 
+      // Now create the adjustment using the attendance ID
+      const response = await axios.post(
+        `${config.API_BASE_URL}/adjustments/add_adjustment/${attendanceRecord.id}`,
+        {
+          time_in: formData.time_in,
+          time_out: formData.time_out,
+          emp_id: emp_id,
+          reason: formData.reason
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
+
+      console.log("Adjustment response:", response);
+
+      Swal.fire({
+        icon: "success",
+        title: "Success!",
+        text: "Your time adjustment request has been submitted successfully.",
+      });
+
+      // Reset form
+      setFormData({
+        date: moment().format("YYYY-MM-DD"),
+        time_in: "",
+        time_out: "",
+        reason: ""
+      });
+
+      // Refresh the list of adjustments
+      fetchTimeAdjustments();
     } catch (error) {
       console.error("Error submitting time adjustment:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Submission Failed",
-        text: error.response?.data?.message || "An error occurred while submitting your request.",
-      });
+
+      // Show more specific error message based on error response
+      if (error.response?.status === 400 && error.response?.data?.error === 'Adjustment already exist.') {
+        Swal.fire({
+          icon: "warning",
+          title: "Already Requested",
+          text: "You've already submitted an adjustment request for this date."
+        });
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Submission Failed",
+          text: error.response?.data?.error || "An error occurred while submitting your request."
+        });
+      }
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -156,15 +157,68 @@ const TimeAdjustment = () => {
   const fetchTimeAdjustments = async () => {
     setIsLoading(true);
     try {
-      // Use mock data instead
-      setTimeout(() => {
-        setSubmissions(mockTimeAdjustments);
-        setIsLoading(false);
-      }, 800); // Simulate API delay
+      // Fix the endpoint - it should be 'adjustment' not 'adjustments'
+      const response = await axios.get(
+        `${config.API_BASE_URL}/adjustments/get_all_user_adjustment/${emp_id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
 
+      console.log("Adjustment data:", response.data);
+
+      // Process and format the data
+      const formattedData = (response.data.data || []).map(adjustment => ({
+        id: adjustment.id,
+        emp_ID: adjustment.emp_ID,
+        date: adjustment.date,
+        time_in: adjustment.timein || adjustment.time_in, // Handle both field names
+        time_out: adjustment.timeout || adjustment.time_out, // Handle both field names
+        reason: adjustment.reason,
+        status: mapStatusCode(adjustment.status), // Convert numeric status to string
+        created_at: adjustment.created_at,
+        approved_at: adjustment.approved_at,
+        approved_by: adjustment.approved_by,
+        rejected_at: adjustment.rejected_at,
+        rejected_by: adjustment.rejected_by,
+        rejection_reason: adjustment.rejection_reason,
+        attendance_id: adjustment.attendance_id
+      }));
+
+      // Sort by created date (newest first)
+      formattedData.sort((a, b) => {
+        // Handle potentially missing created_at dates
+        const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+        const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+        return dateB - dateA;
+      });
+
+      setSubmissions(formattedData);
     } catch (error) {
       console.error("Error fetching time adjustments:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load time adjustment records",
+      });
+    } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Map numeric status codes to string values
+  const mapStatusCode = (statusCode) => {
+    switch (statusCode) {
+      case 1:
+        return 'Approved';
+      case 2:
+        return 'Rejected';
+      case 0:
+      default:
+        return 'Pending';
     }
   };
 
@@ -176,14 +230,14 @@ const TimeAdjustment = () => {
 
       if (request.status === 'Approved') {
         statusDetails = `<div class="alert alert-success mt-3">
-          <strong>Approved by:</strong> ${request.approved_by}<br>
-          <strong>Approved on:</strong> ${moment(request.approved_at).format("MMM DD, YYYY h:mm A")}
+          <strong>Approved by:</strong> ${request.approved_by || 'Manager'}<br>
+          <strong>Approved on:</strong> ${request.approved_at ? moment(request.approved_at).format("MMM DD, YYYY h:mm A") : 'N/A'}
         </div>`;
       } else if (request.status === 'Rejected') {
         statusDetails = `<div class="alert alert-danger mt-3">
-          <strong>Rejected by:</strong> ${request.rejected_by}<br>
-          <strong>Rejected on:</strong> ${moment(request.rejected_at).format("MMM DD, YYYY h:mm A")}<br>
-          <strong>Reason:</strong> ${request.rejection_reason}
+          <strong>Rejected by:</strong> ${request.rejected_by || 'Manager'}<br>
+          <strong>Rejected on:</strong> ${request.rejected_at ? moment(request.rejected_at).format("MMM DD, YYYY h:mm A") : 'N/A'}<br>
+          <strong>Reason:</strong> ${request.rejection_reason || 'No reason provided'}
         </div>`;
       }
 
@@ -208,19 +262,19 @@ const TimeAdjustment = () => {
             <div class="row mb-3">
               <div class="col-6">
                 <strong>Time In:</strong><br>
-                ${request.time_in}
+                ${request.time_in || 'N/A'}
               </div>
               <div class="col-6">
                 <strong>Time Out:</strong><br>
-                ${request.time_out}
+                ${request.time_out || 'N/A'}
               </div>
             </div>
 
             <strong>Reason:</strong>
-            <p>${request.reason}</p>
+            <p>${request.reason || 'No reason provided'}</p>
 
             <div class="text-muted small">
-              Submitted on: ${moment(request.created_at).format("MMM DD, YYYY h:mm A")}
+              Submitted on: ${request.created_at ? moment(request.created_at).format("MMM DD, YYYY h:mm A") : 'N/A'}
             </div>
 
             ${statusDetails}
