@@ -113,18 +113,42 @@ const ApproveLeaveRequest = () => {
           leave_request_id: record.id,
           date: moment(record.date).format('YYYY-MM-DD'),
           date_approved: record.date_approved ? moment(record.date_approved).format('YYYY-MM-DD') : '-',
+          date_approved_by2: record.date_approved_by2 ? moment(record.date_approved_by2).format('YYYY-MM-DD') : null,
           fullName: employees[record.emp_ID] || `${record.fName || ''} ${record.mName ? record.mName + ' ' : ''}${record.lName || ''}`.trim(),
           status2: record.status2 // Ensure status2 is mapped correctly
         }));
 
         console.log("Formatted leave requests:", formattedData);
 
+        // Enhanced sorting logic
+        const sortedData = formattedData.sort((a, b) => {
+          // First priority: sort by pending status (pending items first)
+          if (!a.status2 && b.status2) return -1;
+          if (a.status2 && !b.status2) return 1;
+
+          // If both are pending, sort by submission date (newest first)
+          if (!a.status2 && !b.status2) {
+            return moment(b.date).valueOf() - moment(a.date).valueOf();
+          }
+
+          // If both are decided (approved/rejected), sort by decision date (newest first)
+          if (a.status2 && b.status2) {
+            // First check if date_approved_by2 exists (final approval date)
+            const aDate = a.date_approved_by2 ? moment(a.date_approved_by2) : moment(a.date);
+            const bDate = b.date_approved_by2 ? moment(b.date_approved_by2) : moment(b.date);
+            return bDate.valueOf() - aDate.valueOf();
+          }
+
+          // Fallback to submission date if something unexpected happens
+          return moment(b.date).valueOf() - moment(a.date).valueOf();
+        });
+
         // Extract unique leave types for filtering
         const uniqueLeaveTypes = [...new Set(formattedData.map(item => item.leave_type))];
         setLeaveTypes(uniqueLeaveTypes);
 
-        setLeaveRequests(formattedData);
-        setFilteredRequests(formattedData);
+        setLeaveRequests(sortedData);
+        setFilteredRequests(sortedData);
       } else {
         console.log("No leave request data found in response");
         setLeaveRequests([]);
@@ -738,34 +762,6 @@ const ApproveLeaveRequest = () => {
                 </table>
               </div>
 
-              {/* Pagination */}
-              <div className="d-flex justify-content-between align-items-center mt-4">
-                <div className="text-muted small">
-                  Showing {filteredRequests.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
-                  {Math.min(indexOfLastItem, filteredRequests.length)} of {filteredRequests.length} entries
-                </div>
-                <nav>
-                  <ul className="pagination pagination-sm mb-0">
-                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                      <button className="page-link" onClick={() => handlePageChange(currentPage - 1)}>
-                        Previous
-                      </button>
-                    </li>
-                    {Array.from({ length: totalPages }, (_, index) => (
-                      <li key={index} className={`page-item ${currentPage === index + 1 ? 'active' : ''}`}>
-                        <button className="page-link" onClick={() => handlePageChange(index + 1)}>
-                          {index + 1}
-                        </button>
-                      </li>
-                    ))}
-                    <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                      <button className="page-link" onClick={() => handlePageChange(currentPage + 1)}>
-                        Next
-                      </button>
-                    </li>
-                  </ul>
-                </nav>
-              </div>
 
               {/* Pagination controls */}
               {filteredRequests.length > itemsPerPage && (

@@ -47,6 +47,8 @@ import TimeAdjustment from "./pages/Employee Page/TimeAdjustment";
 import EndOfTheDay from "./pages/Employee Page/EndOfTheDay";
 import ApproveTimeAdjustment from "./pages/ApproveTimeAdjustment";
 import LiveAttendance from "./pages/Supervisor/LiveAttendance";
+import EmploymentStatus from "./pages/EmploymentStatus";
+import ViewEod from "./pages/Supervisor/ViewEod";
 
 
 function App() {
@@ -83,6 +85,7 @@ function App() {
         <Route path="/settings/accounts" element={<Accounts />} />
         <Route path="/coaching-records" element={<CoachingRecords />} />
         <Route path="/approvals/time-adjustment" element={<ApproveTimeAdjustment />} />
+        <Route path="/settings/employment-status" element={<EmploymentStatus />} />
       </Route>
 
       {/* Employee Routes */}
@@ -106,6 +109,7 @@ function App() {
         <Route path="/supervisor_coaching" element={<Coaching />} />
         <Route path="/supervisor_bonus" element={<Bonus />} />
         <Route path="/supervisor_live_attendance" element={<LiveAttendance />} />
+        <Route path="supervisor_view_eod" element={<ViewEod />} />
       </Route>
 
       {/* 404 Page */}

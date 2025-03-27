@@ -66,10 +66,12 @@ const DTR = () => {
   }, []);
 
   // Filter logic based on search term
+   // Filter logic based on search term - with null check
   const filteredData = dtrData.filter((item) =>
-    item.fullName.toLowerCase().includes(searchTerm.toLowerCase())
+    item && item.employee_name
+      ? item.employee_name.toLowerCase().includes(searchTerm.toLowerCase())
+      : false
   );
-
   // Pagination logic: slice filteredData for current page
   const indexOfFirstRecord = currentPage * recordsPerPage;
   const currentRecords = filteredData.slice(
@@ -141,32 +143,140 @@ const DTR = () => {
                   {error}
                 </div>
               )}
-              <table className="table table-bordered text-center">
-                <thead>
-                  <tr>
-                    <th>Emp_ID</th>
-                    <th>Full Name</th>
-                    <th>Time In</th>
-                    <th>Time Out</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentRecords.length > 0 ? (
-                    currentRecords.map((record, index) => (
-                      <tr key={index}>
-                        <td>{record.emp_ID}</td>
-                        <td>{record.fullName}</td>
-                        <td>{record.timeIn}</td>
-                        <td>{record.timeOut}</td>
-                      </tr>
-                    ))
-                  ) : (
+
+              <div className="mb-2 text-muted small">
+                <i className="bi bi-arrow-left-right me-1"></i>
+                Scroll horizontally to view all columns
+              </div>
+
+              <div className="table-responsive" style={{ overflowX: 'auto', maxWidth: '100%' }}>
+                <table className="table table-bordered table-striped text-center" style={{ minWidth: '2500px' }}>
+                  <thead>
                     <tr>
-                      <td colSpan="4">No DTR records found.</td>
+                      <th>ID</th>
+                      <th>Emp ID</th>
+                      <th>Employee Name</th>
+                      <th>Date</th>
+                      <th>Time In</th>
+                      <th>Time Out</th>
+                      <th>Shift In</th>
+                      <th>Shift Out</th>
+                      <th>Employee Level</th>
+                      <th>Job Title</th>
+                      <th>Status</th>
+                      <th>State</th>
+                      <th>Late</th>
+                      <th>Undertime</th>
+                      <th>Total Hours</th>
+                      <th>Regular Hours</th>
+                      <th>Regular OT Hours</th>
+                      <th>RH</th>
+                      <th>RH OT</th>
+                      <th>SH</th>
+                      <th>SH OT</th>
+                      <th>2 RH</th>
+                      <th>NT</th>
+                      <th>NT OT</th>
+                      <th>SH NT</th>
+                      <th>RH NT</th>
+                      <th>SH NT OT</th>
+                      <th>RH NT OT</th>
+                      <th>2 RH NT</th>
+                      <th>2 RH OT</th>
+                      <th>2 RH NT OT</th>
+                      <th>RD</th>
+                      <th>RD SH</th>
+                      <th>RD RH</th>
+                      <th>RD NT</th>
+                      <th>RD 2 RH</th>
+                      <th>RD 2 RH NT</th>
+                      <th>RD SH NT</th>
+                      <th>RD RH NT</th>
+                      <th>RD SH OT</th>
+                      <th>RD RH OT</th>
+                      <th>RD 2 RH OT</th>
+                      <th>RD NT OT</th>
+                      <th>RD SH NT OT</th>
+                      <th>RD RH NT OT</th>
+                      <th>RD 2RH NT OT</th>
+                      <th>RD OT</th>
+                      <th>Department ID</th>
+                      <th>Site ID</th>
+                      <th>Account ID</th>
+                      <th>Cluster ID</th>
+                      <th>Payroll ID</th>
+                      <th>Unique Record</th>
+                      <th>ATT ID</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {currentRecords.length > 0 ? (
+                      currentRecords.map((record, index) => (
+                        <tr key={index}>
+                          <td>{record.id}</td>
+                          <td>{record.emp_ID}</td>
+                          <td>{record.employee_name}</td>
+                          <td>{record.date ? moment(record.date).format('YYYY-MM-DD') : ''}</td>
+                          <td>{record.timein ? moment(record.timein).format('HH:mm:ss') : ''}</td>
+                          <td>{record.timeout ? moment(record.timeout).format('HH:mm:ss') : ''}</td>
+                          <td>{record.shift_in ? moment(record.shift_in).format('HH:mm:ss') : ''}</td>
+                          <td>{record.shift_out ? moment(record.shift_out).format('HH:mm:ss') : ''}</td>
+                          <td>{record.employee_level}</td>
+                          <td>{record.job_title}</td>
+                          <td>{record.status}</td>
+                          <td>{record.state}</td>
+                          <td>{record.late}</td>
+                          <td>{record.undertime}</td>
+                          <td>{record.total_hrs}</td>
+                          <td>{record.reg_hr}</td>
+                          <td>{record.reg_ot_hr}</td>
+                          <td>{record.rh}</td>
+                          <td>{record.rh_ot}</td>
+                          <td>{record.sh}</td>
+                          <td>{record.sh_ot}</td>
+                          <td>{record._2_rh}</td>
+                          <td>{record.nt}</td>
+                          <td>{record.nt_ot}</td>
+                          <td>{record.sh_nt}</td>
+                          <td>{record.rh_nt}</td>
+                          <td>{record.sh_nt_ot}</td>
+                          <td>{record.rh_nt_ot}</td>
+                          <td>{record._2_rh_nt}</td>
+                          <td>{record._2_rh_ot}</td>
+                          <td>{record._2_rh_nt_ot}</td>
+                          <td>{record.rd}</td>
+                          <td>{record.rd_sh}</td>
+                          <td>{record.rd_rh}</td>
+                          <td>{record.rd_nt}</td>
+                          <td>{record.rd_2_rh}</td>
+                          <td>{record.rd_2_rh_nt}</td>
+                          <td>{record.rd_sh_nt}</td>
+                          <td>{record.rd_rh_nt}</td>
+                          <td>{record.rd_sh_ot}</td>
+                          <td>{record.rd_rh_ot}</td>
+                          <td>{record.rd_2_rh_ot}</td>
+                          <td>{record.rd_nt_ot}</td>
+                          <td>{record.rd_sh_nt_ot}</td>
+                          <td>{record.rd_rh_nt_ot}</td>
+                          <td>{record.rd_2rh_nt_ot}</td>
+                          <td>{record.rd_ot}</td>
+                          <td>{record.departmentID}</td>
+                          <td>{record.siteID}</td>
+                          <td>{record.accountID}</td>
+                          <td>{record.clusterID}</td>
+                          <td>{record.payroll_id}</td>
+                          <td>{record.unique_record}</td>
+                          <td>{record.att_id}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="53">No DTR records found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
               {/* Pagination Controls */}
               {totalPages > 1 && (
                 <div className="d-flex justify-content-center mt-3">

@@ -454,29 +454,7 @@ const LeaveRequest = () => {
                       </div>
                     )}
 
-                    <div className="mb-3">
-                      <label htmlFor="date" className="form-label">
-                        <i className="bi bi-calendar3 me-2 text-muted"></i>
-                        Date <span className="text-danger">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        className={`form-control ${!selectedDate && formFeedback ? 'is-invalid' : ''}`}
-                        id="date"
-                        value={selectedDate}
-                        onChange={(e) => {
-                          setSelectedDate(e.target.value);
-                          setFormFeedback('');
-                        }}
-                        min={moment().format('YYYY-MM-DD')}
-                        required
-                      />
-                      <small className="form-text text-muted mt-1">
-                        <i className="bi bi-info-circle me-1"></i>
-                        You can only select current or future dates
-                      </small>
-                    </div>
-
+                    {/* First, add the leave type dropdown */}
                     <div className="mb-3">
                       <label htmlFor="leaveType" className="form-label">
                         <i className="bi bi-tag me-2 text-muted"></i>
@@ -514,6 +492,30 @@ const LeaveRequest = () => {
                       <small className="form-text text-muted mt-1">
                         <i className="bi bi-info-circle me-1"></i>
                         Types marked as "Pending" already have an active request
+                      </small>
+                    </div>
+
+                    {/* Then add the date field */}
+                    <div className="mb-3">
+                      <label htmlFor="date" className="form-label">
+                        <i className="bi bi-calendar3 me-2 text-muted"></i>
+                        Date <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        className={`form-control ${!selectedDate && formFeedback ? 'is-invalid' : ''}`}
+                        id="date"
+                        value={selectedDate}
+                        onChange={(e) => {
+                          setSelectedDate(e.target.value);
+                          setFormFeedback('');
+                        }}
+                        min={moment().format('YYYY-MM-DD')}
+                        required
+                      />
+                      <small className="form-text text-muted mt-1">
+                        <i className="bi bi-info-circle me-1"></i>
+                        You can only select current or future dates
                       </small>
                     </div>
 
@@ -728,7 +730,7 @@ const LeaveRequest = () => {
                                   <td>
                                     <div className="d-flex align-items-center">
                                       <span className="leave-type-badge me-2">
-                                        {leaveTypes.find(type => type.id.toString() === record.leave_type)?.type?.charAt(0) || '?'}
+                                        {leaveTypes.find(type => type.id.toString() === record.leave_type)?.type?.charAt(0) || ''}
                                       </span>
                                       <span>
                                         {leaveTypes.find(type => type.id.toString() === record.leave_type)?.type || record.leave_type}

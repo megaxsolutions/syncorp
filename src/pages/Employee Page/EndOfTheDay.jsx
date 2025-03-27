@@ -16,6 +16,7 @@ import {
 import { PlusLg, Calendar3, ClockFill, Check2Circle, XCircle, Eye, Sunset } from "react-bootstrap-icons";
 import Swal from "sweetalert2";
 import moment from "moment-timezone";
+import { toast, Toaster } from "sonner"; // Import Sonner toast
 import config from "../../config";
 import EmployeeNavbar from "../../components/EmployeeNavbar";
 import EmployeeSidebar from "../../components/EmployeeSidebar";
@@ -25,34 +26,8 @@ const EndOfTheDay = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [submissions, setSubmissions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Mock data for EOD reports
-  const mockEodReports = [
-    {
-      id: 1,
-      date: "2025-03-24",
-      details: "Completed frontend implementation of the employee dashboard. Fixed responsive design issues on mobile view. Updated documentation for API endpoints. Faced some issues with API integration that slowed down development. For tomorrow, I'll continue with user profile page implementation and schedule meeting with backend team for API adjustments.",
-      created_at: "2025-03-24T17:30:00",
-    },
-    {
-      id: 2,
-      date: "2025-03-23",
-      details: "Implemented login page authentication flow. Created reusable form components. Reviewed PR from another team member. For tomorrow, I'll start working on dashboard UI implementation and set up testing framework.",
-      created_at: "2025-03-23T18:15:00",
-    },
-    {
-      id: 3,
-      date: "2025-03-22",
-      details: "Set up project repository and initial structure. Created component library. Had kickoff meeting with team. Development environment setup took longer than expected due to dependency issues. For tomorrow, I'll begin implementation of authentication components and review design specifications.",
-      created_at: "2025-03-22T17:45:00",
-    },
-    {
-      id: 4,
-      date: "2025-03-21",
-      details: "Prepared project documentation. Met with stakeholders to discuss requirements. Set up initial project board. Some requirements are still unclear and need further clarification. For tomorrow, I'll finalize project setup and begin coding basic structure.",
-      created_at: "2025-03-21T16:50:00",
-    }
-  ];
+  const [employeeData, setEmployeeData] = useState(null); // Add this state
+  const emp_id = localStorage.getItem("X-EMP-ID");
 
   // Form state - simplified to just date and details
   const [formData, setFormData] = useState({
@@ -63,6 +38,153 @@ const EndOfTheDay = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+  };
+
+  // Add document check effect
+  useEffect(() => {
+    const checkEmployeeDocuments = async () => {
+      try {
+        const token = localStorage.getItem("X-JWT-TOKEN");
+        const empId = localStorage.getItem("X-EMP-ID");
+
+        if (token && empId) {
+          // Fetch employee data directly from API
+          const response = await axios.get(
+            `${config.API_BASE_URL}/employees/get_employee/${empId}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": token,
+                "X-EMP-ID": empId,
+              },
+            }
+          );
+
+          if (response.data && response.data.data && response.data.data.length > 0) {
+            // Use the first employee record from the response
+            const userData = response.data.data[0];
+            setEmployeeData(userData);
+
+            // Check for missing documents
+            const missingDocuments = [];
+
+            // Check for required documents (strings/numbers)
+            if (!userData.healthcare || userData.healthcare === "0" || userData.healthcare === 0)
+              missingDocuments.push("Healthcare ID");
+            if (!userData.sss || userData.sss === "0" || userData.sss === 0)
+              missingDocuments.push("SSS Number");
+            if (!userData.pagibig || userData.pagibig === "0" || userData.pagibig === 0)
+              missingDocuments.push("Pag-IBIG ID");
+            if (!userData.philhealth || userData.philhealth === "0" || userData.philhealth === 0)
+              missingDocuments.push("PhilHealth ID");
+            if (!userData.tin || userData.tin === "0" || userData.tin === 0)
+              missingDocuments.push("TIN");
+
+            // Check for pre-employment documents (stored as 0/1 in database)
+            // These fields should be checked if they're exactly 0 or null
+            if (userData.nbi_clearance === 0 || userData.nbi_clearance === null)
+              missingDocuments.push("NBI Clearance");
+            if (userData.med_cert === 0 || userData.med_cert === null)
+              missingDocuments.push("Medical Certificate");
+            if (userData.xray === 0 || userData.xray === null)
+              missingDocuments.push("X-Ray Result");
+            if (userData.drug_test === 0 || userData.drug_test === null)
+              missingDocuments.push("Drug Test");
+
+            console.log("Document status from API:", {
+              healthcare: userData.healthcare,
+              sss: userData.sss,
+              pagibig: userData.pagibig,
+              philhealth: userData.philhealth,
+              tin: userData.tin,
+              nbi: userData.nbi_clearance,
+              med_cert: userData.med_cert,
+              xray: userData.xray,
+              drug_test: userData.drug_test,
+              missingDocuments
+            });
+
+            // Display toast if there are missing documents - using Sonner toast
+            if (missingDocuments.length > 0) {
+              console.log("Displaying toast for missing documents:", missingDocuments);
+
+              toast.error(
+                <div>
+                  <strong>Missing Documents</strong>
+                  <ul className="mb-0 ps-3 mt-2">
+                    {missingDocuments.map((doc, index) => (
+                      <li key={index}>{doc}</li>
+                    ))}
+                  </ul>
+                  <div className="mt-2">
+                    <small>Please submit these documents to HR.</small>
+                  </div>
+                </div>,
+                {
+                  duration: 8000,
+                  style: {
+                    width: '360px',
+                    backgroundColor: '#f8d7da',
+                    color: '#721c24',
+                    border: '1px solid #f5c6cb'
+                  }
+                }
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error checking employee documents:", error);
+      }
+    };
+
+    // Call the function to check documents
+    checkEmployeeDocuments();
+  }, []);
+
+  const fetchEodReports = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/eod/get_all_user_eod/${emp_id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
+
+      console.log("EOD reports data:", response.data);
+
+      if (response.data?.data) {
+        // Format the received data
+        const formattedReports = response.data.data.map(report => ({
+          id: report.id,
+          emp_ID: report.emp_ID,
+          details: report.details,
+          date: report.date,
+          date_submitted: report.date_submitted
+        }));
+
+        // Sort by date_submitted (newest first)
+        formattedReports.sort((a, b) => {
+          return new Date(b.date_submitted) - new Date(a.date_submitted);
+        });
+
+        setSubmissions(formattedReports);
+      } else {
+        setSubmissions([]);
+      }
+    } catch (error) {
+      console.error("Error fetching EOD reports:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load EOD reports",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Submit EOD report
@@ -80,57 +202,47 @@ const EndOfTheDay = () => {
 
     setIsSubmitting(true);
     try {
-      // Simulate successful API call
-      setTimeout(() => {
-        // Create a new mock report based on form data
-        const newReport = {
-          id: Math.floor(Math.random() * 1000) + 10, // Generate random ID
-          ...formData,
-          created_at: new Date().toISOString(),
-        };
+      // Make API call to create EOD report
+      const response = await axios.post(
+        `${config.API_BASE_URL}/eod/add_eod`,
+        {
+          emp_id: emp_id,
+          details: formData.details,
+          eod_date: formData.date
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
 
-        // Add to beginning of submissions array
-        setSubmissions([newReport, ...submissions]);
+      console.log("EOD submission response:", response);
 
-        Swal.fire({
-          icon: "success",
-          title: "Success!",
-          text: "Your EOD report has been submitted successfully.",
-        });
+      Swal.fire({
+        icon: "success",
+        title: "Success!",
+        text: "Your EOD report has been submitted successfully.",
+      });
 
-        // Reset form
-        setFormData({
-          date: moment().format("YYYY-MM-DD"),
-          details: ""
-        });
+      // Reset form
+      setFormData({
+        date: moment().format("YYYY-MM-DD"),
+        details: ""
+      });
 
-        setIsSubmitting(false);
-      }, 1000); // Simulate API delay
-
+      // Refresh the list of EOD reports
+      fetchEodReports();
     } catch (error) {
       console.error("Error submitting EOD:", error);
       Swal.fire({
         icon: "error",
         title: "Submission Failed",
-        text: error.response?.data?.message || "An error occurred while submitting your report.",
+        text: error.response?.data?.error || "An error occurred while submitting your report.",
       });
+    } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  // Get all EOD reports for the employee
-  const fetchEodReports = async () => {
-    setIsLoading(true);
-    try {
-      // Use mock data instead
-      setTimeout(() => {
-        setSubmissions(mockEodReports);
-        setIsLoading(false);
-      }, 800); // Simulate API delay
-
-    } catch (error) {
-      console.error("Error fetching EOD reports:", error);
-      setIsLoading(false);
     }
   };
 
@@ -146,7 +258,7 @@ const EndOfTheDay = () => {
             <p>${report.details}</p>
 
             <div class="mt-3 text-muted small">
-              Submitted on: ${moment(report.created_at).format("MMM DD, YYYY h:mm A")}
+              Submitted on: ${moment(report.date_submitted).format("MMM DD, YYYY h:mm A")}
             </div>
           </div>
         `,
@@ -168,6 +280,7 @@ const EndOfTheDay = () => {
       <EmployeeSidebar />
 
       <main className="main" id="main">
+        <Toaster richColors position="bottom-center" />
         <Container fluid className="py-4">
           <div className="d-sm-flex align-items-center justify-content-between mb-3">
             <h1 className="h3 mb-0 text-gray-800">
@@ -256,8 +369,16 @@ const EndOfTheDay = () => {
                     variant="outline-primary"
                     size="sm"
                     onClick={() => fetchEodReports()}
+                    disabled={isLoading}
                   >
-                    Refresh
+                    {isLoading ? (
+                      <>
+                        <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-1" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Refresh'
+                    )}
                   </Button>
                 </Card.Header>
                 <Card.Body>
@@ -293,7 +414,7 @@ const EndOfTheDay = () => {
                                 </div>
                               </td>
                               <td>
-                                {moment(report.created_at).format("h:mm A")}
+                                {moment(report.date_submitted).format("MMM DD, YYYY h:mm A")}
                               </td>
                               <td>
                                 <Button

@@ -126,6 +126,7 @@ const Sidebar = () => {
                 { path: "/settings/position", icon: "bi-briefcase", label: "Position" },
                 { path: "/settings/employee-level", icon: "bi-graph-up", label: "Employee Level" },
                 { path: "/settings/admin-level", icon: "bi-shield-lock", label: "Admin Level" },
+                { path: "/settings/employment-status", icon: "bi-person-check", label: "Employment Status" },
                 { path: "/settings/holiday-calendar", icon: "bi-calendar-event", label: "Holiday Calendar" },
                 { path: "/settings/overtime-type", icon: "bi-hourglass-split", label: "Overtime Type" },
                 { path: "/settings/leave-type", icon: "bi-calendar2-x", label: "Leave Type" },
