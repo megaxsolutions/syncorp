@@ -49,6 +49,7 @@ import ApproveTimeAdjustment from "./pages/ApproveTimeAdjustment";
 import LiveAttendance from "./pages/Supervisor/LiveAttendance";
 import EmploymentStatus from "./pages/EmploymentStatus";
 import ViewEod from "./pages/Supervisor/ViewEod";
+import Payroll from "./pages/Payroll";
 
 
 function App() {
@@ -76,6 +77,7 @@ function App() {
         <Route path="/profile" element={<AdminProfile />} />
         <Route path="/attendance" element={<Attendance />} />
         <Route path="/dtr" element={<DTR />} />
+        <Route path="/payroll" element={<Payroll />} />
         <Route path="/settings/bulletin" element={<Bulletin />} />
         <Route path="/settings/admin-level" element={<AdminLevel />} />
         <Route path="/settings/coaching" element={<AdminCoaching />} />

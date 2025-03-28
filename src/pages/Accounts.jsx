@@ -183,7 +183,7 @@ export default function Accounts() {
             `${config.API_BASE_URL}/accounts/update_account/${account.id}`,
             {
               account_name: result.value.account_name,
-              site_id: result.value.site_id,
+              site_id: account.siteID,
             },
             {
               headers: {
@@ -217,6 +217,12 @@ export default function Accounts() {
   }
 
   const handleDeleteAccount = (account) => {
+    console.log(123);
+    console.log(account);
+    console.log(account.id);
+
+    console.log(123);
+
     Swal.fire({
       title: "Are you sure?",
       text: `Do you want to delete the account "${account.accountName}"?`,

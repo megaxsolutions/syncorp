@@ -1,4 +1,3 @@
-"use client"
 
 import { useState, useEffect } from "react"
 import axios from "axios"
@@ -219,14 +218,16 @@ const AddEmployee = () => {
     formData.append("philhealth", employee.philhealth || "")
     formData.append("tin", employee.tin || "")
     formData.append("basic_pay", employee.basic_pay || "")
-    formData.append("employee_status", employee.employee_status || "")
+    // In handleSubmit function, update this line:
+formData.append("employee_status", employee.employee_status || ""); // Direct string value
     formData.append("positionID", employee.position || "") // Renamed to match backend
     formData.append("employee_level", employee.employee_level || "")
     formData.append("healthcare", employee.healthcare || "")
     formData.append("tranpo_allowance", employee.tranpo_allowance || "0") // Added with default
     formData.append("food_allowance", employee.food_allowance || "0") // Added with default
-    formData.append("account_id", employee.account_id || "");
-    formData.append("accounts", employee.accounts || ""); // Add this line for admin account levels
+// Inside handleSubmit function, update the account-related formData lines
+formData.append("account_id", employee.account_id || ""); // Status (active/inactive)
+formData.append("account_level_id", employee.accounts || ""); // Account role/permission level Add this line for admin account levels
 
     // Convert boolean values to 0/1 for backend
     formData.append("nbi_clearance", employee.nbi ? 1 : 0)
@@ -316,31 +317,46 @@ const AddEmployee = () => {
     fetchDropdownData()
   }, [])
 
-  // Add the fetch function
-  const fetchDropdownData = async () => {
-    try {
-      const response = await axios.get(`${config.API_BASE_URL}/main/get_all_dropdown_data`, {
-        headers: {
-          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-        },
-      })
+  // Update fetchDropdownData function to call the new endpoint for accounts
+  // Update fetchDropdownData function to include console log
+const fetchDropdownData = async () => {
+  try {
+    // First fetch regular dropdown data
+    const dropdownResponse = await axios.get(`${config.API_BASE_URL}/main/get_all_dropdown_data`, {
+      headers: {
+        "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+        "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+      },
+    });
 
-      const { data } = response.data
-      setDropdownData({
-        positions: data.positions || [],
-        departments: data.departments || [],
-        clusters: data.clusters || [],
-        sites: data.sites || [],
-        employee_levels: data.employee_levels || [],
-        employment_statuses: data.employmentStatuses || [], // Add this line
-        accounts: data.accounts || data.admin_levels || [], // Add this line for admin accounts
-      })
-    } catch (error) {
-      console.error("Error fetching dropdown data:", error)
-    }
+    // Now fetch account data from the specific endpoint
+    const accountResponse = await axios.get(`${config.API_BASE_URL}/accounts/get_all_account`, {
+      headers: {
+        "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+        "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+      },
+    });
+
+    // Console log to inspect the account response structure
+    console.log("Account response data:", accountResponse.data.data);
+
+    const { data } = dropdownResponse.data;
+
+    // Set the dropdown data, replacing accounts with the data from the accountResponse
+    setDropdownData({
+      positions: data.positions || [],
+      departments: data.departments || [],
+      clusters: data.clusters || [],
+      sites: data.sites || [],
+      employee_levels: data.employee_levels || [],
+      employment_statuses: data.employmentStatuses || [],
+      accounts: accountResponse.data.data || [], // Use the account data from the new endpoint
+    });
+  } catch (error) {
+    console.error("Error fetching dropdown data:", error);
+    setError("Failed to load dropdown options. Please refresh and try again.");
   }
-
+};
   // Add this with other useEffects
   useEffect(() => {
     if (error || success) {
@@ -906,29 +922,27 @@ const AddEmployee = () => {
                           </Form.Group>
                         </Col>
                         <Col md={3}>
-                          <Form.Group className="mb-3">
-                            <Form.Label className="fw-semibold d-flex align-items-center">
-                              <BriefcaseFill className="me-2 text-primary" size={14} />
-                              Employment Status <span className="text-danger">*</span>
-                            </Form.Label>
-                            <Form.Select
-                              name="employee_status"
-                              value={employee.employee_status}
-                              onChange={handleChange}
-                              isInvalid={!!formErrors.employee_status}
-                              className="shadow-sm"
-                              required
-                            >
-                              <option value="">Select Status</option>
-                              {dropdownData.employment_statuses.map((status) => (
-                                <option key={status.id} value={status.id}>
-                                  {status.statusName || status.name}
-                                </option>
-                              ))}
-                            </Form.Select>
-                            <Form.Control.Feedback type="invalid">{formErrors.employee_status}</Form.Control.Feedback>
-                          </Form.Group>
-                        </Col>
+  <Form.Group className="mb-3">
+    <Form.Label className="fw-semibold d-flex align-items-center">
+      <BriefcaseFill className="me-2 text-primary" size={14} />
+      Employment Status <span className="text-danger">*</span>
+    </Form.Label>
+    <Form.Select
+      name="employee_status"
+      value={employee.employee_status}
+      onChange={handleChange}
+      isInvalid={!!formErrors.employee_status}
+      className="shadow-sm"
+      required
+    >
+      <option value="">Select Status</option>
+      <option value="Provisionary">Provisionary</option>
+      <option value="Training">Training</option>
+      <option value="Regular">Regular</option>
+    </Form.Select>
+    <Form.Control.Feedback type="invalid">{formErrors.employee_status}</Form.Control.Feedback>
+  </Form.Group>
+</Col>
                         <Col md={3}>
                           <Form.Group className="mb-3">
                             <Form.Label className="fw-semibold d-flex align-items-center">
@@ -954,29 +968,30 @@ const AddEmployee = () => {
 
                       {/* Add a new row for accounts and other details */}
                       <Row>
-                        <Col md={3}>
-                          <Form.Group className="mb-3">
-                            <Form.Label className="fw-semibold d-flex align-items-center">
-                              <ShieldCheck className="me-2 text-primary" size={14} />
-                              Account Role/Level
-                            </Form.Label>
-                            <Form.Select
-                              name="accounts"
-                              value={employee.accounts}
-                              onChange={handleChange}
-                              isInvalid={!!formErrors.accounts}
-                              className="shadow-sm"
-                            >
-                              <option value="">Select Account Level</option>
-                              {dropdownData.accounts.map((account) => (
-                                <option key={account.id} value={account.id}>
-                                  {account.level_name || account.name || account.level}
-                                </option>
-                              ))}
-                            </Form.Select>
-                            <Form.Text className="text-muted">Optional - For admin access</Form.Text>
-                          </Form.Group>
-                        </Col>
+
+<Col md={3}>
+  <Form.Group className="mb-3">
+    <Form.Label className="fw-semibold d-flex align-items-center">
+      <ShieldCheck className="me-2 text-primary" size={14} />
+      Account Role/Level
+    </Form.Label>
+    <Form.Select
+      name="accounts"
+      value={employee.accounts}
+      onChange={handleChange}
+      isInvalid={!!formErrors.accounts}
+      className="shadow-sm"
+    >
+      <option value="">Select Account Level</option>
+      {dropdownData.accounts.map((account) => (
+        <option key={account.id} value={account.id}>
+          {account.accountName || account.account_name || account.name || "Account " + account.id}
+        </option>
+      ))}
+    </Form.Select>
+    <Form.Text className="text-muted">Optional - For admin access</Form.Text>
+  </Form.Group>
+</Col>
                         <Col md={3}>
                           <Form.Group className="mb-3">
                             <Form.Label className="fw-semibold d-flex align-items-center">
