@@ -37,7 +37,8 @@ const navItems = [
     category: "Performance",
     items: [
       { path: "/supervisor_coaching", icon: "bi-person-workspace", label: "Coaching" },
-      { path: "/supervisor_bonus", icon: "bi-cash-coin", label: "Bonus" }
+      { path: "/supervisor_bonus", icon: "bi-cash-coin", label: "Bonus" },
+      { path: "/supervisor_view_eod", icon: "bi-journal-text", label: "EOD Reports" }
     ]
   }
 ];

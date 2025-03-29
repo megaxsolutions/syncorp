@@ -19,6 +19,7 @@ import moment from "moment-timezone";
 import config from "../../config";
 import EmployeeNavbar from "../../components/EmployeeNavbar";
 import EmployeeSidebar from "../../components/EmployeeSidebar";
+import { Toaster, toast } from 'sonner';
 
 const TimeAdjustment = () => {
   const navigate = useNavigate();
@@ -26,18 +27,125 @@ const TimeAdjustment = () => {
   const [submissions, setSubmissions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const emp_id = localStorage.getItem("X-EMP-ID");
+  const [employeeData, setEmployeeData] = useState(null);
+
+  // Check employee documents on component mount
+  useEffect(() => {
+    const checkEmployeeDocuments = async () => {
+      try {
+        const token = localStorage.getItem("X-JWT-TOKEN");
+        const empId = localStorage.getItem("X-EMP-ID");
+
+        if (token && empId) {
+          // Fetch employee data directly from API
+          const response = await axios.get(
+            `${config.API_BASE_URL}/employees/get_employee/${empId}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": token,
+                "X-EMP-ID": empId,
+              },
+            }
+          );
+
+          if (response.data && response.data.data && response.data.data.length > 0) {
+            // Use the first employee record from the response
+            const userData = response.data.data[0];
+            setEmployeeData(userData);
+
+            // Check for missing documents
+            const missingDocuments = [];
+
+            // Check for required documents (strings/numbers)
+            if (!userData.healthcare || userData.healthcare === "0" || userData.healthcare === 0)
+              missingDocuments.push("Healthcare ID");
+            if (!userData.sss || userData.sss === "0" || userData.sss === 0)
+              missingDocuments.push("SSS Number");
+            if (!userData.pagibig || userData.pagibig === "0" || userData.pagibig === 0)
+              missingDocuments.push("Pag-IBIG ID");
+            if (!userData.philhealth || userData.philhealth === "0" || userData.philhealth === 0)
+              missingDocuments.push("PhilHealth ID");
+            if (!userData.tin || userData.tin === "0" || userData.tin === 0)
+              missingDocuments.push("TIN");
+
+            // Check for pre-employment documents (stored as 0/1 in database)
+            // These fields should be checked if they're exactly 0 or null
+            if (userData.nbi_clearance === 0 || userData.nbi_clearance === null)
+              missingDocuments.push("NBI Clearance");
+            if (userData.med_cert === 0 || userData.med_cert === null)
+              missingDocuments.push("Medical Certificate");
+            if (userData.xray === 0 || userData.xray === null)
+              missingDocuments.push("X-Ray Result");
+            if (userData.drug_test === 0 || userData.drug_test === null)
+              missingDocuments.push("Drug Test");
+
+            console.log("Document status from API:", {
+              healthcare: userData.healthcare,
+              sss: userData.sss,
+              pagibig: userData.pagibig,
+              philhealth: userData.philhealth,
+              tin: userData.tin,
+              nbi: userData.nbi_clearance,
+              med_cert: userData.med_cert,
+              xray: userData.xray,
+              drug_test: userData.drug_test,
+              missingDocuments
+            });
+
+            // Display toast if there are missing documents
+            if (missingDocuments.length > 0) {
+              console.log("Displaying toast for missing documents:", missingDocuments);
+
+              toast.error(
+                <div>
+                  <strong>Missing Documents</strong>
+                  <ul className="mb-0 ps-3 mt-2">
+                    {missingDocuments.map((doc, index) => (
+                      <li key={index}>{doc}</li>
+                    ))}
+                  </ul>
+                  <div className="mt-2">
+                    <small>Please submit these documents to HR.</small>
+                  </div>
+                </div>,
+                {
+                  position: "bottom-center",
+                  duration: 8000,
+                  style: {
+                    width: '360px',
+                    backgroundColor: '#f8d7da',
+                    color: '#721c24',
+                    border: '1px solid #f5c6cb'
+                  }
+                }
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error checking employee documents:", error);
+      }
+    };
+
+    // Call the function to check documents
+    checkEmployeeDocuments();
+  }, []);
 
   // Form state
   const [formData, setFormData] = useState({
     date: moment().format("YYYY-MM-DD"),
     time_in: "",
     time_out: "",
+    is_overnight: false, // New field to track overnight shifts
     reason: ""
   });
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
+    });
   };
 
   // Submit time adjustment request
@@ -53,12 +161,12 @@ const TimeAdjustment = () => {
       return;
     }
 
-    // Validate time format and logic
-    if (formData.time_in >= formData.time_out) {
+    // Only validate time logic if not overnight shift
+    if (!formData.is_overnight && formData.time_in >= formData.time_out) {
       Swal.fire({
         icon: "error",
         title: "Invalid Time",
-        text: "Time out must be later than time in",
+        text: "Time out must be later than time in, or select 'Overnight Shift' if spanning two days",
       });
       return;
     }
@@ -96,14 +204,27 @@ const TimeAdjustment = () => {
         return;
       }
 
+      // Format dates based on overnight shift status
+      let timeInFormatted = `${formData.date} ${formData.time_in}:00`;  // Format: YYYY-MM-DD HH:MM:SS
+
+      let timeOutFormatted;
+      if (formData.is_overnight) {
+        // For overnight shifts, use the next day for time_out
+        const nextDay = moment(formData.date).add(1, 'days').format('YYYY-MM-DD');
+        timeOutFormatted = `${nextDay} ${formData.time_out}:00`;
+      } else {
+        timeOutFormatted = `${formData.date} ${formData.time_out}:00`;
+      }
+
       // Now create the adjustment using the attendance ID
       const response = await axios.post(
         `${config.API_BASE_URL}/adjustments/add_adjustment/${attendanceRecord.id}`,
         {
-          time_in: formData.time_in,
-          time_out: formData.time_out,
+          time_in: timeInFormatted,
+          time_out: timeOutFormatted,
           emp_id: emp_id,
-          reason: formData.reason
+          reason: formData.reason,
+          is_overnight: formData.is_overnight // Pass this info to the backend if needed
         },
         {
           headers: {
@@ -126,6 +247,7 @@ const TimeAdjustment = () => {
         date: moment().format("YYYY-MM-DD"),
         time_in: "",
         time_out: "",
+        is_overnight: false,
         reason: ""
       });
 
@@ -171,26 +293,49 @@ const TimeAdjustment = () => {
       console.log("Adjustment data:", response.data);
 
       // Process and format the data
-      const formattedData = (response.data.data || []).map(adjustment => ({
-        id: adjustment.id,
-        emp_ID: adjustment.emp_ID,
-        date: adjustment.date,
-        time_in: adjustment.timein || adjustment.time_in, // Handle both field names
-        time_out: adjustment.timeout || adjustment.time_out, // Handle both field names
-        reason: adjustment.reason,
-        status: mapStatusCode(adjustment.status), // Convert numeric status to string
-        created_at: adjustment.created_at,
-        approved_at: adjustment.approved_at,
-        approved_by: adjustment.approved_by,
-        rejected_at: adjustment.rejected_at,
-        rejected_by: adjustment.rejected_by,
-        rejection_reason: adjustment.rejection_reason,
-        attendance_id: adjustment.attendance_id
-      }));
+      // Process and format the data
+const formattedData = (response.data.data || []).map(adjustment => {
+  // Extract and handle status values consistently
+  let status;
+  const rawStatus = adjustment.status;
 
+  // Parse status to number if it's a string that can be converted to a number
+  const numericStatus = typeof rawStatus === 'string' && !isNaN(parseInt(rawStatus, 10))
+    ? parseInt(rawStatus, 10)
+    : typeof rawStatus === 'number' ? rawStatus : null;
+
+  // Map numeric status to display value
+  if (numericStatus === 0 || rawStatus === '0' || rawStatus === null || rawStatus === undefined) {
+    status = 0; // Keep as numeric 0 for easier comparison
+  } else if (numericStatus === 1 || rawStatus === '1') {
+    status = 1;
+  } else if (numericStatus === 2 || rawStatus === '2') {
+    status = 2;
+  } else {
+    // Handle any string values like 'Pending', 'Approved', 'Rejected'
+    status = rawStatus;
+  }
+
+  return {
+    id: adjustment.id,
+    emp_ID: adjustment.emp_ID,
+    date: adjustment.date,
+    time_in: adjustment.timein || adjustment.time_in,
+    time_out: adjustment.timeout || adjustment.time_out,
+    reason: adjustment.reason,
+    status: status,
+    raw_status: rawStatus, // Keep raw status for debugging
+    created_at: adjustment.created_at,
+    approved_at: adjustment.approved_at || adjustment.date_approved_by,
+    approved_by: adjustment.approved_by,
+    rejected_at: adjustment.rejected_at,
+    rejected_by: adjustment.rejected_by,
+    rejection_reason: adjustment.rejection_reason,
+    attendance_id: adjustment.attendance_id
+  };
+});
       // Sort by created date (newest first)
       formattedData.sort((a, b) => {
-        // Handle potentially missing created_at dates
         const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
         const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
         return dateB - dateA;
@@ -211,7 +356,10 @@ const TimeAdjustment = () => {
 
   // Map numeric status codes to string values
   const mapStatusCode = (statusCode) => {
-    switch (statusCode) {
+    // Convert to number to ensure consistent comparison
+    const status = parseInt(statusCode, 10);
+
+    switch (status) {
       case 1:
         return 'Approved';
       case 2:
@@ -226,21 +374,59 @@ const TimeAdjustment = () => {
   const viewRequest = (id) => {
     const request = submissions.find(item => item.id === id);
     if (request) {
+      // Define isOvernight before using it
+      const isOvernight = request.time_in && request.time_out &&
+        moment(request.time_in).format('YYYY-MM-DD') !== moment(request.time_out).format('YYYY-MM-DD');
+
+      const getStatusDisplay = (status) => {
+        if (status === 1 || status === '1' || status === 'Approved') {
+          return 'success';
+        } else if (status === 2 || status === '2' || status === 'Rejected') {
+          return 'danger';
+        } else {
+          return 'warning';
+        }
+      };
+
+      const getStatusText = (status) => {
+  // Handle both numeric and string status values
+  if (status === 1 || status === '1' || status === 'Approved') {
+    return 'Approved';
+  } else if (status === 2 || status === '2' || status === 'Rejected') {
+    return 'Rejected';
+  } else if (status === 0 || status === '0' || status === 'Pending' || !status) {
+    return 'Pending';
+  } else {
+    // Fallback
+    return String(status);
+  }
+};
+
       let statusDetails = '';
+const statusText = getStatusText(request.status);
 
-      if (request.status === 'Approved') {
-        statusDetails = `<div class="alert alert-success mt-3">
-          <strong>Approved by:</strong> ${request.approved_by || 'Manager'}<br>
-          <strong>Approved on:</strong> ${request.approved_at ? moment(request.approved_at).format("MMM DD, YYYY h:mm A") : 'N/A'}
-        </div>`;
-      } else if (request.status === 'Rejected') {
-        statusDetails = `<div class="alert alert-danger mt-3">
-          <strong>Rejected by:</strong> ${request.rejected_by || 'Manager'}<br>
-          <strong>Rejected on:</strong> ${request.rejected_at ? moment(request.rejected_at).format("MMM DD, YYYY h:mm A") : 'N/A'}<br>
-          <strong>Reason:</strong> ${request.rejection_reason || 'No reason provided'}
-        </div>`;
-      }
+// This was the bug - "statusText === 'Approved' || 1" always evaluates to true because of "|| 1"
+// Same for the Rejected condition below
+if (statusText === 'Approved') {
+  statusDetails = `<div class="alert alert-success mt-3">
+    <strong>Approved by:</strong> ${request.approved_by || 'Manager'}<br>
+    <strong>Approved on:</strong> ${request.approved_at ? moment(request.approved_at).format("MMM DD, YYYY h:mm A") : 'N/A'}
+  </div>`;
+} else if (statusText === 'Rejected') {
+  statusDetails = `<div class="alert alert-danger mt-3">
+    <strong>Rejected by:</strong> ${request.rejected_by || 'Manager'}<br>
+    <strong>Rejected on:</strong> ${request.rejected_at ? moment(request.rejected_at).format("MMM DD, YYYY h:mm A") : 'N/A'}<br>
+    <strong>Reason:</strong> ${request.rejection_reason || 'No reason provided'}
+  </div>`;
+} else {
+  // For pending status
+  statusDetails = `<div class="alert alert-warning mt-3">
+    <strong>Status:</strong> Pending review<br>
+    <strong>Submitted on:</strong> ${request.created_at ? moment(request.created_at).format("MMM DD, YYYY h:mm A") : 'N/A'}
+  </div>`;
+}
 
+      // Update the modal HTML with complete content
       Swal.fire({
         title: `Time Adjustment Request - ${moment(request.date).format("MMM DD, YYYY")}`,
         html: `
@@ -249,24 +435,24 @@ const TimeAdjustment = () => {
               <div class="col-6">
                 <strong>Date:</strong><br>
                 ${moment(request.date).format("MMMM D, YYYY")}
+                ${isOvernight ? '<span class="badge bg-info ms-1">Overnight Shift</span>' : ''}
               </div>
               <div class="col-6">
                 <strong>Status:</strong><br>
-                <span class="badge bg-${
-                  request.status === 'Approved' ? 'success' :
-                  request.status === 'Rejected' ? 'danger' : 'warning'
-                }">${request.status}</span>
+                <span class="badge bg-${getStatusDisplay(request.status)}">${getStatusText(request.status)}</span>
               </div>
             </div>
 
             <div class="row mb-3">
               <div class="col-6">
                 <strong>Time In:</strong><br>
-                ${request.time_in || 'N/A'}
+                ${request.time_in ? moment(request.time_in).format("HH:mm") : 'N/A'}
+                <div class="small text-muted">${request.time_in ? moment(request.time_in).format("MMM DD, YYYY") : ''}</div>
               </div>
               <div class="col-6">
                 <strong>Time Out:</strong><br>
-                ${request.time_out || 'N/A'}
+                ${request.time_out ? moment(request.time_out).format("HH:mm") : 'N/A'}
+                <div class="small text-muted">${request.time_out ? moment(request.time_out).format("MMM DD, YYYY") : ''}</div>
               </div>
             </div>
 
@@ -289,16 +475,30 @@ const TimeAdjustment = () => {
 
   // Render status badge based on status
   const renderStatusBadge = (status) => {
-    switch (status) {
-      case "Approved":
-        return <Badge bg="success">Approved</Badge>;
-      case "Rejected":
-        return <Badge bg="danger">Rejected</Badge>;
-      case "Pending":
-      default:
-        return <Badge bg="warning" text="dark">Pending</Badge>;
-    }
-  };
+  // Convert status to numeric if possible for consistent comparison
+  const numericStatus = typeof status === 'string' && !isNaN(parseInt(status, 10))
+    ? parseInt(status, 10)
+    : typeof status === 'number' ? status : null;
+
+  if (numericStatus === 1) {
+    return <Badge bg="success">Approved</Badge>;
+  } else if (numericStatus === 2) {
+    return <Badge bg="danger">Rejected</Badge>;
+  } else if (numericStatus === 0 || numericStatus === null) {
+    return <Badge bg="warning" text="dark">Pending</Badge>;
+  }
+
+  // Handle string status values
+  switch (status) {
+    case "Approved":
+      return <Badge bg="success">Approved</Badge>;
+    case "Rejected":
+      return <Badge bg="danger">Rejected</Badge>;
+    case "Pending":
+    default:
+      return <Badge bg="warning" text="dark">Pending</Badge>;
+  }
+};
 
   // Load time adjustments when component mounts
   useEffect(() => {
@@ -311,6 +511,7 @@ const TimeAdjustment = () => {
       <EmployeeSidebar />
 
       <main className="main" id="main">
+        <Toaster richColors position="bottom-center" />
         <Container fluid className="py-4">
           <div className="d-sm-flex align-items-center justify-content-between mb-3">
             <h1 className="h3 mb-0 text-gray-800">
@@ -381,6 +582,22 @@ const TimeAdjustment = () => {
                       </Col>
                     </Row>
 
+                    <Form.Group className="mb-3">
+                      <Form.Check
+                        type="checkbox"
+                        id="overnight-shift"
+                        name="is_overnight"
+                        checked={formData.is_overnight}
+                        onChange={handleChange}
+                        label={
+                          <span>
+                            <i className="bi bi-moon-stars me-2"></i>
+                            Overnight shift (Time out is on the next day)
+                          </span>
+                        }
+                      />
+                    </Form.Group>
+
                     <Form.Group className="mb-4">
                       <Form.Label>Reason <span className="text-danger">*</span></Form.Label>
                       <Form.Control
@@ -450,17 +667,24 @@ const TimeAdjustment = () => {
                             <th>Time</th>
                             <th>Reason</th>
                             <th>Status</th>
-                            <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {submissions.map((request) => (
-                            <tr key={request.id}>
+                            <tr key={request.id} onClick={() => viewRequest(request.id)} style={{ cursor: 'pointer' }}>
                               <td>
                                 {moment(request.date).format("MMM DD, YYYY")}
                               </td>
                               <td>
-                                {request.time_in} - {request.time_out}
+                                {/* Format time directly from the full datetime string */}
+                                {request.time_in ? moment(request.time_in).format("HH:mm") : 'N/A'}
+                                {' - '}
+                                {request.time_out ? moment(request.time_out).format("HH:mm") : 'N/A'}
+
+                                {/* Check if this is an overnight shift by comparing dates */}
+                                {request.time_in && request.time_out &&
+                                moment(request.time_in).format('YYYY-MM-DD') !== moment(request.time_out).format('YYYY-MM-DD') &&
+                                <span className="badge bg-info ms-1" style={{fontSize: '0.7em'}}>Overnight</span>}
                               </td>
                               <td>
                                 <div className="text-truncate" style={{ maxWidth: "200px" }}>
@@ -469,15 +693,6 @@ const TimeAdjustment = () => {
                               </td>
                               <td>
                                 {renderStatusBadge(request.status)}
-                              </td>
-                              <td>
-                                <Button
-                                  variant="outline-info"
-                                  size="sm"
-                                  onClick={() => viewRequest(request.id)}
-                                >
-                                  <Eye className="me-1" /> View
-                                </Button>
                               </td>
                             </tr>
                           ))}

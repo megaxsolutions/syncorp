@@ -130,9 +130,10 @@ export default function ApproveTimeAdjustment() {
     // Filter by status
     if (filterStatus !== 'all') {
       filtered = filtered.filter(adj => {
-        // Make sure status is a string before calling toLowerCase
-        return adj.status && typeof adj.status === 'string' &&
-          adj.status.toLowerCase() === filterStatus.toLowerCase();
+        if (filterStatus === '0') return adj.status === 0 || !adj.status || adj.status === 'Pending';
+        if (filterStatus === '1') return adj.status === 1 || adj.status === 'Approved';
+        if (filterStatus === '2') return adj.status === 2 || adj.status === 'Rejected';
+        return false; // Handle any other cases
       });
     }
 
@@ -255,8 +256,8 @@ export default function ApproveTimeAdjustment() {
           id: adj.id,
           emp_ID: adj.emp_ID,
           date: adj.date,
-          time_in: adj.time_in,
-          time_out: adj.time_out,
+          timein: adj.timein,
+          timeout: adj.timeout,
           reason: adj.reason,
           status: adj.status || 'Pending',
           created_at: adj.created_at,
@@ -324,9 +325,10 @@ export default function ApproveTimeAdjustment() {
 
     if (filterStatus !== 'all') {
       filtered = filtered.filter(adj => {
-        // Make sure status is a string before calling toLowerCase
-        return adj.status && typeof adj.status === 'string' &&
-          adj.status.toLowerCase() === filterStatus.toLowerCase();
+        if (filterStatus === '0') return adj.status === 0 || !adj.status || adj.status === 'Pending';
+        if (filterStatus === '1') return adj.status === 1 || adj.status === 'Approved';
+        if (filterStatus === '2') return adj.status === 2 || adj.status === 'Rejected';
+        return false; // Handle any other cases
       });
     }
 
@@ -375,18 +377,19 @@ export default function ApproveTimeAdjustment() {
 
       if (result.isConfirmed) {
         setLoading(true);
-        const approverId = localStorage.getItem('X-EMP-ID');
+        const adminEmpId = localStorage.getItem('X-EMP-ID');
 
+        // Using the new endpoint for updating approval status
         const response = await axios.put(
-          `${config.API_BASE_URL}/adjustment/approve_adjustment/${adjustmentId}`,
+          `${config.API_BASE_URL}/adjustments/update_approval_adjustment/${adjustmentId}`,
           {
-            status: 'Approved',
-            approver_id: approverId
+            status: 1, // 1 for Approved
+            admin_emp_id: adminEmpId
           },
           {
             headers: {
               'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
-              'X-EMP-ID': approverId,
+              'X-EMP-ID': adminEmpId,
             },
           }
         );
@@ -438,19 +441,19 @@ export default function ApproveTimeAdjustment() {
 
       if (result.isConfirmed) {
         setLoading(true);
-        const rejecterId = localStorage.getItem('X-EMP-ID');
+        const adminEmpId = localStorage.getItem('X-EMP-ID');
 
         const response = await axios.put(
-          `${config.API_BASE_URL}/adjustment/reject_adjustment/${adjustmentId}`,
+          `${config.API_BASE_URL}/adjustments/update_approval_adjustment/${adjustmentId}`,
           {
-            status: 'Rejected',
-            rejecter_id: rejecterId,
+            status: 2, // 2 for Rejected
+            admin_emp_id: adminEmpId,
             rejection_reason: result.value
           },
           {
             headers: {
               'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
-              'X-EMP-ID': rejecterId,
+              'X-EMP-ID': adminEmpId,
             },
           }
         );
@@ -595,9 +598,9 @@ export default function ApproveTimeAdjustment() {
                               onChange={(e) => setFilterStatus(e.target.value)}
                             >
                               <option value="all">All Statuses</option>
-                              <option value="pending">Pending</option>
-                              <option value="approved">Approved</option>
-                              <option value="rejected">Rejected</option>
+                              <option value="0">Pending</option>
+                              <option value="1">Approved</option>
+                              <option value="2">Rejected</option>
                             </select>
                           </div>
                           <div className="d-flex gap-2">
@@ -733,10 +736,12 @@ export default function ApproveTimeAdjustment() {
                     ) : currentItems.length > 0 ? (
                       currentItems.map((adjustment) => (
                         <tr key={adjustment.id} className={
-                          adjustment.status && typeof adjustment.status === 'string' &&
-                            adjustment.status.toLowerCase() === 'approved' ? 'table-success bg-opacity-25' :
-                          adjustment.status && typeof adjustment.status === 'string' &&
-                            adjustment.status.toLowerCase() === 'rejected' ? 'table-danger bg-opacity-25' :
+                          adjustment.status === 1 ||
+                          (adjustment.status && typeof adjustment.status === 'string' &&
+                           adjustment.status.toLowerCase() === 'approved') ? 'table-success bg-opacity-25' :
+                          adjustment.status === 2 ||
+                          (adjustment.status && typeof adjustment.status === 'string' &&
+                           adjustment.status.toLowerCase() === 'rejected') ? 'table-danger bg-opacity-25' :
                           ''
                         }>
                           <td>{adjustment.id}</td>
@@ -749,8 +754,14 @@ export default function ApproveTimeAdjustment() {
                             <div className="small text-muted">{moment(adjustment.date).format('dddd')}</div>
                           </td>
                           <td>
-                            <div><i className="bi bi-box-arrow-in-right text-success me-1"></i> {adjustment.time_in}</div>
-                            <div><i className="bi bi-box-arrow-right text-danger me-1"></i> {adjustment.time_out}</div>
+                            <div>
+                              <i className="bi bi-box-arrow-in-right text-success me-1"></i>
+                              {adjustment.timein ? adjustment.timein.split(':').slice(0, 2).join(':') : ''}
+                            </div>
+                            <div>
+                              <i className="bi bi-box-arrow-right text-danger me-1"></i>
+                              {adjustment.timeout ? adjustment.timeout.split(':').slice(0, 2).join(':') : ''}
+                            </div>
                           </td>
                           <td>
                             <div className="text-truncate" style={{ maxWidth: "200px" }} title={adjustment.reason}>
@@ -759,19 +770,24 @@ export default function ApproveTimeAdjustment() {
                           </td>
                           <td>
                             <span className={`badge ${
-                              adjustment.status && typeof adjustment.status === 'string' &&
-                                adjustment.status.toLowerCase() === 'approved' ? 'bg-success' :
-                              adjustment.status && typeof adjustment.status === 'string' &&
-                                adjustment.status.toLowerCase() === 'rejected' ? 'bg-danger' :
+                              adjustment.status === 1 ||
+                              (adjustment.status && typeof adjustment.status === 'string' &&
+                               adjustment.status.toLowerCase() === 'approved') ? 'bg-success' :
+                              adjustment.status === 2 ||
+                              (adjustment.status && typeof adjustment.status === 'string' &&
+                               adjustment.status.toLowerCase() === 'rejected') ? 'bg-danger' :
                               'bg-warning text-dark'
                             }`}>
-                              {adjustment.status && typeof adjustment.status === 'string' ? adjustment.status : 'Pending'}
+                              {adjustment.status === 0 || !adjustment.status ? 'Pending' :
+                               adjustment.status === 1 ? 'Approved' :
+                               adjustment.status === 2 ? 'Rejected' :
+                               adjustment.status}
                             </span>
                           </td>
                           <td>
-                            {!adjustment.status ||
+                            {(adjustment.status === 0 || !adjustment.status ||
                              (adjustment.status && typeof adjustment.status === 'string' &&
-                              adjustment.status.toLowerCase() === 'pending') ? (
+                              adjustment.status.toLowerCase() === 'pending')) ? (
                               <div className="d-flex flex-column gap-2">
                                 <button
                                   className="btn btn-success btn-sm d-flex align-items-center justify-content-center"
@@ -790,8 +806,9 @@ export default function ApproveTimeAdjustment() {
                                   <i className="bi bi-x-circle-fill me-1"></i> Reject
                                 </button>
                               </div>
-                            ) : (adjustment.status && typeof adjustment.status === 'string' &&
-                                 adjustment.status.toLowerCase() === 'approved') ? (
+                            ) : (adjustment.status === 1 ||
+                                (adjustment.status && typeof adjustment.status === 'string' &&
+                                 adjustment.status.toLowerCase() === 'approved')) ? (
                               <div className="text-success d-flex align-items-start">
                                 <i className="bi bi-check-circle-fill me-2 mt-1"></i>
                                 <div>
