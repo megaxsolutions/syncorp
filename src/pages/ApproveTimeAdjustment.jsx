@@ -959,3 +959,95 @@ export default function ApproveTimeAdjustment() {
     </>
   );
 }
+
+// Inside handleSubmit function, modify the existing code that checks for attendance records
+
+const handleSubmit = async (formData) => {
+  setIsSubmitting(true);
+  try {
+    const attendanceResponse = await axios.get(
+      `${config.API_BASE_URL}/attendance/get_attendance_records`,
+      {
+        headers: {
+          'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
+          'X-EMP-ID': localStorage.getItem('X-EMP-ID'),
+        },
+      }
+    );
+
+    const selectedDate = formData.date;
+    const attendanceRecord = attendanceResponse.data.data.find(record => {
+      return record.date && record.date.split('T')[0] === selectedDate;
+    });
+
+    if (!attendanceRecord || !attendanceRecord.id) {
+      Swal.fire({
+        icon: "error",
+        title: "No Attendance Record",
+        text: "No attendance record found for the selected date. You can only adjust existing attendance records.",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Check if there are existing adjustment requests for this date
+    const existingRequests = submissions.filter(request =>
+      moment(request.date).format('YYYY-MM-DD') === formData.date
+    );
+
+    if (existingRequests.length > 0) {
+      // Show confirmation dialog instead of preventing submission
+      const result = await Swal.fire({
+        icon: "warning",
+        title: "Multiple Adjustments",
+        html: `
+          You already have ${existingRequests.length} adjustment request(s) for this date.<br><br>
+          Do you want to submit another adjustment request?
+        `,
+        showCancelButton: true,
+        confirmButtonText: "Yes, Submit Another",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+      });
+
+      if (!result.isConfirmed) {
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    // Format dates based on overnight shift status
+    let timeInFormatted = `${formData.date} ${formData.time_in}:00`;  // Format: YYYY-MM-DD HH:MM:SS
+
+    // Now create the adjustment using the attendance ID
+    const response = await axios.post(
+      `${config.API_BASE_URL}/adjustments/add_adjustment/${attendanceRecord.id}`,
+      {
+        time_in: timeInFormatted,
+        time_out: timeOutFormatted,
+        emp_id: emp_id,
+        reason: formData.reason,
+        is_overnight: formData.is_overnight,
+        force_multiple: true // Add this flag to indicate we're intentionally creating multiple adjustments
+      },
+      {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": emp_id,
+        },
+      }
+    );
+
+    // ...rest of your existing code...
+  } catch (error) {
+    console.error('Error submitting adjustment request:', error);
+    Swal.fire({
+      icon: "error",
+      title: "Submission Failed",
+      text: "An error occurred while submitting your adjustment request. Please try again later.",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};

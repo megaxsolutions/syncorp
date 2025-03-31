@@ -50,6 +50,10 @@ import LiveAttendance from "./pages/Supervisor/LiveAttendance";
 import EmploymentStatus from "./pages/EmploymentStatus";
 import ViewEod from "./pages/Supervisor/ViewEod";
 import Payroll from "./pages/Payroll";
+import AddCategory from "./pages/AddCategory";
+import AddCourse from "./pages/AddCourse";
+import AddMaterials from "./pages/AddMaterials";
+import EnrollEmployee from "./pages/EnrollEmployee";
 
 
 function App() {
@@ -88,6 +92,11 @@ function App() {
         <Route path="/coaching-records" element={<CoachingRecords />} />
         <Route path="/approvals/time-adjustment" element={<ApproveTimeAdjustment />} />
         <Route path="/settings/employment-status" element={<EmploymentStatus />} />
+        <Route path="/lms/add-category" element={<AddCategory />} />
+        <Route path="/lms/add-course" element={<AddCourse />} />
+        <Route path="/lms/add-materials" element={<AddMaterials />} />
+        <Route path="/lms/enroll-employee" element={<EnrollEmployee />} />
+
       </Route>
 
       {/* Employee Routes */}
