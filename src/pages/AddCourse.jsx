@@ -20,7 +20,7 @@ export default function AddCourse() {
   const fetchCourses = async () => {
     try {
       const response = await axios.get(
-        `${config.API_BASE_URL}/course/get_all_course`,
+        `${config.API_BASE_URL}/courses/get_all_course`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -41,48 +41,50 @@ export default function AddCourse() {
     }
   }
 
-  const fetchCategories = async () => {
-    try {
-      const response = await axios.get(
-        `${config.API_BASE_URL}/course_catergory/get_all_course_category`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          },
-        }
-      )
-      if (response.data?.data) {
-        setCategories(response.data.data)
+const fetchCategories = async () => {
+  try {
+    const response = await axios.get(
+      `${config.API_BASE_URL}/course_catergory/get_all_course_category`,
+      {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+        },
       }
-    } catch (error) {
-      console.error("Error fetching categories:", error)
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to load course categories.",
-      })
+    )
+    if (response.data?.data) {
+      console.log("Categories loaded:", response.data.data);
+      setCategories(response.data.data);
+      // Re-fetch courses after categories to ensure proper rendering
+      fetchCourses();
     }
+  } catch (error) {
+    console.error("Error fetching categories:", error)
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Failed to load course categories.",
+    })
   }
+}
 
   const handleAddCourse = async (e) => {
     e.preventDefault()
 
-    if (!courseTitle || !categoryId) {
+    if (!courseTitle) {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Please enter a course title and select a category.",
+        text: "Please enter a course title.",
       })
       return
     }
 
     try {
       const response = await axios.post(
-        `${config.API_BASE_URL}/course/add_course`,
+        `${config.API_BASE_URL}/courses/add_course`,
         {
-          course_title: courseTitle,
-          category_id: categoryId
+          course_title: courseTitle
         },
         {
           headers: {
@@ -100,7 +102,6 @@ export default function AddCourse() {
         })
         // Reset form
         setCourseTitle("")
-        setCategoryId("")
         fetchCourses()
       }
     } catch (error) {
@@ -169,7 +170,7 @@ export default function AddCourse() {
       if (result.isConfirmed) {
         try {
           const response = await axios.put(
-            `${config.API_BASE_URL}/course/update_course/${course.id}`,
+            `${config.API_BASE_URL}/courses/update_course/${course.id}`,
             result.value,
             {
               headers: {
@@ -216,7 +217,7 @@ export default function AddCourse() {
       if (result.isConfirmed) {
         try {
           const response = await axios.delete(
-            `${config.API_BASE_URL}/course/delete_course/${course.id}`,
+            `${config.API_BASE_URL}/courses/delete_course/${course.id}`,
             {
               headers: {
                 "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -250,8 +251,18 @@ export default function AddCourse() {
 
   // Get category name by ID
   const getCategoryName = (categoryId) => {
-    const category = categories.find((cat) => cat.id === categoryId)
-    return category ? category.category_title : "N/A"
+    console.log("Looking for category ID:", categoryId);
+    console.log("Available categories:", categories);
+
+    // Add null/undefined check for categoryId
+    if (!categoryId) return "N/A";
+
+    const category = categories.find((cat) => {
+      // Add null/undefined check for cat.id
+      return cat && cat.id && cat.id.toString() === categoryId.toString();
+    });
+
+    return category ? category.category_title : "N/A";
   }
 
   return (
@@ -299,38 +310,10 @@ export default function AddCourse() {
                     />
                   </div>
 
-                  <div className="form-group mb-4">
-                    <label htmlFor="category_id" className="form-label">
-                      <i className="bi bi-tag me-2"></i>Category
-                      <span className="text-danger">*</span>
-                    </label>
-                    <select
-                      className={`form-select form-select-lg ${categoryId ? "is-valid" : ""}`}
-                      id="category_id"
-                      name="category_id"
-                      value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
-                      required
-                    >
-                      <option value="">Select Category</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.category_title}
-                        </option>
-                      ))}
-                    </select>
-                    {categories.length === 0 && (
-                      <div className="form-text text-warning mt-2">
-                        <i className="bi bi-exclamation-triangle me-1"></i>
-                        No categories available. Please add categories first.
-                      </div>
-                    )}
-                  </div>
-
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
-                    disabled={!courseTitle || !categoryId || categories.length === 0}
+                    disabled={!courseTitle}
                   >
                     <i className="bi bi-plus-circle-fill"></i>
                     Create Course
@@ -357,7 +340,7 @@ export default function AddCourse() {
                     <thead className="table-light">
                       <tr>
                         <th>Course Title</th>
-                        <th>Category</th>
+
                         <th>Date Added</th>
                         <th>Actions</th>
                       </tr>
@@ -379,12 +362,7 @@ export default function AddCourse() {
                                 <div className="fw-medium">{course.course_title}</div>
                               </div>
                             </td>
-                            <td>
-                              <span className="badge bg-info text-dark">
-                                <i className="bi bi-tag-fill me-1"></i>
-                                {getCategoryName(course.category_id)}
-                              </span>
-                            </td>
+
                             <td>
                               <i className="bi bi-calendar-date me-2"></i>
                               {course.date_added}

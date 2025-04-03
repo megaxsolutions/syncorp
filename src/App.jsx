@@ -54,7 +54,12 @@ import AddCategory from "./pages/AddCategory";
 import AddCourse from "./pages/AddCourse";
 import AddMaterials from "./pages/AddMaterials";
 import EnrollEmployee from "./pages/EnrollEmployee";
-
+import AddTrainer from "./pages/AddTrainer";
+import CreateQuiz from "./pages/CreateQuiz";
+import AttendanceIncentives from "./pages/Supervisor/AttendanceIncentives";
+import ComplexityAllowance from "./pages/Supervisor/ComplexityAllowance";
+import ApproveComplexity from "./pages/ApproveComplexity";
+import ApproveIncentives from "./pages/ApproveIncentives";
 
 function App() {
   return (
@@ -87,6 +92,8 @@ function App() {
         <Route path="/settings/coaching" element={<AdminCoaching />} />
         <Route path="/approvals/leave-request" element={<ApproveLeaveRequest />} />
         <Route path="/approvals/overtime-request" element={<ApproveOvertime />} />
+        <Route path="/approvals/complexity" element={<ApproveComplexity />} />
+        <Route path="/approvals/incentives" element={<ApproveIncentives />} />
         <Route path="/approvals/bonus" element={<ApproveBonus />} />
         <Route path="/settings/accounts" element={<Accounts />} />
         <Route path="/coaching-records" element={<CoachingRecords />} />
@@ -96,6 +103,8 @@ function App() {
         <Route path="/lms/add-course" element={<AddCourse />} />
         <Route path="/lms/add-materials" element={<AddMaterials />} />
         <Route path="/lms/enroll-employee" element={<EnrollEmployee />} />
+        <Route path="/lms/add-trainer" element={<AddTrainer />} />
+        <Route path="/lms/create-quiz" element={<CreateQuiz />} />
 
       </Route>
 
@@ -120,7 +129,9 @@ function App() {
         <Route path="/supervisor_coaching" element={<Coaching />} />
         <Route path="/supervisor_bonus" element={<Bonus />} />
         <Route path="/supervisor_live_attendance" element={<LiveAttendance />} />
-        <Route path="supervisor_view_eod" element={<ViewEod />} />
+        <Route path="/supervisor_view_eod" element={<ViewEod />} />
+        <Route path="/supervisor_incentives" element={<AttendanceIncentives />} />
+        <Route path="/supervisor_complexity" element={<ComplexityAllowance />} />
       </Route>
 
       {/* 404 Page */}

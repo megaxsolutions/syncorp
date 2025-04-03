@@ -204,12 +204,32 @@ const Sidebar = () => {
               </Link>
               <Link
                 to="/approvals/bonus"
-                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
                   isActive("/approvals/bonus") ? "bg-primary text-white" : "text-dark hover-bg-light"
                 }`}
               >
                 <i className={`bi bi-cash me-2 ${isActive("/approvals/bonus") ? "text-white" : "text-primary"}`}></i>
                 <span>Bonus Request</span>
+              </Link>
+              <Link
+                to="/approvals/complexity"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/approvals/complexity") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i className={`bi bi-layers me-2 ${isActive("/approvals/complexity") ? "text-white" : "text-primary"}`}></i>
+                <span>Complexity Allowance</span>
+              </Link>
+              <Link
+                to="/approvals/incentives"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                  isActive("/approvals/attendance-incentives") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i
+                  className={`bi bi-calendar-check me-2 ${isActive("/approvals/attendance-incentives") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>Attendance Incentives</span>
               </Link>
             </div>
           </li>
