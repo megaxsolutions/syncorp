@@ -48,16 +48,18 @@ const formatDateForDisplay = (dateString) => {
   return date.toLocaleDateString("en-US", options)
 }
 
-// Fix the getImageUrl function to handle non-string photo values
+// Update the getImageUrl function to use the new default image URL
 const getImageUrl = (photo) => {
-  if (!photo) return null
+  if (!photo) return "http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png";
+
   // Check if photo is a string before using string methods
   if (typeof photo === "string") {
-    if (photo.startsWith("http")) return photo
-    return `${config.API_BASE_URL}/uploads/${photo}`
+    if (photo.startsWith("http")) return photo;
+    return `${config.API_BASE_URL}/uploads/${photo}`;
   }
-  // If photo is not a string (e.g., File object or other type), return null
-  return null
+
+  // If photo is not a string (e.g., File object or other type), return default image
+  return "http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png";
 }
 
 function ViewEmployee() {
@@ -487,25 +489,29 @@ setDropdownData({
                         {currentItems.map((emp) => (
                           <tr key={emp.emp_ID}>
                             <td className="fw-bold">{emp.emp_ID}</td>
-                            {/* Update the image rendering in the table rows */}
                             <td className="text-center">
                               {emp.photo ? (
                                 <img
                                   src={
                                     typeof emp.photo === "string"
                                       ? getImageUrl(emp.photo)
-                                      : null || "https://avatar.iran.liara.run/public"
+                                      : "http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png"
                                   }
                                   alt={`${emp.fName} ${emp.lName}`}
                                   className="rounded-circle"
                                   style={{ width: "40px", height: "40px", objectFit: "cover" }}
                                   onError={(e) => {
-                                    e.target.onerror = null
-                                    e.target.src = "https://avatar.iran.liara.run/public"
+                                    e.target.onerror = null;
+                                    e.target.src = "http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png";
                                   }}
                                 />
                               ) : (
-                                <PersonCircle size={40} className="text-secondary" />
+                                <img
+                                  src="http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png"
+                                  alt="Default Profile"
+                                  className="rounded-circle"
+                                  style={{ width: "40px", height: "40px", objectFit: "cover" }}
+                                />
                               )}
                             </td>
                             <td>
@@ -575,41 +581,36 @@ setDropdownData({
               <div className="p-3">
                 <Row className="mb-4 align-items-center">
                   <Col md={3} className="text-center">
-                    {/* Fix the image rendering in the edit modal */}
                     <div className="position-relative photo-preview mb-2">
                       {preview ? (
                         <img
-                          src={preview || "https://avatar.iran.liara.run/public"}
+                          src={preview}
                           alt="Preview"
                           className="rounded-circle img-thumbnail"
                           style={{ width: "150px", height: "150px", objectFit: "cover" }}
-                          onError={(e) => {
-                            e.target.onerror = null
-                            e.target.src = "https://avatar.iran.liara.run/public"
-                          }}
                         />
                       ) : selectedEmployee.photo ? (
                         <img
                           src={
                             typeof selectedEmployee.photo === "string"
                               ? getImageUrl(selectedEmployee.photo)
-                              : null || "https://avatar.iran.liara.run/public"
+                              : "http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png"
                           }
                           alt="Employee"
                           className="rounded-circle img-thumbnail"
                           style={{ width: "150px", height: "150px", objectFit: "cover" }}
                           onError={(e) => {
                             e.target.onerror = null
-                            e.target.src = "https://avatar.iran.liara.run/public"
+                            e.target.src = "http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png"
                           }}
                         />
                       ) : (
-                        <div
-                          className="rounded-circle bg-light d-flex align-items-center justify-content-center"
-                          style={{ width: "150px", height: "150px" }}
-                        >
-                          <PersonCircle size={80} className="text-secondary" />
-                        </div>
+                        <img
+                          src="http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png"
+                          alt="Default Profile"
+                          className="rounded-circle img-thumbnail"
+                          style={{ width: "150px", height: "150px", objectFit: "cover" }}
+                        />
                       )}
                     </div>
                     <Form.Group controlId="photo" className="mt-2">
@@ -1004,40 +1005,24 @@ setDropdownData({
                       src={
                         typeof selectedEmployee.photo === "string"
                           ? getImageUrl(selectedEmployee.photo)
-                          : null || "https://avatar.iran.liara.run/public"
+                          : "http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png"
                       }
                       alt="Employee"
                       className="rounded-circle img-thumbnail"
                       style={{ width: "200px", height: "200px", objectFit: "cover" }}
                       onError={(e) => {
-                        e.target.onerror = null
-                        e.target.src = "https://avatar.iran.liara.run/public"
+                        e.target.onerror = null;
+                        e.target.src = "http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png";
                       }}
                     />
                   ) : (
-                    <div
-                      className="mx-auto rounded-circle bg-light d-flex align-items-center justify-content-center"
-                      style={{ width: "200px", height: "200px" }}
-                    >
-                      <PersonCircle size={100} className="text-secondary" />
-                    </div>
+                    <img
+                      src="http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png"
+                      alt="Default Profile"
+                      className="rounded-circle img-thumbnail"
+                      style={{ width: "200px", height: "200px", objectFit: "cover" }}
+                    />
                   )}
-                  <h4 className="mt-3 mb-0">
-                    {selectedEmployee.fName} {selectedEmployee.mName} {selectedEmployee.lName}
-                  </h4>
-                  <p className="text-muted">{getPositionName(selectedEmployee.positionID)}</p>
-                  <div className="d-flex justify-content-center gap-2">
-                    {selectedEmployee.email && (
-                      <Badge bg="info" className="px-3 py-2">
-                        {selectedEmployee.email}
-                      </Badge>
-                    )}
-                    {selectedEmployee.phone && (
-                      <Badge bg="secondary" className="px-3 py-2">
-                        {selectedEmployee.phone}
-                      </Badge>
-                    )}
-                  </div>
                 </div>
 
                 <Row className="mt-4">

@@ -45,7 +45,7 @@ const navItems = [
   const [breakState, setBreakState] = useState(0);
 
   // State for profile data
-  const [photoUrl, setPhotoUrl] = useState("https://avatar.iran.liara.run/public/26");
+  const [photoUrl, setPhotoUrl] = useState("http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png");
 
   useEffect(() => {
     const fetchEmployeePhoto = () => {
@@ -68,7 +68,8 @@ const navItems = [
             setPosition(userData.designation);
           }
 
-          if (userData.photo) {
+          // Use the provided URL if photo exists, otherwise keep the default
+          if (userData.photo && userData.photo !== "null" && userData.photo !== "") {
             setPhotoUrl(`${config.API_BASE_URL}/uploads/${userData.photo}`);
           }
         }

@@ -15,33 +15,32 @@ const SupervisorSidebar = () => {
   const isActive = (path) => location.pathname === path;
 
   // Group navigation items for better organization
-// Group navigation items for better organization
-const navItems = [
-  {
-    category: "Main",
-    items: [
-      { path: "/supervisor_dashboard", icon: "bi-grid", label: "Dashboard" }
-    ]
-  },
-  {
-    category: "Team Management",
-    items: [
-      { path: "/supervisor_attendance", icon: "bi-calendar-check", label: "Attendance" },
-      { path: "/supervisor_live_attendance", icon: "bi-broadcast", label: "Live Attendance" },
-      { path: "/supervisor_leave_request", icon: "bi-arrow-right-square", label: "Leave Request" },
-      { path: "/supervisor_overtime_request", icon: "bi-clock-history", label: "Overtime Request" },
-      { path: "/supervisor_schedule", icon: "bi-calendar2-week", label: "Schedule" }
-    ]
-  },
-  {
-    category: "Performance",
-    items: [
-      { path: "/supervisor_coaching", icon: "bi-person-workspace", label: "Coaching" },
-      { path: "/supervisor_bonus", icon: "bi-cash-coin", label: "Bonus" },
-      { path: "/supervisor_view_eod", icon: "bi-journal-text", label: "EOD Reports" }
-    ]
-  }
-];
+  const navItems = [
+    {
+      category: "Main",
+      items: [{ path: "/supervisor_dashboard", icon: "bi-grid", label: "Dashboard" }]
+    },
+    {
+      category: "Team Management",
+      items: [
+        { path: "/supervisor_attendance", icon: "bi-calendar-check", label: "Attendance" },
+        { path: "/supervisor_live_attendance", icon: "bi-broadcast", label: "Live Attendance" },
+        { path: "/supervisor_leave_request", icon: "bi-arrow-right-square", label: "Leave Request" },
+        { path: "/supervisor_overtime_request", icon: "bi-clock-history", label: "Overtime Request" },
+        { path: "/supervisor_schedule", icon: "bi-calendar2-week", label: "Schedule" }
+      ]
+    },
+    {
+      category: "Performance",
+      items: [
+        { path: "/supervisor_coaching", icon: "bi-person-workspace", label: "Coaching" },
+        { path: "/supervisor_bonus", icon: "bi-cash-coin", label: "Bonus" },
+        { path: "/supervisor_incentives", icon: "bi-clock-fill", label: "Attendance Incentives" },
+        { path: "/supervisor_complexity", icon: "bi-shield-check", label: "Complexity Allowance" },
+        { path: "/supervisor_view_eod", icon: "bi-journal-text", label: "EOD Reports" }
+      ]
+    }
+  ];
 
   const [dateTime, setDateTime] = useState(
     moment().tz("Asia/Manila").format("ddd").substring(0, 4).toUpperCase() +
@@ -51,8 +50,7 @@ const navItems = [
       moment().tz("Asia/Manila").format("h:mma")
   );
 
-  // State for profile photo
-  const [photoUrl, setPhotoUrl] = useState("https://via.placeholder.com/100");
+  const [photoUrl, setPhotoUrl] = useState("http://api.megaxsolutions.com/uploads/users/default_image_profile/image.png");
 
   useEffect(() => {
     const fetchEmployeePhoto = () => {
@@ -60,13 +58,10 @@ const navItems = [
         const token = localStorage.getItem("X-JWT-TOKEN");
         if (!token) return;
 
-        // Decode the token
         const decoded = jwtDecode(token);
-
         if (decoded?.login?.length > 0) {
           const userData = decoded.login[0];
 
-          // Set username and position if available
           if (userData.fName && userData.lName) {
             setUsername(`${userData.fName} ${userData.lName}`);
           }
@@ -75,11 +70,11 @@ const navItems = [
             setPosition(userData.designation);
           }
 
-          if (userData.photo) {
+          // Only set photo URL if a valid photo exists
+          if (userData.photo && userData.photo !== "null" && userData.photo !== "") {
             setPhotoUrl(`${config.API_BASE_URL}/uploads/${userData.photo}`);
-          } else {
-            setPhotoUrl("https://avatar.iran.liara.run/public/26");
           }
+          // Otherwise, the default image set in useState will be used
         }
       } catch (error) {
         console.error("Error decoding token:", error);
@@ -103,14 +98,30 @@ const navItems = [
     return () => clearInterval(intervalId);
   }, []);
 
+  // Preserve scroll position when navigating
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem("scrollPosition", window.scrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    const savedScrollPosition = sessionStorage.getItem("scrollPosition");
+    if (savedScrollPosition) {
+      window.scrollTo(0, parseInt(savedScrollPosition, 10));
+    }
+  }, [location.pathname]);
+
   return (
-    <aside id="sidebar" className={`sidebar supervisor-sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside id="sidebar" className={`sidebar supervisor-sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="sidebar-toggle d-xl-none">
-        <button
-          className="hamburger hamburger--spin"
-          type="button"
-          onClick={() => setCollapsed(!collapsed)}
-        >
+        <button className="hamburger hamburger--spin" type="button" onClick={() => setCollapsed(!collapsed)}>
           <span className="hamburger-box">
             <span className="hamburger-inner"></span>
           </span>
@@ -120,11 +131,7 @@ const navItems = [
       <div className="sidebar-header">
         <div className="d-flex flex-column align-items-center mt-4">
           <div className="rounded-circle overflow-hidden mb-3 profile-circle position-relative">
-            <img
-              src={photoUrl}
-              alt="Profile"
-              className="img-fluid profile-img"
-            />
+            <img src={photoUrl} alt="Profile" className="img-fluid profile-img" />
             <div className="online-indicator"></div>
           </div>
 
@@ -156,6 +163,11 @@ const navItems = [
                     data-bs-toggle="tooltip"
                     data-bs-placement="right"
                     title={collapsed ? item.label : ""}
+                    onClick={(e) => {
+                      if (isActive(item.path)) {
+                        e.preventDefault(); // Prevent scrolling to top when clicking active links
+                      }
+                    }}
                   >
                     <i className={`bi ${item.icon}`}></i>
                     <span className="navs">{item.label}</span>
@@ -170,11 +182,8 @@ const navItems = [
 
       <div className="sidebar-footer">
         <div className="sidebar-collapse-btn d-none d-xl-block">
-          <button
-            className="btn btn-sm btn-icon"
-            onClick={() => setCollapsed(!collapsed)}
-          >
-            <i className={`bi ${collapsed ? 'bi-chevron-right' : 'bi-chevron-left'}`}></i>
+          <button className="btn btn-sm btn-icon" onClick={() => setCollapsed(!collapsed)}>
+            <i className={`bi ${collapsed ? "bi-chevron-right" : "bi-chevron-left"}`}></i>
           </button>
         </div>
       </div>

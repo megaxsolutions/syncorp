@@ -10,6 +10,7 @@ const Sidebar = () => {
     employees: location.pathname.startsWith("/add-employee") || location.pathname.startsWith("/view-employee"),
     settings: location.pathname.startsWith("/settings"),
     approvals: location.pathname.startsWith("/approvals"),
+    lms: location.pathname.startsWith("/lms"), // Add LMS to expanded menus state
   })
 
   const toggleMenu = (menu) => {
@@ -203,13 +204,75 @@ const Sidebar = () => {
               </Link>
               <Link
                 to="/approvals/bonus"
-                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
                   isActive("/approvals/bonus") ? "bg-primary text-white" : "text-dark hover-bg-light"
                 }`}
               >
                 <i className={`bi bi-cash me-2 ${isActive("/approvals/bonus") ? "text-white" : "text-primary"}`}></i>
                 <span>Bonus Request</span>
               </Link>
+              <Link
+                to="/approvals/complexity"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/approvals/complexity") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i className={`bi bi-layers me-2 ${isActive("/approvals/complexity") ? "text-white" : "text-primary"}`}></i>
+                <span>Complexity Allowance</span>
+              </Link>
+              <Link
+                to="/approvals/incentives"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                  isActive("/approvals/attendance-incentives") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i
+                  className={`bi bi-calendar-check me-2 ${isActive("/approvals/attendance-incentives") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>Attendance Incentives</span>
+              </Link>
+            </div>
+          </li>
+
+          {/* LMS dropdown - New Addition */}
+          <li className="nav-item mb-1">
+            <button
+              onClick={() => toggleMenu("lms")}
+              className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center justify-content-between w-100 border-0 ${
+                isActiveStartsWith("/lms") ? "bg-primary text-white" : "text-dark hover-bg-light"
+              }`}
+              style={{ background: expandedMenus.lms ? "rgba(13, 110, 253, 0.1)" : "transparent" }}
+            >
+              <div className="d-flex align-items-center">
+                <i
+                  className={`bi bi-book me-3 ${isActiveStartsWith("/lms") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>LMS</span>
+              </div>
+              <i className={`bi ${expandedMenus.lms ? "bi-chevron-up" : "bi-chevron-down"}`}></i>
+            </button>
+
+            <div className={`ms-4 mt-1 ${expandedMenus.lms ? "d-block" : "d-none"}`}>
+              {[
+                { path: "/lms/add-category", icon: "bi-tag", label: "Add Category" },
+                { path: "/lms/add-course", icon: "bi-journal-richtext", label: "Add Course" },
+                { path: "/lms/add-trainer", icon: "bi-person-video3", label: "Add Trainer" },
+                { path: "/lms/add-users", icon: "bi-people-fill", label: "Add Users" },
+                { path: "/lms/add-materials", icon: "bi-file-earmark-text", label: "Add Materials" },
+                { path: "/lms/create-quiz", icon: "bi-question-circle", label: "Create Quiz" },
+                { path: "/lms/enroll-employee", icon: "bi-person-plus-fill", label: "Enroll Employee" },
+              ].map((item, index) => (
+                <Link
+                  key={index}
+                  to={item.path}
+                  className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                    isActive(item.path) ? "bg-primary text-white" : "text-dark hover-bg-light"
+                  }`}
+                >
+                  <i className={`bi ${item.icon} me-2 ${isActive(item.path) ? "text-white" : "text-primary"}`}></i>
+                  <span>{item.label}</span>
+                </Link>
+              ))}
             </div>
           </li>
 

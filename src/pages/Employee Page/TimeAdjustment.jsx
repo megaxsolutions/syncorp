@@ -28,6 +28,9 @@ const TimeAdjustment = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const emp_id = localStorage.getItem("X-EMP-ID");
   const [employeeData, setEmployeeData] = useState(null);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [selectedAttendanceId, setSelectedAttendanceId] = useState("");
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
 
   // Check employee documents on component mount
   useEffect(() => {
@@ -140,23 +143,81 @@ const TimeAdjustment = () => {
     reason: ""
   });
 
+  const fetchAttendanceForDate = async (date) => {
+    setLoadingAttendance(true);
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/attendances/get_all_user_attendance/${emp_id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": emp_id,
+          },
+        }
+      );
+
+      // Filter records for the selected date
+      const selectedDate = date;
+      const recordsForDate = response.data.data.filter(record => {
+        return record.date && record.date.split('T')[0] === selectedDate;
+      });
+
+      console.log("Attendance records for date:", recordsForDate);
+
+      if (recordsForDate.length === 0) {
+        // If no records found, show message
+        setAttendanceRecords([]);
+        setSelectedAttendanceId("");
+        Swal.fire({
+          icon: "warning",
+          title: "No Attendance Record",
+          text: "No attendance record found for the selected date. You can only adjust existing attendance records.",
+        });
+      } else {
+        // Store the filtered records and select the first one by default
+        setAttendanceRecords(recordsForDate);
+        setSelectedAttendanceId(recordsForDate[0].id);
+      }
+    } catch (error) {
+      console.error("Error fetching attendance for date:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load attendance records for the selected date.",
+      });
+    } finally {
+      setLoadingAttendance(false);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    // Update form data
     setFormData({
       ...formData,
       [name]: type === 'checkbox' ? checked : value
     });
+
+    // If date is changed, fetch attendance records for that date
+    if (name === 'date') {
+      fetchAttendanceForDate(value);
+    }
   };
+
+  useEffect(() => {
+    fetchAttendanceForDate(formData.date);
+  }, []);
 
   // Submit time adjustment request
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.time_in || !formData.time_out || !formData.reason) {
+    if (!formData.time_in || !formData.time_out || !formData.reason || !selectedAttendanceId) {
       Swal.fire({
         icon: "error",
         title: "Required Fields",
-        text: "Please fill in all required fields",
+        text: "Please fill in all required fields and select an attendance record",
       });
       return;
     }
@@ -173,37 +234,6 @@ const TimeAdjustment = () => {
 
     setIsSubmitting(true);
     try {
-      // First, get all user attendance records
-      const attendanceResponse = await axios.get(
-        `${config.API_BASE_URL}/attendances/get_all_user_attendance/${emp_id}`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": emp_id,
-          },
-        }
-      );
-
-      console.log("Attendance data:", attendanceResponse.data);
-
-      // Find the attendance record for the selected date
-      const selectedDate = formData.date;
-      const attendanceRecord = attendanceResponse.data.data.find(record => {
-        // Check if the date in the record matches the selected date
-        // You might need to adjust this comparison based on your date format
-        return record.date && record.date.split('T')[0] === selectedDate;
-      });
-
-      if (!attendanceRecord || !attendanceRecord.id) {
-        Swal.fire({
-          icon: "error",
-          title: "No Attendance Record",
-          text: "No attendance record found for the selected date. You can only adjust existing attendance records.",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
       // Format dates based on overnight shift status
       let timeInFormatted = `${formData.date} ${formData.time_in}:00`;  // Format: YYYY-MM-DD HH:MM:SS
 
@@ -216,15 +246,16 @@ const TimeAdjustment = () => {
         timeOutFormatted = `${formData.date} ${formData.time_out}:00`;
       }
 
-      // Now create the adjustment using the attendance ID
+      // Now create the adjustment using the selected attendance ID
       const response = await axios.post(
-        `${config.API_BASE_URL}/adjustments/add_adjustment/${attendanceRecord.id}`,
+        `${config.API_BASE_URL}/adjustments/add_adjustment/${selectedAttendanceId}`,
         {
           time_in: timeInFormatted,
           time_out: timeOutFormatted,
           emp_id: emp_id,
           reason: formData.reason,
-          is_overnight: formData.is_overnight // Pass this info to the backend if needed
+          is_overnight: formData.is_overnight,
+          force_multiple: true // Add this flag to indicate we're intentionally creating multiple adjustments
         },
         {
           headers: {
@@ -251,25 +282,19 @@ const TimeAdjustment = () => {
         reason: ""
       });
 
+      // Fetch attendance records for the new date
+      fetchAttendanceForDate(moment().format("YYYY-MM-DD"));
+
       // Refresh the list of adjustments
       fetchTimeAdjustments();
     } catch (error) {
       console.error("Error submitting time adjustment:", error);
 
-      // Show more specific error message based on error response
-      if (error.response?.status === 400 && error.response?.data?.error === 'Adjustment already exist.') {
-        Swal.fire({
-          icon: "warning",
-          title: "Already Requested",
-          text: "You've already submitted an adjustment request for this date."
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Submission Failed",
-          text: error.response?.data?.error || "An error occurred while submitting your request."
-        });
-      }
+      Swal.fire({
+        icon: "error",
+        title: "Submission Failed",
+        text: error.response?.data?.error || "An error occurred while submitting your request."
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -293,47 +318,46 @@ const TimeAdjustment = () => {
       console.log("Adjustment data:", response.data);
 
       // Process and format the data
-      // Process and format the data
-const formattedData = (response.data.data || []).map(adjustment => {
-  // Extract and handle status values consistently
-  let status;
-  const rawStatus = adjustment.status;
+      const formattedData = (response.data.data || []).map(adjustment => {
+        // Extract and handle status values consistently
+        let status;
+        const rawStatus = adjustment.status;
 
-  // Parse status to number if it's a string that can be converted to a number
-  const numericStatus = typeof rawStatus === 'string' && !isNaN(parseInt(rawStatus, 10))
-    ? parseInt(rawStatus, 10)
-    : typeof rawStatus === 'number' ? rawStatus : null;
+        // Parse status to number if it's a string that can be converted to a number
+        const numericStatus = typeof rawStatus === 'string' && !isNaN(parseInt(rawStatus, 10))
+          ? parseInt(rawStatus, 10)
+          : typeof rawStatus === 'number' ? rawStatus : null;
 
-  // Map numeric status to display value
-  if (numericStatus === 0 || rawStatus === '0' || rawStatus === null || rawStatus === undefined) {
-    status = 0; // Keep as numeric 0 for easier comparison
-  } else if (numericStatus === 1 || rawStatus === '1') {
-    status = 1;
-  } else if (numericStatus === 2 || rawStatus === '2') {
-    status = 2;
-  } else {
-    // Handle any string values like 'Pending', 'Approved', 'Rejected'
-    status = rawStatus;
-  }
+        // Map numeric status to display value
+        if (numericStatus === 0 || rawStatus === '0' || rawStatus === null || rawStatus === undefined) {
+          status = 0; // Keep as numeric 0 for easier comparison
+        } else if (numericStatus === 1 || rawStatus === '1') {
+          status = 1;
+        } else if (numericStatus === 2 || rawStatus === '2') {
+          status = 2;
+        } else {
+          // Handle any string values like 'Pending', 'Approved', 'Rejected'
+          status = rawStatus;
+        }
 
-  return {
-    id: adjustment.id,
-    emp_ID: adjustment.emp_ID,
-    date: adjustment.date,
-    time_in: adjustment.timein || adjustment.time_in,
-    time_out: adjustment.timeout || adjustment.time_out,
-    reason: adjustment.reason,
-    status: status,
-    raw_status: rawStatus, // Keep raw status for debugging
-    created_at: adjustment.created_at,
-    approved_at: adjustment.approved_at || adjustment.date_approved_by,
-    approved_by: adjustment.approved_by,
-    rejected_at: adjustment.rejected_at,
-    rejected_by: adjustment.rejected_by,
-    rejection_reason: adjustment.rejection_reason,
-    attendance_id: adjustment.attendance_id
-  };
-});
+        return {
+          id: adjustment.id,
+          emp_ID: adjustment.emp_ID,
+          date: adjustment.date,
+          time_in: adjustment.timein || adjustment.time_in,
+          time_out: adjustment.timeout || adjustment.time_out,
+          reason: adjustment.reason,
+          status: status,
+          raw_status: rawStatus, // Keep raw status for debugging
+          created_at: adjustment.created_at,
+          approved_at: adjustment.approved_at || adjustment.date_approved_by,
+          approved_by: adjustment.approved_by,
+          rejected_at: adjustment.rejected_at,
+          rejected_by: adjustment.rejected_by,
+          rejection_reason: adjustment.rejection_reason,
+          attendance_id: adjustment.attendance_id
+        };
+      });
       // Sort by created date (newest first)
       formattedData.sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
@@ -374,7 +398,6 @@ const formattedData = (response.data.data || []).map(adjustment => {
   const viewRequest = (id) => {
     const request = submissions.find(item => item.id === id);
     if (request) {
-      // Define isOvernight before using it
       const isOvernight = request.time_in && request.time_out &&
         moment(request.time_in).format('YYYY-MM-DD') !== moment(request.time_out).format('YYYY-MM-DD');
 
@@ -389,42 +412,42 @@ const formattedData = (response.data.data || []).map(adjustment => {
       };
 
       const getStatusText = (status) => {
-  // Handle both numeric and string status values
-  if (status === 1 || status === '1' || status === 'Approved') {
-    return 'Approved';
-  } else if (status === 2 || status === '2' || status === 'Rejected') {
-    return 'Rejected';
-  } else if (status === 0 || status === '0' || status === 'Pending' || !status) {
-    return 'Pending';
-  } else {
-    // Fallback
-    return String(status);
-  }
-};
+        // Handle both numeric and string status values
+        if (status === 1 || status === '1' || status === 'Approved') {
+          return 'Approved';
+        } else if (status === 2 || status === '2' || status === 'Rejected') {
+          return 'Rejected';
+        } else if (status === 0 || status === '0' || status === 'Pending' || !status) {
+          return 'Pending';
+        } else {
+          // Fallback
+          return String(status);
+        }
+      };
 
       let statusDetails = '';
-const statusText = getStatusText(request.status);
+      const statusText = getStatusText(request.status);
 
-// This was the bug - "statusText === 'Approved' || 1" always evaluates to true because of "|| 1"
-// Same for the Rejected condition below
-if (statusText === 'Approved') {
-  statusDetails = `<div class="alert alert-success mt-3">
-    <strong>Approved by:</strong> ${request.approved_by || 'Manager'}<br>
-    <strong>Approved on:</strong> ${request.approved_at ? moment(request.approved_at).format("MMM DD, YYYY h:mm A") : 'N/A'}
-  </div>`;
-} else if (statusText === 'Rejected') {
-  statusDetails = `<div class="alert alert-danger mt-3">
-    <strong>Rejected by:</strong> ${request.rejected_by || 'Manager'}<br>
-    <strong>Rejected on:</strong> ${request.rejected_at ? moment(request.rejected_at).format("MMM DD, YYYY h:mm A") : 'N/A'}<br>
-    <strong>Reason:</strong> ${request.rejection_reason || 'No reason provided'}
-  </div>`;
-} else {
-  // For pending status
-  statusDetails = `<div class="alert alert-warning mt-3">
-    <strong>Status:</strong> Pending review<br>
-    <strong>Submitted on:</strong> ${request.created_at ? moment(request.created_at).format("MMM DD, YYYY h:mm A") : 'N/A'}
-  </div>`;
-}
+      // This was the bug - "statusText === 'Approved' || 1" always evaluates to true because of "|| 1"
+      // Same for the Rejected condition below
+      if (statusText === 'Approved') {
+        statusDetails = `<div class="alert alert-success mt-3">
+          <strong>Approved by:</strong> ${request.approved_by || 'Manager'}<br>
+          <strong>Approved on:</strong> ${request.approved_at ? moment(request.approved_at).format("MMM DD, YYYY h:mm A") : 'N/A'}
+        </div>`;
+      } else if (statusText === 'Rejected') {
+        statusDetails = `<div class="alert alert-danger mt-3">
+          <strong>Rejected by:</strong> ${request.rejected_by || 'Manager'}<br>
+          <strong>Rejected on:</strong> ${request.rejected_at ? moment(request.rejected_at).format("MMM DD, YYYY h:mm A") : 'N/A'}<br>
+          <strong>Reason:</strong> ${request.rejection_reason || 'No reason provided'}
+        </div>`;
+      } else {
+        // For pending status
+        statusDetails = `<div class="alert alert-warning mt-3">
+          <strong>Status:</strong> Pending review<br>
+          <strong>Submitted on:</strong> ${request.created_at ? moment(request.created_at).format("MMM DD, YYYY h:mm A") : 'N/A'}
+        </div>`;
+      }
 
       // Update the modal HTML with complete content
       Swal.fire({
@@ -440,6 +463,13 @@ if (statusText === 'Approved') {
               <div class="col-6">
                 <strong>Status:</strong><br>
                 <span class="badge bg-${getStatusDisplay(request.status)}">${getStatusText(request.status)}</span>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-12">
+                <strong>Attendance Record:</strong><br>
+                <span class="badge bg-secondary">ID: ${request.attendance_id || 'Unknown'}</span>
               </div>
             </div>
 
@@ -475,30 +505,30 @@ if (statusText === 'Approved') {
 
   // Render status badge based on status
   const renderStatusBadge = (status) => {
-  // Convert status to numeric if possible for consistent comparison
-  const numericStatus = typeof status === 'string' && !isNaN(parseInt(status, 10))
-    ? parseInt(status, 10)
-    : typeof status === 'number' ? status : null;
+    // Convert status to numeric if possible for consistent comparison
+    const numericStatus = typeof status === 'string' && !isNaN(parseInt(status, 10))
+      ? parseInt(status, 10)
+      : typeof status === 'number' ? status : null;
 
-  if (numericStatus === 1) {
-    return <Badge bg="success">Approved</Badge>;
-  } else if (numericStatus === 2) {
-    return <Badge bg="danger">Rejected</Badge>;
-  } else if (numericStatus === 0 || numericStatus === null) {
-    return <Badge bg="warning" text="dark">Pending</Badge>;
-  }
-
-  // Handle string status values
-  switch (status) {
-    case "Approved":
+    if (numericStatus === 1) {
       return <Badge bg="success">Approved</Badge>;
-    case "Rejected":
+    } else if (numericStatus === 2) {
       return <Badge bg="danger">Rejected</Badge>;
-    case "Pending":
-    default:
+    } else if (numericStatus === 0 || numericStatus === null) {
       return <Badge bg="warning" text="dark">Pending</Badge>;
-  }
-};
+    }
+
+    // Handle string status values
+    switch (status) {
+      case "Approved":
+        return <Badge bg="success">Approved</Badge>;
+      case "Rejected":
+        return <Badge bg="danger">Rejected</Badge>;
+      case "Pending":
+      default:
+        return <Badge bg="warning" text="dark">Pending</Badge>;
+    }
+  };
 
   // Load time adjustments when component mounts
   useEffect(() => {
@@ -552,6 +582,43 @@ if (statusText === 'Approved') {
                       />
                       <Form.Text className="text-muted">
                         Select the date for time adjustment
+                      </Form.Text>
+                    </Form.Group>
+
+                    <Form.Group className="mb-3">
+                      <Form.Label>Select Attendance Record <span className="text-danger">*</span></Form.Label>
+                      {loadingAttendance ? (
+                        <div className="d-flex align-items-center py-2">
+                          <Spinner animation="border" size="sm" className="me-2" />
+                          <span>Loading attendance records...</span>
+                        </div>
+                      ) : attendanceRecords.length > 0 ? (
+                        <Form.Select
+                          name="attendance_id"
+                          value={selectedAttendanceId}
+                          onChange={(e) => setSelectedAttendanceId(e.target.value)}
+                          required
+                        >
+                          {attendanceRecords.map((record) => {
+                            // Format the display with as much info as possible
+                            const timeIn = record.timeIN ? moment(record.timeIN).format("HH:mm") : "No time in";
+                            const timeOut = record.timeOUT ? moment(record.timeOUT).format("HH:mm") : "No time out";
+
+                            return (
+                              <option key={record.id} value={record.id}>
+                                ID: {record.id} - {timeIn} to {timeOut}
+                              </option>
+                            );
+                          })}
+                        </Form.Select>
+                      ) : (
+                        <div className="alert alert-warning py-2">
+                          <i className="bi bi-exclamation-triangle me-2"></i>
+                          No attendance records found for this date.
+                        </div>
+                      )}
+                      <Form.Text className="text-muted">
+                        Select the specific attendance record you want to adjust
                       </Form.Text>
                     </Form.Group>
 
@@ -664,6 +731,7 @@ if (statusText === 'Approved') {
                         <thead>
                           <tr>
                             <th>Date</th>
+                            <th>Attendance ID</th>
                             <th>Time</th>
                             <th>Reason</th>
                             <th>Status</th>
@@ -674,6 +742,9 @@ if (statusText === 'Approved') {
                             <tr key={request.id} onClick={() => viewRequest(request.id)} style={{ cursor: 'pointer' }}>
                               <td>
                                 {moment(request.date).format("MMM DD, YYYY")}
+                              </td>
+                              <td>
+                                <Badge bg="secondary">ID: {request.attendance_id || 'Unknown'}</Badge>
                               </td>
                               <td>
                                 {/* Format time directly from the full datetime string */}

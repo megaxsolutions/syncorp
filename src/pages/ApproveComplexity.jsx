@@ -8,10 +8,11 @@ import { FaFilter, FaSearch, FaSortAmountDown, FaSortAmountUp, FaCalendarAlt } f
 import Select from 'react-select';
 import moment from 'moment';
 
-export default function ApproveTimeAdjustment() {
-  const [adjustmentRequests, setAdjustmentRequests] = useState([]);
+export default function ApproveComplexity() {
+  const [complexityRequests, setComplexityRequests] = useState([]);
   const [currentItems, setCurrentItems] = useState([]);
   const [employees, setEmployees] = useState({});
+  const [cutoffs, setCutoffs] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -21,7 +22,7 @@ export default function ApproveTimeAdjustment() {
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [sortField, setSortField] = useState('date');
+  const [sortField, setSortField] = useState('datetime_approved');
   const [sortDirection, setSortDirection] = useState('desc');
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -44,12 +45,13 @@ export default function ApproveTimeAdjustment() {
     handleSearch();
   }, [sortField, sortDirection]);
 
-  // Function to fetch both adjustment data and employee data
+  // Function to fetch both complexity data and employee data
   const fetchData = async () => {
     setLoading(true);
     try {
+      await fetchCutoffs();
       await fetchEmployees();
-      await fetchAdjustmentRequests();
+      await fetchComplexityRequests();
     } catch (err) {
       console.error('Error in fetchData:', err);
       setError('Failed to load data. Please try again later.');
@@ -58,7 +60,7 @@ export default function ApproveTimeAdjustment() {
     }
   };
 
-  // Enhanced function to fetch all employees to get their names
+  // Function to fetch all employees to get their names
   const fetchEmployees = async () => {
     try {
       const response = await axios.get(
@@ -94,47 +96,97 @@ export default function ApproveTimeAdjustment() {
     }
   };
 
+  // Add function to fetch cutoff data
+  const fetchCutoffs = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+      const parsedData =
+        typeof response.data === "string"
+          ? JSON.parse(response.data)
+          : response.data;
+      const cutoffsData = parsedData.cutoff || parsedData.data?.cutoff || [];
+
+      // Create a mapping of cutoff IDs to their period strings with proper formatting
+      const cutoffMap = {};
+      cutoffsData.forEach((cutoff) => {
+        const startDate = cutoff.startDate || cutoff.start_date;
+        const endDate = cutoff.endDate || cutoff.end_date;
+
+        if (startDate && endDate) {
+          // Format using moment as specified
+          cutoffMap[cutoff.id] = `${moment(startDate).format("MMM DD")} - ${moment(endDate).format("MMM DD, YYYY")}`;
+        } else {
+          cutoffMap[cutoff.id] = 'N/A';
+        }
+      });
+
+      setCutoffs(cutoffMap);
+    } catch (error) {
+      console.error("Fetch Cut-offs Error:", error);
+    }
+  };
+
   // Handle search and filter functions
   const handleSearch = () => {
-    let filtered = [...adjustmentRequests];
+    let filtered = [...complexityRequests];
 
     // Filter by selected employee
     if (selectedEmployee) {
-      filtered = filtered.filter(adj => adj.emp_ID === selectedEmployee);
+      filtered = filtered.filter(complexity => complexity.emp_ID === selectedEmployee);
     }
 
     // Filter by date range
     if (dateRange.startDate && dateRange.endDate) {
-      filtered = filtered.filter(adj => {
-        const adjDate = moment(adj.date);
-        return adjDate.isBetween(dateRange.startDate, dateRange.endDate, 'day', '[]');
+      filtered = filtered.filter(complexity => {
+        if (!complexity.datetime_approved) return false;
+
+        const complexityDate = moment(complexity.datetime_approved);
+        return complexityDate.isBetween(dateRange.startDate, dateRange.endDate, 'day', '[]');
       });
     }
 
     // Filter by search term
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(adj => {
-        const employeeName = (employees[adj.emp_ID] || '').toLowerCase();
-        const empID = String(adj.emp_ID || '').toLowerCase();
-        const adjID = String(adj.id || '').toLowerCase();
-        const reason = String(adj.reason || '').toLowerCase();
+      filtered = filtered.filter(complexity => {
+        const employeeName = (employees[complexity.emp_ID] || '').toLowerCase();
+        const empID = String(complexity.emp_ID || '').toLowerCase();
+        const complexityID = String(complexity.id || '').toLowerCase();
 
         return employeeName.includes(term) ||
                empID.includes(term) ||
-               adjID.includes(term) ||
-               reason.includes(term);
+               complexityID.includes(term);
       });
     }
 
     // Filter by status
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(adj => {
-        if (filterStatus === '0') return adj.status === 0 || !adj.status || adj.status === 'Pending';
-        if (filterStatus === '1') return adj.status === 1 || adj.status === 'Approved';
-        if (filterStatus === '2') return adj.status === 2 || adj.status === 'Rejected';
-        return false; // Handle any other cases
-      });
+      switch (filterStatus) {
+        case 'pending_initial':
+          filtered = filtered.filter(complexity => complexity.initialStatus === 'Pending');
+          break;
+        case 'pending_final':
+          filtered = filtered.filter(complexity =>
+            complexity.initialStatus === 'Approved' && complexity.finalStatus !== 'Approved' && complexity.finalStatus !== 'Rejected'
+          );
+          break;
+        case 'approved':
+          filtered = filtered.filter(complexity => complexity.finalStatus === 'Approved');
+          break;
+        case 'rejected':
+          filtered = filtered.filter(complexity => complexity.finalStatus === 'Rejected');
+          break;
+        default:
+          break;
+      }
     }
 
     // Apply sorting
@@ -147,17 +199,13 @@ export default function ApproveTimeAdjustment() {
             aValue = employees[a.emp_ID] || '';
             bValue = employees[b.emp_ID] || '';
             break;
-          case 'date':
-            aValue = new Date(a.date);
-            bValue = new Date(b.date);
+          case 'amount':
+            aValue = parseFloat(a.amount || 0);
+            bValue = parseFloat(b.amount || 0);
             break;
-          case 'created_at':
-            aValue = new Date(a.created_at);
-            bValue = new Date(b.created_at);
-            break;
-          case 'time_in':
-            aValue = a.time_in;
-            bValue = b.time_in;
+          case 'datetime_approved':
+            aValue = a.datetime_approved ? new Date(a.datetime_approved) : new Date(0);
+            bValue = b.datetime_approved ? new Date(b.datetime_approved) : new Date(0);
             break;
           default:
             aValue = a[sortField];
@@ -189,9 +237,8 @@ export default function ApproveTimeAdjustment() {
     setSearchTerm('');
 
     // Reapply sorting without filters
-    let filtered = [...adjustmentRequests];
+    let filtered = [...complexityRequests];
 
-    // Only apply sorting
     if (sortField) {
       filtered.sort((a, b) => {
         let aValue, bValue;
@@ -201,9 +248,13 @@ export default function ApproveTimeAdjustment() {
             aValue = employees[a.emp_ID] || '';
             bValue = employees[b.emp_ID] || '';
             break;
-          case 'date':
-            aValue = new Date(a.date);
-            bValue = new Date(b.date);
+          case 'amount':
+            aValue = parseFloat(a.amount || 0);
+            bValue = parseFloat(b.amount || 0);
+            break;
+          case 'datetime_approved':
+            aValue = a.datetime_approved ? new Date(a.datetime_approved) : new Date(0);
+            bValue = b.datetime_approved ? new Date(b.datetime_approved) : new Date(0);
             break;
           default:
             aValue = a[sortField];
@@ -235,11 +286,11 @@ export default function ApproveTimeAdjustment() {
     }
   };
 
-  // Function to fetch time adjustment requests
-  const fetchAdjustmentRequests = async () => {
+  // Function to fetch complexity allowance requests
+  const fetchComplexityRequests = async () => {
     try {
       const response = await axios.get(
-        `${config.API_BASE_URL}/adjustments/get_all_adjustment`,
+        `${config.API_BASE_URL}/complexity/get_all_complexity`,
         {
           headers: {
             'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
@@ -249,125 +300,104 @@ export default function ApproveTimeAdjustment() {
       );
 
       if (response.data?.data) {
-        console.log('Adjustment data:', response.data.data);
+        console.log('Complexity data:', response.data.data);
+        const formattedComplexities = response.data.data.map(complexity => {
+          // Check if we have the status field directly from the database
+          const initialStatusFromDB = complexity.status || null;
+          const finalStatusFromDB = complexity.status2 || null;
 
-        // Format the adjustment data
-        const formattedAdjustments = response.data.data.map(adj => ({
-          id: adj.id,
-          emp_ID: adj.emp_ID,
-          date: adj.date,
-          timein: adj.timein,
-          timeout: adj.timeout,
-          reason: adj.reason,
-          status: adj.status || 'Pending',
-          created_at: adj.created_at,
-          approved_by: adj.approved_by,
-          approved_at: adj.approved_at,
-          rejected_by: adj.rejected_by,
-          rejected_at: adj.rejected_at,
-          rejection_reason: adj.rejection_reason
-        }));
+          // Determine initial status - use database value if available
+          let initialStatus;
+          if (initialStatusFromDB) {
+            initialStatus = initialStatusFromDB; // Use the direct status from DB
+          } else {
+            initialStatus = complexity.approved_by ? 'Approved' : 'Pending';
+          }
 
-        // Sort adjustments - newest first by date
-        formattedAdjustments.sort((a, b) => new Date(b.date) - new Date(a.date));
+          // Determine final status based on status2 field or approved_by2
+          let finalStatus;
+          if (finalStatusFromDB) {
+            finalStatus = finalStatusFromDB; // Use the direct status2 from DB
+          } else if (complexity.approved_by2) {
+            finalStatus = 'Approved';
+          } else if (complexity.approved_by) {
+            finalStatus = 'Pending';
+          } else {
+            finalStatus = 'Awaiting Initial Approval';
+          }
 
-        setAdjustmentRequests(formattedAdjustments);
-        setCurrentItems(formattedAdjustments.slice(0, itemsPerPage));
-        setTotalPages(Math.ceil(formattedAdjustments.length / itemsPerPage));
+          // Format amount as currency
+          const formattedAmount = parseFloat(complexity.amount || 0).toLocaleString('en-US', {
+            style: 'currency',
+            currency: 'PHP'
+          });
+
+          // Get cutoff period from our mapping or use direct values from complexity if available
+          let cutoffPeriod = 'N/A';
+          if (complexity.cutoff_ID && cutoffs[complexity.cutoff_ID]) {
+            cutoffPeriod = cutoffs[complexity.cutoff_ID];
+          } else if (complexity.cutoffStart && complexity.cutoffEnd) {
+            // Format using moment if direct dates are provided
+            cutoffPeriod = `${moment(complexity.cutoffStart).format("MMM DD")} - ${moment(complexity.cutoffEnd).format("MMM DD, YYYY")}`;
+          } else if (complexity.cutoff_period) {
+            cutoffPeriod = complexity.cutoff_period;
+          }
+
+          return {
+            id: complexity.id,
+            emp_ID: complexity.emp_ID,
+            cutoffId: complexity.cutoff_ID,
+            cutoffPeriod: cutoffPeriod,
+            amount: formattedAmount,
+            rawAmount: parseFloat(complexity.amount || 0),
+            plotted_by: complexity.plotted_by,
+            approved_by: complexity.approved_by,
+            approved_by2: complexity.approved_by2,
+            datetime_approved: complexity.datetime_approved,
+            datetime_approved2: complexity.datetime_approved2,
+            initialStatus: initialStatus,
+            finalStatus: finalStatus,
+            rawInitialStatus: initialStatusFromDB,
+            rawFinalStatus: finalStatusFromDB
+          };
+        });
+
+        // Sort complexities - newest first if there's a datetime field
+        formattedComplexities.sort((a, b) => {
+          if (a.datetime_approved && b.datetime_approved) {
+            return new Date(b.datetime_approved) - new Date(a.datetime_approved);
+          }
+          return 0; // Keep original order if no dates
+        });
+
+        setComplexityRequests(formattedComplexities);
+        setCurrentItems(formattedComplexities.slice(0, itemsPerPage));
+        setTotalPages(Math.ceil(formattedComplexities.length / itemsPerPage));
       } else {
-        setAdjustmentRequests([]);
+        setComplexityRequests([]);
         setCurrentItems([]);
         setTotalPages(0);
       }
     } catch (err) {
-      console.error('Error fetching adjustment requests:', err);
-      setError('Failed to load time adjustment requests. Please try again later.');
+      console.error('Error fetching complexity requests:', err);
+      setError('Failed to load complexity allowance requests. Please try again later.');
     }
   };
 
   // Handle page change for pagination
   const handlePageChange = (pageNumber) => {
-    if (pageNumber < 1 || pageNumber > totalPages) return;
-
     setCurrentPage(pageNumber);
-    const indexOfLastRecord = pageNumber * itemsPerPage;
-    const indexOfFirstRecord = indexOfLastRecord - itemsPerPage;
-
-    // Apply current filters and get the slice for the requested page
-    let filtered = [...adjustmentRequests];
-
-    // Apply existing filters
-    if (selectedEmployee) {
-      filtered = filtered.filter(adj => adj.emp_ID === selectedEmployee);
-    }
-
-    if (dateRange.startDate && dateRange.endDate) {
-      filtered = filtered.filter(adj => {
-        const adjDate = moment(adj.date);
-        return adjDate.isBetween(dateRange.startDate, dateRange.endDate, 'day', '[]');
-      });
-    }
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(adj => {
-        const employeeName = (employees[adj.emp_ID] || '').toLowerCase();
-        const empID = String(adj.emp_ID || '').toLowerCase();
-        const adjID = String(adj.id || '').toLowerCase();
-        const reason = String(adj.reason || '').toLowerCase();
-
-        return employeeName.includes(term) ||
-               empID.includes(term) ||
-               adjID.includes(term) ||
-               reason.includes(term);
-      });
-    }
-
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(adj => {
-        if (filterStatus === '0') return adj.status === 0 || !adj.status || adj.status === 'Pending';
-        if (filterStatus === '1') return adj.status === 1 || adj.status === 'Approved';
-        if (filterStatus === '2') return adj.status === 2 || adj.status === 'Rejected';
-        return false; // Handle any other cases
-      });
-    }
-
-    // Apply current sorting
-    if (sortField) {
-      filtered.sort((a, b) => {
-        let aValue, bValue;
-
-        switch (sortField) {
-          case 'employee':
-            aValue = employees[a.emp_ID] || '';
-            bValue = employees[b.emp_ID] || '';
-            break;
-          case 'date':
-            aValue = new Date(a.date);
-            bValue = new Date(b.date);
-            break;
-          default:
-            aValue = a[sortField];
-            bValue = b[sortField];
-        }
-
-        if (sortDirection === 'asc') {
-          return aValue > bValue ? 1 : -1;
-        } else {
-          return aValue < bValue ? 1 : -1;
-        }
-      });
-    }
-
-    setCurrentItems(filtered.slice(indexOfFirstRecord, indexOfLastRecord));
+    const indexOfLastItem = pageNumber * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    setCurrentItems(complexityRequests.slice(indexOfFirstItem, indexOfLastItem));
   };
 
-  // Handle approval
-  const handleApprove = async (adjustmentId) => {
+  // Handle final approval of complexity allowance
+  const handleApprove = async (complexityId) => {
     try {
       const result = await Swal.fire({
-        title: 'Approve Adjustment',
-        text: 'Are you sure you want to approve this time adjustment request?',
+        title: 'Final Approve Complexity Allowance',
+        text: 'Are you sure you want to give final approval for this complexity allowance?',
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#28a745',
@@ -377,19 +407,19 @@ export default function ApproveTimeAdjustment() {
 
       if (result.isConfirmed) {
         setLoading(true);
-        const adminEmpId = localStorage.getItem('X-EMP-ID');
+        const adminId = localStorage.getItem('X-EMP-ID');
 
-        // Using the new endpoint for updating approval status
+        // Use the new endpoint with the appropriate parameters
         const response = await axios.put(
-          `${config.API_BASE_URL}/adjustments/update_approval_adjustment/${adjustmentId}`,
+          `${config.API_BASE_URL}/complexity/update_approval_complexity_admin/${complexityId}`,
           {
-            status: 1, // 1 for Approved
-            admin_emp_id: adminEmpId
+            status: 'Approved',
+            admin_emp_id: adminId
           },
           {
             headers: {
               'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
-              'X-EMP-ID': adminEmpId,
+              'X-EMP-ID': adminId,
             },
           }
         );
@@ -397,21 +427,21 @@ export default function ApproveTimeAdjustment() {
         if (response.data.success) {
           Swal.fire(
             'Approved!',
-            'The time adjustment request has been approved.',
+            'The complexity allowance has been finally approved.',
             'success'
           );
 
           // Refresh data
-          fetchAdjustmentRequests();
+          fetchComplexityRequests();
         } else {
-          throw new Error(response.data.error || 'Failed to approve time adjustment');
+          throw new Error(response.data.error || 'Failed to approve complexity allowance');
         }
       }
     } catch (err) {
-      console.error('Error approving time adjustment:', err);
+      console.error('Error approving complexity allowance:', err);
       Swal.fire(
         'Error!',
-        err.response?.data?.error || 'Failed to approve time adjustment',
+        err.response?.data?.error || 'Failed to approve complexity allowance',
         'error'
       );
     } finally {
@@ -419,12 +449,12 @@ export default function ApproveTimeAdjustment() {
     }
   };
 
-  // Handle rejection
-  const handleReject = async (adjustmentId) => {
+  // Handle rejection of complexity allowance
+  const handleReject = async (complexityId) => {
     try {
       const result = await Swal.fire({
-        title: 'Reject Adjustment',
-        text: 'Please provide a reason for rejecting this time adjustment request',
+        title: 'Final Reject Complexity Allowance',
+        text: 'Please provide a reason for rejecting this complexity allowance',
         input: 'text',
         inputPlaceholder: 'Enter rejection reason',
         icon: 'warning',
@@ -432,28 +462,24 @@ export default function ApproveTimeAdjustment() {
         confirmButtonColor: '#dc3545',
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'Reject',
-        inputValidator: (value) => {
-          if (!value) {
-            return 'You need to provide a reason for rejection!';
-          }
-        }
       });
 
       if (result.isConfirmed) {
         setLoading(true);
-        const adminEmpId = localStorage.getItem('X-EMP-ID');
+        const adminId = localStorage.getItem('X-EMP-ID');
 
+        // Use the new endpoint with the appropriate parameters
         const response = await axios.put(
-          `${config.API_BASE_URL}/adjustments/update_approval_adjustment/${adjustmentId}`,
+          `${config.API_BASE_URL}/complexity/update_approval_complexity_admin/${complexityId}`,
           {
-            status: 2, // 2 for Rejected
-            admin_emp_id: adminEmpId,
-            rejection_reason: result.value
+            status: 'Rejected',  // Use 'Rejected' for rejections
+            admin_emp_id: adminId,
+            reason: result.value  // Include the rejection reason
           },
           {
             headers: {
               'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
-              'X-EMP-ID': adminEmpId,
+              'X-EMP-ID': adminId,
             },
           }
         );
@@ -461,21 +487,21 @@ export default function ApproveTimeAdjustment() {
         if (response.data.success) {
           Swal.fire(
             'Rejected!',
-            'The time adjustment request has been rejected.',
+            'The complexity allowance has been rejected.',
             'success'
           );
 
           // Refresh data
-          fetchAdjustmentRequests();
+          fetchComplexityRequests();
         } else {
-          throw new Error(response.data.error || 'Failed to reject time adjustment');
+          throw new Error(response.data.error || 'Failed to reject complexity allowance');
         }
       }
     } catch (err) {
-      console.error('Error rejecting time adjustment:', err);
+      console.error('Error rejecting complexity allowance:', err);
       Swal.fire(
         'Error!',
-        err.response?.data?.error || 'Failed to reject time adjustment',
+        err.response?.data?.error || 'Failed to reject complexity allowance',
         'error'
       );
     } finally {
@@ -490,11 +516,11 @@ export default function ApproveTimeAdjustment() {
       <main id="main" className="main">
         <div className="pagetitle d-flex justify-content-between align-items-center mb-3">
           <div>
-            <h1>Time Adjustment Approval</h1>
+            <h1>Complexity Allowance Approval</h1>
             <nav aria-label="breadcrumb">
               <ol className="breadcrumb">
                 <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
-                <li className="breadcrumb-item active">Time Adjustment Approval</li>
+                <li className="breadcrumb-item active">Complexity Allowance Approval</li>
               </ol>
             </nav>
           </div>
@@ -514,13 +540,14 @@ export default function ApproveTimeAdjustment() {
               <div className="row g-3 align-items-center">
                 <div className="col-md-6">
                   <h5 className="card-title mb-0">
-                    <i className="bi bi-calendar-plus me-2 text-primary"></i>
-                    Time Adjustment Requests
+                    <i className="bi bi-layers me-2 text-primary"></i>
+                    Complexity Allowance Requests
                   </h5>
                 </div>
                 <div className="col-md-6">
                   <div className="d-flex gap-2 justify-content-md-end">
-                    <div className="dropdown position-relative">
+                    {/* Filter dropdown */}
+                    <div className="dropdown">
                       <button
                         className={`btn ${(selectedEmployee || dateRange.startDate || dateRange.endDate || filterStatus !== 'all') ? 'btn-primary' : 'btn-outline-secondary'} btn-sm dropdown-toggle d-flex align-items-center`}
                         type="button"
@@ -531,96 +558,83 @@ export default function ApproveTimeAdjustment() {
                           <span className="badge bg-light text-dark ms-2">Active</span>
                         )}
                       </button>
-                      {showFilters && (
-                        <div
-                          className="shadow p-3 bg-white rounded border"
-                          style={{
-                            width: "320px",
-                            position: "absolute",
-                            right: 0,
-                            top: "calc(100% + 5px)",
-                            zIndex: 1050,
-                            maxHeight: "80vh",
-                            overflowY: "auto"
-                          }}
-                        >
-                          <h6 className="dropdown-header d-flex align-items-center px-0">
-                            <FaFilter className="me-2" /> Filter Options
-                          </h6>
-                          <div className="mb-3">
-                            <label className="form-label d-flex align-items-center">
-                              <FaSearch className="me-2 text-muted" /> Employee
-                            </label>
-                            <Select
-                              className="basic-single"
-                              classNamePrefix="react-select"
-                              placeholder="Search by name or ID"
-                              isClearable={true}
-                              isSearchable={true}
-                              name="employee"
-                              options={employeeOptions}
-                              onChange={(selectedOption) => {
-                                setSelectedEmployee(selectedOption ? selectedOption.value : '');
-                              }}
-                              value={employeeOptions.find(option => option.value === selectedEmployee) || null}
+                      <div className={`dropdown-menu shadow p-3 ${showFilters ? 'show' : ''}`}
+                        style={{ width: "320px", right: 0, left: "auto", position: "absolute" }}>
+                        <h6 className="dropdown-header d-flex align-items-center">
+                          <FaFilter className="me-2" /> Filter Options
+                        </h6>
+                        <div className="mb-3">
+                          <label className="form-label d-flex align-items-center">
+                            <FaSearch className="me-2 text-muted" /> Employee
+                          </label>
+                          <Select
+                            className="basic-single"
+                            classNamePrefix="react-select"
+                            placeholder="Search by name or ID"
+                            isClearable={true}
+                            isSearchable={true}
+                            name="employee"
+                            options={employeeOptions}
+                            onChange={(selectedOption) => {
+                              setSelectedEmployee(selectedOption ? selectedOption.value : '');
+                            }}
+                            value={employeeOptions.find(option => option.value === selectedEmployee) || null}
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label d-flex align-items-center">
+                            <FaCalendarAlt className="me-2 text-muted" /> Approval Date Range
+                          </label>
+                          <div className="input-group input-group-sm">
+                            <span className="input-group-text">From</span>
+                            <input
+                              type="date"
+                              className="form-control"
+                              value={dateRange.startDate}
+                              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
                             />
                           </div>
-                          <div className="mb-3">
-                            <label className="form-label d-flex align-items-center">
-                              <FaCalendarAlt className="me-2 text-muted" /> Date Range
-                            </label>
-                            <div className="input-group input-group-sm">
-                              <span className="input-group-text">From</span>
-                              <input
-                                type="date"
-                                className="form-control"
-                                value={dateRange.startDate}
-                                onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                              />
-                            </div>
-                            <div className="input-group input-group-sm mt-2">
-                              <span className="input-group-text">To</span>
-                              <input
-                                type="date"
-                                className="form-control"
-                                value={dateRange.endDate}
-                                onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                              />
-                            </div>
-                          </div>
-                          <div className="mb-3">
-                            <label className="form-label d-flex align-items-center">
-                              <i className="bi bi-check2-square me-2 text-muted"></i> Status
-                            </label>
-                            <select
-                              className="form-select form-select-sm"
-                              value={filterStatus}
-                              onChange={(e) => setFilterStatus(e.target.value)}
-                            >
-                              <option value="all">All Statuses</option>
-                              <option value="0">Pending</option>
-                              <option value="1">Approved</option>
-                              <option value="2">Rejected</option>
-                            </select>
-                          </div>
-                          <div className="d-flex gap-2">
-                            <button
-                              className="btn btn-primary btn-sm w-50"
-                              onClick={handleSearch}
-                            >
-                              <i className="bi bi-search me-1"></i> Apply Filters
-                            </button>
-                            <button
-                              className="btn btn-secondary btn-sm w-50"
-                              onClick={handleReset}
-                            >
-                              <i className="bi bi-x-circle me-1"></i> Reset
-                            </button>
+                          <div className="input-group input-group-sm mt-2">
+                            <span className="input-group-text">To</span>
+                            <input
+                              type="date"
+                              className="form-control"
+                              value={dateRange.endDate}
+                              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                            />
                           </div>
                         </div>
-                      )}
-
-                      {/* Add click outside listener */}
+                        <div className="mb-3">
+                          <label className="form-label d-flex align-items-center">
+                            <i className="bi bi-check2-square me-2 text-muted"></i> Status
+                          </label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                          >
+                            <option value="all">All Statuses</option>
+                            <option value="pending_initial">Pending Initial Approval</option>
+                            <option value="pending_final">Pending Final Approval</option>
+                            <option value="approved">Fully Approved</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                        </div>
+                        <div className="d-flex gap-2">
+                          <button
+                            className="btn btn-primary btn-sm w-50"
+                            onClick={handleSearch}
+                          >
+                            <i className="bi bi-search me-1"></i> Apply Filters
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm w-50"
+                            onClick={handleReset}
+                          >
+                            <i className="bi bi-x-circle me-1"></i> Reset
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -669,7 +683,10 @@ export default function ApproveTimeAdjustment() {
                     {filterStatus !== 'all' && (
                       <span className="badge bg-light text-dark border d-flex align-items-center">
                         <i className="bi bi-funnel me-1"></i>
-                        {filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}
+                        {filterStatus === 'pending_initial' ? 'Pending Initial Approval' :
+                         filterStatus === 'pending_final' ? 'Pending Final Approval' :
+                         filterStatus === 'approved' ? 'Fully Approved' :
+                         filterStatus === 'rejected' ? 'Rejected' : filterStatus}
                         <button className="btn-close btn-close-sm ms-2"
                           onClick={() => {
                             setFilterStatus('all');
@@ -689,7 +706,6 @@ export default function ApproveTimeAdjustment() {
                 </div>
               )}
 
-              {/* Table for time adjustment requests */}
               <div className="table-responsive">
                 <table className="table table-hover table-bordered">
                   <thead className="table-light">
@@ -704,19 +720,21 @@ export default function ApproveTimeAdjustment() {
                           sortDirection === 'asc' ? <FaSortAmountUp className="ms-1" /> : <FaSortAmountDown className="ms-1" />
                         )}
                       </th>
-                      <th className="sortable" onClick={() => handleSort('date')}>
-                        Date {sortField === 'date' && (
+                      <th>Cut-off Period</th>
+                      <th className="text-end sortable" onClick={() => handleSort('amount')}>
+                        Amount {sortField === 'amount' && (
                           sortDirection === 'asc' ? <FaSortAmountUp className="ms-1" /> : <FaSortAmountDown className="ms-1" />
                         )}
                       </th>
-                      <th className="sortable" onClick={() => handleSort('time_in')}>
-                        Time In/Out {sortField === 'time_in' && (
+                      <th>Submitted By</th>
+                      <th className="sortable" onClick={() => handleSort('initialStatus')}>
+                        Initial Status {sortField === 'initialStatus' && (
                           sortDirection === 'asc' ? <FaSortAmountUp className="ms-1" /> : <FaSortAmountDown className="ms-1" />
                         )}
                       </th>
-                      <th>Reason</th>
-                      <th className="sortable" onClick={() => handleSort('status')}>
-                        Status {sortField === 'status' && (
+                      <th>Initial Approved By</th>
+                      <th className="sortable" onClick={() => handleSort('finalStatus')}>
+                        Final Status {sortField === 'finalStatus' && (
                           sortDirection === 'asc' ? <FaSortAmountUp className="ms-1" /> : <FaSortAmountDown className="ms-1" />
                         )}
                       </th>
@@ -726,120 +744,112 @@ export default function ApproveTimeAdjustment() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan="7" className="text-center py-5">
+                        <td colSpan="9" className="text-center py-5">
                           <div className="spinner-border text-primary mb-2" role="status">
                             <span className="visually-hidden">Loading...</span>
                           </div>
-                          <p className="text-muted">Loading time adjustment requests...</p>
+                          <p className="text-muted">Loading complexity allowance requests...</p>
                         </td>
                       </tr>
                     ) : currentItems.length > 0 ? (
-                      currentItems.map((adjustment) => (
-                        <tr key={adjustment.id} className={
-                          adjustment.status === 1 ||
-                          (adjustment.status && typeof adjustment.status === 'string' &&
-                           adjustment.status.toLowerCase() === 'approved') ? 'table-success bg-opacity-25' :
-                          adjustment.status === 2 ||
-                          (adjustment.status && typeof adjustment.status === 'string' &&
-                           adjustment.status.toLowerCase() === 'rejected') ? 'table-danger bg-opacity-25' :
-                          ''
+                      currentItems.map((complexity) => (
+                        <tr key={complexity.id} className={
+                          complexity.finalStatus === 'Approved' ? 'table-success bg-opacity-25' :
+                          complexity.finalStatus === 'Rejected' ? 'table-danger bg-opacity-25' :
+                          complexity.initialStatus === 'Approved' ? 'table-warning bg-opacity-25' : ''
                         }>
-                          <td>{adjustment.id}</td>
+                          <td>{complexity.id}</td>
                           <td>
-                            <strong>{employees[adjustment.emp_ID] || 'Employee'}</strong>
-                            <div className="small text-muted">ID: {adjustment.emp_ID}</div>
+                            <strong>{employees[complexity.emp_ID] || 'Employee'}</strong>
+                            <div className="small text-muted">ID: {complexity.emp_ID}</div>
                           </td>
-                          <td>
-                            {moment(adjustment.date).format('MMM DD, YYYY')}
-                            <div className="small text-muted">{moment(adjustment.date).format('dddd')}</div>
-                          </td>
-                          <td>
-                            <div>
-                              <i className="bi bi-box-arrow-in-right text-success me-1"></i>
-                              {adjustment.timein ? adjustment.timein.split(':').slice(0, 2).join(':') : ''}
-                            </div>
-                            <div>
-                              <i className="bi bi-box-arrow-right text-danger me-1"></i>
-                              {adjustment.timeout ? adjustment.timeout.split(':').slice(0, 2).join(':') : ''}
-                            </div>
-                          </td>
-                          <td>
-                            <div className="text-truncate" style={{ maxWidth: "200px" }} title={adjustment.reason}>
-                              {adjustment.reason}
-                            </div>
-                          </td>
+                          <td>{complexity.cutoffPeriod || 'N/A'}</td>
+                          <td className="text-end fw-bold">{complexity.amount}</td>
+                          <td>{employees[complexity.plotted_by] || complexity.plotted_by}</td>
                           <td>
                             <span className={`badge ${
-                              adjustment.status === 1 ||
-                              (adjustment.status && typeof adjustment.status === 'string' &&
-                               adjustment.status.toLowerCase() === 'approved') ? 'bg-success' :
-                              adjustment.status === 2 ||
-                              (adjustment.status && typeof adjustment.status === 'string' &&
-                               adjustment.status.toLowerCase() === 'rejected') ? 'bg-danger' :
-                              'bg-warning text-dark'
+                              complexity.initialStatus === 'Approved' ? 'bg-success' :
+                              complexity.initialStatus === 'Pending' ? 'bg-warning' :
+                              complexity.initialStatus === 'Rejected' ? 'bg-danger' : 'bg-secondary'
                             }`}>
-                              {adjustment.status === 0 || !adjustment.status ? 'Pending' :
-                               adjustment.status === 1 ? 'Approved' :
-                               adjustment.status === 2 ? 'Rejected' :
-                               adjustment.status}
+                              {complexity.initialStatus}
                             </span>
                           </td>
                           <td>
-                            {(adjustment.status === 0 || !adjustment.status ||
-                             (adjustment.status && typeof adjustment.status === 'string' &&
-                              adjustment.status.toLowerCase() === 'pending')) ? (
+                            {complexity.approved_by ? (
+                              <>
+                                <span className="fw-medium">{employees[complexity.approved_by] || complexity.approved_by}</span>
+                                <div className="small text-muted">
+                                  {complexity.datetime_approved ? new Date(complexity.datetime_approved).toLocaleString() : ''}
+                                </div>
+                              </>
+                            ) : '-'}
+                          </td>
+                          <td>
+                            <span className={`badge ${
+                              complexity.finalStatus === 'Approved' ? 'bg-success' :
+                              complexity.finalStatus === 'Rejected' ? 'bg-danger' :
+                              complexity.finalStatus === 'Pending' ? 'bg-warning' : 'bg-secondary'
+                            }`}>
+                              {complexity.finalStatus}
+                            </span>
+                          </td>
+                          <td>
+                            {/* Show actions if initial status is approved but final approval hasn't been given yet */}
+                            {(complexity.initialStatus === 'Approved' || complexity.approved_by) && !complexity.approved_by2 && (
                               <div className="d-flex flex-column gap-2">
                                 <button
                                   className="btn btn-success btn-sm d-flex align-items-center justify-content-center"
-                                  onClick={() => handleApprove(adjustment.id)}
+                                  onClick={() => handleApprove(complexity.id)}
                                   disabled={loading}
-                                  title="Approve"
+                                  title="Final Approve"
                                 >
                                   <i className="bi bi-check-square me-1"></i> Approve
                                 </button>
                                 <button
                                   className="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center"
-                                  onClick={() => handleReject(adjustment.id)}
+                                  onClick={() => handleReject(complexity.id)}
                                   disabled={loading}
-                                  title="Reject"
+                                  title="Final Reject"
                                 >
                                   <i className="bi bi-x-circle-fill me-1"></i> Reject
                                 </button>
                               </div>
-                            ) : (adjustment.status === 1 ||
-                                (adjustment.status && typeof adjustment.status === 'string' &&
-                                 adjustment.status.toLowerCase() === 'approved')) ? (
+                            )}
+
+                            {/* Show fully approved message if both approvals are complete */}
+                            {complexity.approved_by2 && complexity.finalStatus === 'Approved' && (
                               <div className="text-success d-flex align-items-start">
                                 <i className="bi bi-check-circle-fill me-2 mt-1"></i>
                                 <div>
-                                  <div className="fw-medium">Approved</div>
-                                  {adjustment.approved_by && (
-                                    <div className="small">By: {employees[adjustment.approved_by] || adjustment.approved_by}</div>
-                                  )}
-                                  {adjustment.approved_at && (
-                                    <div className="small text-muted">
-                                      {new Date(adjustment.approved_at).toLocaleString()}
-                                    </div>
-                                  )}
+                                  <div className="fw-medium">Fully Approved</div>
+                                  <div className="small">By: {employees[complexity.approved_by2] || complexity.approved_by2}</div>
+                                  <div className="small text-muted">
+                                    {complexity.datetime_approved2 ? new Date(complexity.datetime_approved2).toLocaleString() : ''}
+                                  </div>
                                 </div>
                               </div>
-                            ) : (
+                            )}
+
+                            {/* Show rejected message */}
+                            {complexity.finalStatus === 'Rejected' && (
                               <div className="text-danger d-flex align-items-start">
                                 <i className="bi bi-x-circle-fill me-2 mt-1"></i>
                                 <div>
                                   <div className="fw-medium">Rejected</div>
-                                  {adjustment.rejected_by && (
-                                    <div className="small">By: {employees[adjustment.rejected_by] || adjustment.rejected_by}</div>
-                                  )}
-                                  {adjustment.rejection_reason && (
-                                    <div className="small">Reason: {adjustment.rejection_reason}</div>
-                                  )}
-                                  {adjustment.rejected_at && (
-                                    <div className="small text-muted">
-                                      {new Date(adjustment.rejected_at).toLocaleString()}
-                                    </div>
-                                  )}
+                                  <div className="small">By: {employees[complexity.approved_by2] || complexity.approved_by2}</div>
+                                  <div className="small text-muted">
+                                    {complexity.datetime_approved2 ? new Date(complexity.datetime_approved2).toLocaleString() : ''}
+                                  </div>
                                 </div>
+                              </div>
+                            )}
+
+                            {/* Show waiting message if no initial approval */}
+                            {!complexity.approved_by && complexity.initialStatus !== 'Approved' && (
+                              <div className="text-secondary d-flex align-items-center">
+                                <i className="bi bi-hourglass-split me-2"></i>
+                                <span>Awaiting Initial Approval</span>
                               </div>
                             )}
                           </td>
@@ -847,9 +857,9 @@ export default function ApproveTimeAdjustment() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="7" className="text-center py-5">
+                        <td colSpan="9" className="text-center py-5">
                           <i className="bi bi-inbox fs-1 text-muted"></i>
-                          <p className="mt-2">No time adjustment requests found matching the current filters.</p>
+                          <p className="mt-2">No complexity allowance requests found matching the current filters.</p>
                           {filterStatus !== 'all' && (
                             <button
                               className="btn btn-outline-primary btn-sm"
@@ -865,11 +875,10 @@ export default function ApproveTimeAdjustment() {
                 </table>
               </div>
 
-              {/* Pagination */}
-              {adjustmentRequests.length > 0 && (
+              {complexityRequests.length > 0 && (
                 <div className="d-flex justify-content-between align-items-center mt-4">
                   <div className="text-muted small">
-                    Showing {currentItems.length} of {adjustmentRequests.length} records
+                    Showing {currentItems.length} of {complexityRequests.length} records
                   </div>
                   <nav aria-label="Page navigation">
                     <ul className="pagination mb-0">
@@ -959,95 +968,3 @@ export default function ApproveTimeAdjustment() {
     </>
   );
 }
-
-// Inside handleSubmit function, modify the existing code that checks for attendance records
-
-const handleSubmit = async (formData) => {
-  setIsSubmitting(true);
-  try {
-    const attendanceResponse = await axios.get(
-      `${config.API_BASE_URL}/attendance/get_attendance_records`,
-      {
-        headers: {
-          'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
-          'X-EMP-ID': localStorage.getItem('X-EMP-ID'),
-        },
-      }
-    );
-
-    const selectedDate = formData.date;
-    const attendanceRecord = attendanceResponse.data.data.find(record => {
-      return record.date && record.date.split('T')[0] === selectedDate;
-    });
-
-    if (!attendanceRecord || !attendanceRecord.id) {
-      Swal.fire({
-        icon: "error",
-        title: "No Attendance Record",
-        text: "No attendance record found for the selected date. You can only adjust existing attendance records.",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Check if there are existing adjustment requests for this date
-    const existingRequests = submissions.filter(request =>
-      moment(request.date).format('YYYY-MM-DD') === formData.date
-    );
-
-    if (existingRequests.length > 0) {
-      // Show confirmation dialog instead of preventing submission
-      const result = await Swal.fire({
-        icon: "warning",
-        title: "Multiple Adjustments",
-        html: `
-          You already have ${existingRequests.length} adjustment request(s) for this date.<br><br>
-          Do you want to submit another adjustment request?
-        `,
-        showCancelButton: true,
-        confirmButtonText: "Yes, Submit Another",
-        cancelButtonText: "Cancel",
-        confirmButtonColor: "#3085d6",
-        cancelButtonColor: "#d33",
-      });
-
-      if (!result.isConfirmed) {
-        setIsSubmitting(false);
-        return;
-      }
-    }
-
-    // Format dates based on overnight shift status
-    let timeInFormatted = `${formData.date} ${formData.time_in}:00`;  // Format: YYYY-MM-DD HH:MM:SS
-
-    // Now create the adjustment using the attendance ID
-    const response = await axios.post(
-      `${config.API_BASE_URL}/adjustments/add_adjustment/${attendanceRecord.id}`,
-      {
-        time_in: timeInFormatted,
-        time_out: timeOutFormatted,
-        emp_id: emp_id,
-        reason: formData.reason,
-        is_overnight: formData.is_overnight,
-        force_multiple: true // Add this flag to indicate we're intentionally creating multiple adjustments
-      },
-      {
-        headers: {
-          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-          "X-EMP-ID": emp_id,
-        },
-      }
-    );
-
-    // ...rest of your existing code...
-  } catch (error) {
-    console.error('Error submitting adjustment request:', error);
-    Swal.fire({
-      icon: "error",
-      title: "Submission Failed",
-      text: "An error occurred while submitting your adjustment request. Please try again later.",
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
