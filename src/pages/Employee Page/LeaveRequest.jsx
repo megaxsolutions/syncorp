@@ -21,6 +21,7 @@ const LeaveRequest = () => {
   const [filePreview, setFilePreview] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVL, setIsVL] = useState(false);
   const [employeeData, setEmployeeData] = useState(null); // Add employee data state
 
   // Add animation states for better UX
@@ -400,6 +401,21 @@ const LeaveRequest = () => {
     return <span className="badge bg-secondary">{status}</span>;
   };
 
+    const addWeekdays = (startDate, daysToAdd) => {
+      let count = 0;
+      let date = moment(startDate);
+  
+      while (count < daysToAdd) {
+        date = date.add(1, 'days');
+        if (date.day() !== 0 && date.day() !== 6) {
+          count++;
+        }
+      }
+  
+      return date;
+    };
+    const minDate = isVL ? '' : addWeekdays(moment(), 5).format('YYYY-MM-DD');
+
   return (
     <div>
       <EmployeeNavbar />
@@ -474,6 +490,14 @@ const LeaveRequest = () => {
                             setFilePreview(null);
                             const fileInput = document.getElementById('uploadFile');
                             if (fileInput) fileInput.value = '';
+                            
+                          }
+
+                          if (leaveTypes.find(type => type.id.toString() === leaveType)?.type === 'VL' &&
+                          leaveTypes.find(type => type.id.toString() === e.target.value)?.type !== 'VL') {
+                           setIsVL(true); 
+                          }else{
+                            setIsVL(false);
                           }
                         }}
                         required
@@ -505,12 +529,14 @@ const LeaveRequest = () => {
                         type="date"
                         className={`form-control ${!selectedDate && formFeedback ? 'is-invalid' : ''}`}
                         id="date"
+                        onKeyDown={(e) => e.preventDefault()}
                         value={selectedDate}
                         onChange={(e) => {
                           setSelectedDate(e.target.value);
                           setFormFeedback('');
                         }}
-                        min={moment().format('YYYY-MM-DD')}
+                        
+                        min= {minDate}
                         required
                       />
                       <small className="form-text text-muted mt-1">
