@@ -45,12 +45,15 @@ export default function ApproveComplexity() {
     handleSearch();
   }, [sortField, sortDirection]);
 
-  // Function to fetch both complexity data and employee data
+  // Update the fetchData function to use async/await properly
   const fetchData = async () => {
     setLoading(true);
     try {
+      // First fetch cutoffs
       await fetchCutoffs();
+      // Then fetch employees
       await fetchEmployees();
+      // Finally fetch complexity requests after cutoffs are loaded
       await fetchComplexityRequests();
     } catch (err) {
       console.error('Error in fetchData:', err);
@@ -96,7 +99,7 @@ export default function ApproveComplexity() {
     }
   };
 
-  // Add function to fetch cutoff data
+  // Modify fetchCutoffs to return a promise and update the state
   const fetchCutoffs = async () => {
     try {
       const response = await axios.get(
@@ -108,20 +111,20 @@ export default function ApproveComplexity() {
           },
         }
       );
+
       const parsedData =
         typeof response.data === "string"
           ? JSON.parse(response.data)
           : response.data;
       const cutoffsData = parsedData.cutoff || parsedData.data?.cutoff || [];
 
-      // Create a mapping of cutoff IDs to their period strings with proper formatting
+      // Create a mapping of cutoff IDs to their period strings
       const cutoffMap = {};
       cutoffsData.forEach((cutoff) => {
         const startDate = cutoff.startDate || cutoff.start_date;
         const endDate = cutoff.endDate || cutoff.end_date;
 
         if (startDate && endDate) {
-          // Format using moment as specified
           cutoffMap[cutoff.id] = `${moment(startDate).format("MMM DD")} - ${moment(endDate).format("MMM DD, YYYY")}`;
         } else {
           cutoffMap[cutoff.id] = 'N/A';
@@ -129,8 +132,10 @@ export default function ApproveComplexity() {
       });
 
       setCutoffs(cutoffMap);
+      return cutoffMap; // Return the map for immediate use if needed
     } catch (error) {
       console.error("Fetch Cut-offs Error:", error);
+      return {};
     }
   };
 
@@ -336,9 +341,9 @@ export default function ApproveComplexity() {
           let cutoffPeriod = 'N/A';
           if (complexity.cutoff_ID && cutoffs[complexity.cutoff_ID]) {
             cutoffPeriod = cutoffs[complexity.cutoff_ID];
-          } else if (complexity.cutoffStart && complexity.cutoffEnd) {
+          } else if (complexity.startDate && complexity.endDate) {
             // Format using moment if direct dates are provided
-            cutoffPeriod = `${moment(complexity.cutoffStart).format("MMM DD")} - ${moment(complexity.cutoffEnd).format("MMM DD, YYYY")}`;
+            cutoffPeriod = `${moment(complexity.startDate).format("MMM DD")} - ${moment(complexity.endDate).format("MMM DD, YYYY")}`;
           } else if (complexity.cutoff_period) {
             cutoffPeriod = complexity.cutoff_period;
           }

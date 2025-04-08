@@ -4,6 +4,7 @@ import Sidebar from "../components/Sidebar";
 import axios from "axios";
 import config from "../config";
 import Swal from "sweetalert2";
+import Select from 'react-select';
 
 export default function AddTrainer() {
   const [employeeId, setEmployeeId] = useState("");
@@ -13,6 +14,8 @@ export default function AddTrainer() {
   const [employees, setEmployees] = useState([]);
   const [categories, setCategories] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
+  const [employeeOptions, setEmployeeOptions] = useState([]);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -21,6 +24,16 @@ export default function AddTrainer() {
     fetchCategories();
     fetchCourses();
   }, []);
+
+  useEffect(() => {
+    if (employees.length > 0) {
+      const formattedOptions = employees.map(employee => ({
+        value: employee.emp_ID,
+        label: `${employee.fName} ${employee.lName}`
+      }));
+      setEmployeeOptions(formattedOptions);
+    }
+  }, [employees]);
 
   const fetchTrainers = async () => {
     try {
@@ -121,11 +134,11 @@ export default function AddTrainer() {
   const handleAddTrainer = async (e) => {
     e.preventDefault();
 
-    if (!employeeId || !categoryId || !courseId) {
+    if (selectedEmployees.length === 0 || !categoryId || !courseId) {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Please select an employee, category, and course.",
+        text: "Please select employees, category, and course.",
       });
       return;
     }
@@ -134,8 +147,10 @@ export default function AddTrainer() {
       const response = await axios.post(
         `${config.API_BASE_URL}/trainers/add_trainer`,
         {
-          employee_id: employeeId,
-          course_id: courseId
+          array_employee_emp_id: selectedEmployees,
+          category_id: categoryId,
+          course_id: courseId,
+          admin_emp_id: localStorage.getItem("X-EMP-ID")
         },
         {
           headers: {
@@ -149,10 +164,10 @@ export default function AddTrainer() {
         Swal.fire({
           icon: "success",
           title: "Success",
-          text: "Trainer assigned successfully.",
+          text: response.data.success,
         });
         // Reset form
-        setEmployeeId("");
+        setSelectedEmployees([]);
         setCategoryId("");
         setCourseId("");
         fetchTrainers();
@@ -347,28 +362,39 @@ export default function AddTrainer() {
                 <form onSubmit={handleAddTrainer}>
                   <div className="form-group mb-4">
                     <label htmlFor="employee_id" className="form-label">
-                      <i className="bi bi-person me-2"></i>Select Employee
+                      <i className="bi bi-person me-2"></i>Select Employees
                       <span className="text-danger">*</span>
                     </label>
-                    <select
-                      className={`form-select form-select-lg ${employeeId ? "is-valid" : ""}`}
-                      id="employee_id"
+                    <Select
+                      className="basic-multi-select"
+                      classNamePrefix="select"
+                      isMulti
                       name="employee_id"
-                      value={employeeId}
-                      onChange={(e) => setEmployeeId(e.target.value)}
-                      required
-                    >
-                      <option value="">Select Employee</option>
-                      {employees.map((employee) => (
-                        <option key={employee.id} value={employee.id}>
-                          {employee.fName} {employee.lName}
-                        </option>
-                      ))}
-                    </select>
-                    {employees.length === 0 && (
-                      <div className="form-text text-warning mt-2">
-                        <i className="bi bi-exclamation-triangle me-1"></i>
-                        No employees available.
+                      options={employeeOptions}
+                      onChange={(selectedOptions) => {
+                        const values = selectedOptions ? selectedOptions.map(option => option.value) : [];
+                        setSelectedEmployees(values);
+                      }}
+                      placeholder="Select employees..."
+                      noOptionsMessage={() => "No employees available"}
+                      styles={{
+                        control: (baseStyles, state) => ({
+                          ...baseStyles,
+                          padding: '0.375rem 0.5rem',
+                          fontSize: '1rem',
+                          borderColor: state.isFocused ? '#86b7fe' : '#ced4da',
+                          boxShadow: state.isFocused ? '0 0 0 0.25rem rgba(13, 110, 253, 0.25)' : 'none',
+                        }),
+                        multiValue: (styles) => ({
+                          ...styles,
+                          backgroundColor: '#e9ecef',
+                        }),
+                      }}
+                    />
+                    {selectedEmployees.length > 0 && (
+                      <div className="form-text text-success mt-2">
+                        <i className="bi bi-check-circle me-1"></i>
+                        {selectedEmployees.length} employee{selectedEmployees.length > 1 ? 's' : ''} selected
                       </div>
                     )}
                   </div>
@@ -432,10 +458,10 @@ export default function AddTrainer() {
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
-                    disabled={!employeeId || !categoryId || !courseId}
+                    disabled={selectedEmployees.length === 0 || !categoryId || !courseId}
                   >
                     <i className="bi bi-plus-circle-fill"></i>
-                    Assign Trainer
+                    Assign Trainer{selectedEmployees.length > 1 ? 's' : ''}
                   </button>
                 </form>
               </div>
