@@ -27,7 +27,7 @@ const navItems = [
   { path: "/employee_time_adjustment", icon: "bi-calendar-plus", label: "Time Adjustment" },
   { path: "/employee_my_performance", icon: "bi-graph-up", label: "My Performance" },
   { path: "/lms", icon: "bi-book", label: "LMS" },
-  { path: "/employee_end_of_the_day", icon: "bi-sunset", label: "EDO" }
+  { path: "/employee_end_of_the_day", icon: "bi-sunset", label: "EOD" }
 ];
   // State for attendance tracking
   const [isLoading, setIsLoading] = useState(false);
