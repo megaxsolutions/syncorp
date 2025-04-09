@@ -62,6 +62,7 @@ import ApproveComplexity from "./pages/ApproveComplexity";
 import ApproveIncentives from "./pages/ApproveIncentives";
 import AddUser from "./pages/AddUser";
 import Homepage from "./pages/lms/Homepage";
+import { About } from "./pages/lms/About";
 
 function App() {
   return (
@@ -122,6 +123,7 @@ function App() {
         <Route path="/employee_time_adjustment" element={<TimeAdjustment />} />
         <Route path="/employee_end_of_the_day" element={<EndOfTheDay />} />
         <Route path="/lms" element={<Homepage />} />
+        <Route path="/lms/about" element={<About />} />
       </Route>
 
       <Route element={<SupervisorProtectedLayout />}>

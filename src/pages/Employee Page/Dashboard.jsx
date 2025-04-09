@@ -12,6 +12,7 @@ import { motion } from 'framer-motion';
 import "../../css/Edasboard.css";
 import { Toaster, toast } from 'sonner'; // Import Sonner toast
 import {jwtDecode} from 'jwt-decode'; // Import jwt-decode correctly
+import Modal from 'react-bootstrap/Modal'; // Add Bootstrap Modal
 
 const EmployeeDashboard = () => {
   const location = useLocation();
@@ -23,6 +24,198 @@ const EmployeeDashboard = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [latestLeaveStatus, setLatestLeaveStatus] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
+
+  // Mood meter states
+  const [showMoodModal, setShowMoodModal] = useState(false);
+  const [todaysMood, setTodaysMood] = useState(null);
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [submittingMood, setSubmittingMood] = useState(false);
+  const [loadingMood, setLoadingMood] = useState(true); // Add loading state
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false); // Add a flag for initial load
+
+  // Define mood options with emojis
+  const moodOptions = [
+    { value: 'Perfect', emoji: '😄', color: '#4caf50' },
+    { value: 'Good', emoji: '🙂', color: '#8bc34a' },
+    { value: 'Neutral', emoji: '😐', color: '#ffc107' },
+    { value: 'Poor', emoji: '😟', color: '#ff9800' },
+    { value: 'Bad', emoji: '😞', color: '#f44336' }
+  ];
+
+  // Fetch mood meter data
+  useEffect(() => {
+    const fetchMoodMeter = async () => {
+      if (!initialLoadComplete) {
+        setLoadingMood(true); // Only set loading on initial load
+      }
+
+      try {
+        const empId = localStorage.getItem("X-EMP-ID");
+        const token = localStorage.getItem("X-JWT-TOKEN");
+
+        if (!empId || !token) {
+          setLoadingMood(false);
+          setInitialLoadComplete(true);
+          return;
+        }
+
+        const response = await axios.get(
+          `${config.API_BASE_URL}/mood_meters/get_all_user_mood_meter/${empId}`,
+          {
+            headers: {
+              "X-JWT-TOKEN": token,
+              "X-EMP-ID": empId,
+            },
+          }
+        );
+
+        if (response.data && response.data.data) {
+          // Format today's date as YYYY-MM-DD for comparison
+          const today = new Date().toISOString().split('T')[0];
+
+          // Check if user has submitted mood for today
+          const todayEntry = response.data.data.find(entry => entry.date === today);
+
+          if (todayEntry) {
+            setTodaysMood(todayEntry.mood);
+            setShowMoodModal(false);
+          } else {
+            setTodaysMood(null);
+            // Only show modal if this is initial load or if coming back to dashboard
+            if (!submittingMood) {
+              setTimeout(() => {
+                setShowMoodModal(true);
+              }, 500); // Small delay to prevent flickering during route changes
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching mood meter data:', error);
+      } finally {
+        setLoadingMood(false);
+        setInitialLoadComplete(true);
+      }
+    };
+
+    fetchMoodMeter();
+  }, [submittingMood]); // Re-run when submittingMood changes to refresh after submission
+
+  // Submit mood function
+  const handleSubmitMood = async () => {
+    if (!selectedMood) return;
+
+    setSubmittingMood(true);
+    try {
+      const empId = localStorage.getItem("X-EMP-ID");
+      const token = localStorage.getItem("X-JWT-TOKEN");
+
+      // First, hide the modal to prevent flickering
+      setShowMoodModal(false);
+
+      await axios.post(
+        `${config.API_BASE_URL}/mood_meters/add_mood_meter`,
+        {
+          emp_id: empId,
+          mood: selectedMood
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": token,
+            "X-EMP-ID": empId,
+          },
+        }
+      );
+
+      setTodaysMood(selectedMood);
+      toast.success(`Mood submitted: ${selectedMood}`);
+    } catch (error) {
+      console.error('Error submitting mood:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to submit your mood';
+      toast.error(errorMsg);
+
+      // If there's an error, we can show the modal again
+      setShowMoodModal(true);
+    } finally {
+      setTimeout(() => {
+        setSubmittingMood(false);
+      }, 300); // Small delay to ensure state updates properly
+    }
+  };
+
+  // Mood Meter Modal Component
+  const MoodMeterModal = () => {
+    // Don't render modal during initial load or while submitting
+    if (loadingMood || !initialLoadComplete) return null;
+
+    // Use CSS transition to fade in the modal smoothly
+    return (
+      <Modal
+        show={showMoodModal}
+        onHide={() => setShowMoodModal(false)}
+        centered
+        backdrop="static"
+        className="mood-meter-modal fade-in-modal"
+      >
+        <Modal.Header>
+          <Modal.Title>How are you feeling today?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-muted mb-4">Please select your current mood to help us improve your work experience.</p>
+
+          <div className="mood-options d-flex justify-content-between flex-wrap">
+            {moodOptions.map((mood) => (
+              <div
+                key={mood.value}
+                className={`mood-option text-center mb-3 ${selectedMood === mood.value ? 'selected' : ''}`}
+                onClick={() => setSelectedMood(mood.value)}
+                style={{
+                  cursor: 'pointer',
+                  opacity: selectedMood === mood.value ? 1 : 0.7,
+                  transform: selectedMood === mood.value ? 'scale(1.1)' : 'scale(1)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div
+                  className="mood-emoji mb-2"
+                  style={{
+                    fontSize: '2rem',
+                    backgroundColor: selectedMood === mood.value ? mood.color : '#f0f0f0',
+                    padding: '15px',
+                    borderRadius: '50%',
+                    width: '70px',
+                    height: '70px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto',
+                    boxShadow: selectedMood === mood.value ? '0 0 10px rgba(0,0,0,0.2)' : 'none'
+                  }}
+                >
+                  {mood.emoji}
+                </div>
+                <div>{mood.value}</div>
+              </div>
+            ))}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowMoodModal(false)}
+          >
+            Skip
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleSubmitMood}
+            disabled={!selectedMood || submittingMood}
+          >
+            {submittingMood ? 'Submitting...' : 'Submit'}
+          </button>
+        </Modal.Footer>
+      </Modal>
+    );
+  };
 
   // Check for missing documents using direct API fetch
   useEffect(() => {
@@ -233,13 +426,17 @@ const EmployeeDashboard = () => {
         {/* This must be present for toasts to appear */}
         <Toaster richColors position="bottom-center" />
 
+        {/* Render the mood meter modal */}
+        <MoodMeterModal />
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="container-fluid"
         >
-          {/* Rest of your component remains the same */}
+          {/* Rest of your component */}
+
           {/* Enhanced Page Title */}
           <div className="pagetitle-wrapper bg-white rounded-3 shadow-sm p-4 mb-4">
             <div className="d-flex justify-content-between align-items-center">
@@ -247,17 +444,34 @@ const EmployeeDashboard = () => {
                 <h1 className="h3 mb-0">Welcome Back, {localStorage.getItem("name")}!</h1>
                 <p className="text-muted mb-0">Here's what's happening today</p>
               </div>
-              <div className="current-time">
-                {new Date().toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
+              <div className="d-flex align-items-center">
+                {initialLoadComplete && todaysMood && (
+                  <div
+                    className="me-3 p-2 rounded-3 bg-light"
+                    style={{
+                      opacity: 1,
+                      transition: 'opacity 0.5s ease-in-out'
+                    }}
+                  >
+                    <span className="me-2">Today's mood:</span>
+                    <span style={{ fontSize: '1.2rem' }}>
+                      {moodOptions.find(m => m.value === todaysMood)?.emoji || ''}
+                    </span>
+                  </div>
+                )}
+                <div className="current-time">
+                  {new Date().toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </div>
               </div>
             </div>
           </div>
 
+          {/* ... rest of your existing code ... */}
           {/* Enhanced Bulletin Section */}
           <div className="row mb-4">
             <div className="col-12">
