@@ -60,6 +60,8 @@ import AttendanceIncentives from "./pages/Supervisor/AttendanceIncentives";
 import ComplexityAllowance from "./pages/Supervisor/ComplexityAllowance";
 import ApproveComplexity from "./pages/ApproveComplexity";
 import ApproveIncentives from "./pages/ApproveIncentives";
+import AddUser from "./pages/AddUser";
+import Homepage from "./pages/lms/Homepage";
 
 function App() {
   return (
@@ -105,6 +107,7 @@ function App() {
         <Route path="/lms/enroll-employee" element={<EnrollEmployee />} />
         <Route path="/lms/add-trainer" element={<AddTrainer />} />
         <Route path="/lms/create-quiz" element={<CreateQuiz />} />
+        <Route path="/lms/add-users" element={<AddUser />} />
 
       </Route>
 
@@ -118,6 +121,7 @@ function App() {
         <Route path="/employee_my_performance" element={<MyPerformance />} />
         <Route path="/employee_time_adjustment" element={<TimeAdjustment />} />
         <Route path="/employee_end_of_the_day" element={<EndOfTheDay />} />
+        <Route path="/lms" element={<Homepage />} />
       </Route>
 
       <Route element={<SupervisorProtectedLayout />}>

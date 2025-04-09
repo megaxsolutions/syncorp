@@ -51,7 +51,7 @@ export default function AddUser() {
   const fetchEmployees = async () => {
     try {
       const response = await axios.get(
-        `${config.API_BASE_URL}/employee/get_all_employees`,
+        `${config.API_BASE_URL}/employees/get_all_employee`,
         {
           headers: {
             'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
@@ -75,7 +75,7 @@ export default function AddUser() {
   const fetchUsers = async () => {
     try {
       const response = await axios.get(
-        `${config.API_BASE_URL}/users/get_all_users`,
+        `${config.API_BASE_URL}/users/get_all_user`,
         {
           headers: {
             'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
@@ -308,7 +308,7 @@ export default function AddUser() {
                       <thead className="table-light">
                         <tr>
                           <th>User</th>
-                          <th>Date Created</th>
+                          <th>Date Added</th>
                           <th>Actions</th>
                         </tr>
                       </thead>

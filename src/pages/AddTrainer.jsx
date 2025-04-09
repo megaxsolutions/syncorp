@@ -37,12 +37,16 @@ export default function AddTrainer() {
 
   const fetchTrainers = async () => {
     try {
+      const empID = localStorage.getItem("X-EMP-ID");
       const response = await axios.get(
-        `${config.API_BASE_URL}/trainers/get_all_trainers`,
+        `${config.API_BASE_URL}/trainers/get_all_trainer`,
         {
+          params: {
+            emp_ID: empID // Add the employee ID as a query parameter
+          },
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "X-EMP-ID": empID,
           },
         }
       );
@@ -195,8 +199,22 @@ export default function AddTrainer() {
             <select id="employeeId" class="form-select form-select-lg">
               <option value="">Select Employee</option>
               ${employees.map(employee => `
-                <option value="${employee.id}" ${trainer.employee_id == employee.id ? 'selected' : ''}>
-                  ${employee.first_name} ${employee.last_name}
+                <option value="${employee.emp_ID}" ${trainer.emp_ID === employee.emp_ID ? 'selected' : ''}>
+                  ${employee.fName} ${employee.lName}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-tag me-2"></i>Category
+              <span class="text-danger">*</span>
+            </label>
+            <select id="categoryId" class="form-select form-select-lg">
+              <option value="">Select Category</option>
+              ${categories.map(category => `
+                <option value="${category.id}" ${trainer.categoryID == category.id ? 'selected' : ''}>
+                  ${category.category_title}
                 </option>
               `).join('')}
             </select>
@@ -209,7 +227,7 @@ export default function AddTrainer() {
             <select id="courseId" class="form-select form-select-lg">
               <option value="">Select Course</option>
               ${courses.map(course => `
-                <option value="${course.id}" ${trainer.course_id == course.id ? 'selected' : ''}>
+                <option value="${course.id}" ${trainer.courseID == course.id ? 'selected' : ''}>
                   ${course.course_title}
                 </option>
               `).join('')}
@@ -224,15 +242,17 @@ export default function AddTrainer() {
       cancelButtonColor: "#dc3545",
       preConfirm: () => {
         const employeeId = document.getElementById("employeeId").value;
+        const categoryId = document.getElementById("categoryId").value;
         const courseId = document.getElementById("courseId").value;
 
-        if (!employeeId || !courseId) {
-          Swal.showValidationMessage("Employee and course are required");
+        if (!employeeId || !categoryId || !courseId) {
+          Swal.showValidationMessage("Employee, category, and course are required");
           return false;
         }
 
         return {
-          employee_id: employeeId,
+          emp_id: employeeId,
+          category_id: categoryId,
           course_id: courseId
         };
       },
@@ -322,13 +342,19 @@ export default function AddTrainer() {
   // Helper functions to get names by ID
   const getEmployeeName = (employeeId) => {
     if (!employeeId) return "N/A";
-    const employee = employees.find(emp => emp.id.toString() === employeeId.toString());
-    return employee ? `${employee.first_name} ${employee.last_name}` : "N/A";
+    const employee = employees.find(emp => emp.emp_ID === employeeId);
+    return employee ? `${employee.fName} ${employee.lName}` : "N/A";
+  };
+
+  const getCategoryName = (categoryId) => {
+    if (!categoryId) return "N/A";
+    const category = categories.find(cat => cat.id === parseInt(categoryId, 10));
+    return category ? category.category_title : "N/A";
   };
 
   const getCourseName = (courseId) => {
     if (!courseId) return "N/A";
-    const course = courses.find(course => course.id.toString() === courseId.toString());
+    const course = courses.find(course => course.id === courseId);
     return course ? course.course_title : "N/A";
   };
 
@@ -486,7 +512,7 @@ export default function AddTrainer() {
                       <tr>
                         <th>Trainer</th>
                         <th>Course</th>
-                        <th>Date Assigned</th>
+                        <th>Category</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -504,18 +530,20 @@ export default function AddTrainer() {
                             <td>
                               <div className="d-flex align-items-center">
                                 <i className="bi bi-person-badge me-2 text-primary"></i>
-                                <div className="fw-medium">{getEmployeeName(trainer.employee_id)}</div>
+                                <div className="fw-medium">{getEmployeeName(trainer.emp_ID)}</div>
                               </div>
                             </td>
                             <td>
                               <span className="badge bg-info text-dark">
                                 <i className="bi bi-book-fill me-1"></i>
-                                {getCourseName(trainer.course_id)}
+                                {getCourseName(trainer.courseID)}
                               </span>
                             </td>
                             <td>
-                              <i className="bi bi-calendar-date me-2"></i>
-                              {trainer.date_assigned || "N/A"}
+                              <span className="badge bg-success">
+                                <i className="bi bi-tag-fill me-1"></i>
+                                {getCategoryName(trainer.categoryID)}
+                              </span>
                             </td>
                             <td>
                               <div className="btn-group">

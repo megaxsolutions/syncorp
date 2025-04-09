@@ -50,11 +50,11 @@ export default function ApproveComplexity() {
     setLoading(true);
     try {
       // First fetch cutoffs
-      await fetchCutoffs();
+      const cutoffData = await fetchCutoffs();
       // Then fetch employees
       await fetchEmployees();
       // Finally fetch complexity requests after cutoffs are loaded
-      await fetchComplexityRequests();
+      await fetchComplexityRequests(cutoffData);
     } catch (err) {
       console.error('Error in fetchData:', err);
       setError('Failed to load data. Please try again later.');
@@ -292,7 +292,7 @@ export default function ApproveComplexity() {
   };
 
   // Function to fetch complexity allowance requests
-  const fetchComplexityRequests = async () => {
+  const fetchComplexityRequests = async (cutoffData) => {
     try {
       const response = await axios.get(
         `${config.API_BASE_URL}/complexity/get_all_complexity`,
@@ -339,8 +339,8 @@ export default function ApproveComplexity() {
 
           // Get cutoff period from our mapping or use direct values from complexity if available
           let cutoffPeriod = 'N/A';
-          if (complexity.cutoff_ID && cutoffs[complexity.cutoff_ID]) {
-            cutoffPeriod = cutoffs[complexity.cutoff_ID];
+          if (complexity.cutoff_ID && cutoffData[complexity.cutoff_ID]) {
+            cutoffPeriod = cutoffData[complexity.cutoff_ID];
           } else if (complexity.startDate && complexity.endDate) {
             // Format using moment if direct dates are provided
             cutoffPeriod = `${moment(complexity.startDate).format("MMM DD")} - ${moment(complexity.endDate).format("MMM DD, YYYY")}`;

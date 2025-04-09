@@ -4,225 +4,326 @@ import Sidebar from "../components/Sidebar"
 import axios from "axios"
 import config from "../config"
 import Swal from "sweetalert2"
+import Select from 'react-select'
 
 export default function EnrollEmployee() {
-  const [employeeId, setEmployeeId] = useState("")
+  const [employeeIds, setEmployeeIds] = useState([])
+  const [selectedEmployees, setSelectedEmployees] = useState([])
   const [categoryId, setCategoryId] = useState("")
   const [courseId, setCourseId] = useState("")
   const [enrollments, setEnrollments] = useState([])
   const [employees, setEmployees] = useState([])
   const [categories, setCategories] = useState([])
   const [courses, setCourses] = useState([])
-  const [filteredCourses, setFilteredCourses] = useState([])
 
   // Fetch data on component mount
   useEffect(() => {
-    fetchEnrollments()
-    fetchEmployees()
-    fetchCategories()
-    fetchCourses()
-  }, [])
+    fetchEmployees();
+    fetchCategories();
+    fetchCourses();
+  }, []);
 
-  // Filter courses when category changes
+  // After we have employees, categories and courses loaded, fetch enrollments
   useEffect(() => {
-    if (categoryId) {
-      const filtered = courses.filter(course => course.category_id === parseInt(categoryId))
-      setFilteredCourses(filtered)
-    } else {
-      setFilteredCourses([])
+    if (employees.length > 0 && categories.length > 0 && courses.length > 0) {
+      fetchEnrollments();
     }
-    setCourseId("")
-  }, [categoryId, courses])
+  }, [employees, categories, courses]);
 
-  // Mock data fetch functions
-  const fetchEnrollments = () => {
-    // Mock data for enrollments
-    const mockEnrollments = [
-      {
-        id: 1,
-        employee_id: 101,
-        employee_name: "John Doe",
-        course_id: 201,
-        course_title: "Introduction to React",
-        category_id: 301,
-        category_title: "Web Development",
-        enrollment_date: "2025-03-15",
-        status: "In Progress"
-      },
-      {
-        id: 2,
-        employee_id: 102,
-        employee_name: "Jane Smith",
-        course_id: 202,
-        course_title: "Advanced JavaScript",
-        category_id: 301,
-        category_title: "Web Development",
-        enrollment_date: "2025-03-20",
-        status: "Not Started"
-      },
-      {
-        id: 3,
-        employee_id: 103,
-        employee_name: "Mike Johnson",
-        course_id: 203,
-        course_title: "Project Management Basics",
-        category_id: 302,
-        category_title: "Management",
-        enrollment_date: "2025-03-25",
-        status: "Completed"
+  // Update these functions to make real API calls
+  const fetchEnrollments = async () => {
+    try {
+      const empID = localStorage.getItem("X-EMP-ID");
+      const response = await axios.get(
+        `${config.API_BASE_URL}/enrolls/get_all_enroll`,
+        {
+          params: {
+            emp_ID: empID
+          },
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": empID,
+          },
+        }
+      );
+
+      if (response.data?.data) {
+        // We need to join with employees and courses data to get names
+        const enrollData = response.data.data;
+
+        // Process the enrollment data by joining with employee and course info
+        const processedEnrollments = await Promise.all(enrollData.map(async (enrollment) => {
+          // Find related employee and course objects
+          const employee = employees.find(emp => emp.emp_ID === enrollment.emp_ID);
+          const course = courses.find(course => course.id === enrollment.courseID);
+          const category = categories.find(cat => cat.id === enrollment.categoryID);
+
+          return {
+            id: enrollment.id,
+            emp_ID: enrollment.emp_ID, // Use emp_ID consistently
+            employee_name: employee ? `${employee.fName} ${employee.lName}` : "Unknown Employee",
+            course_id: enrollment.courseID,
+            course_title: course ? course.course_title : "Unknown Course",
+            category_id: enrollment.categoryID,
+            category_title: category ? category.category_title : "Unknown Category",
+            enrollment_date: enrollment.datetime_enrolled,
+            status: enrollment.status || "Not Started" // Default status if not available
+          };
+        }));
+
+        setEnrollments(processedEnrollments);
       }
-    ]
-    setEnrollments(mockEnrollments)
-  }
-
-  const fetchEmployees = () => {
-    // Mock data for employees
-    const mockEmployees = [
-      { id: 101, name: "John Doe", position: "Frontend Developer" },
-      { id: 102, name: "Jane Smith", position: "UI/UX Designer" },
-      { id: 103, name: "Mike Johnson", position: "Project Manager" },
-      { id: 104, name: "Sarah Williams", position: "Backend Developer" },
-      { id: 105, name: "Robert Brown", position: "Full Stack Developer" }
-    ]
-    setEmployees(mockEmployees)
-  }
-
-  const fetchCategories = () => {
-    // Mock data for categories
-    const mockCategories = [
-      { id: 301, category_title: "Web Development" },
-      { id: 302, category_title: "Management" },
-      { id: 303, category_title: "Data Science" },
-      { id: 304, category_title: "DevOps" }
-    ]
-    setCategories(mockCategories)
-  }
-
-  const fetchCourses = () => {
-    // Mock data for courses
-    const mockCourses = [
-      { id: 201, course_title: "Introduction to React", category_id: 301 },
-      { id: 202, course_title: "Advanced JavaScript", category_id: 301 },
-      { id: 203, course_title: "Project Management Basics", category_id: 302 },
-      { id: 204, course_title: "Leadership Skills", category_id: 302 },
-      { id: 205, course_title: "Python for Data Analysis", category_id: 303 },
-      { id: 206, course_title: "Docker Fundamentals", category_id: 304 }
-    ]
-    setCourses(mockCourses)
-  }
-
-  const handleEnrollEmployee = (e) => {
-    e.preventDefault()
-
-    if (!employeeId || !categoryId || !courseId) {
+    } catch (error) {
+      console.error("Error fetching enrollments:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Please select an employee, category, and course.",
-      })
-      return
+        text: "Failed to load enrollments.",
+      });
     }
+  };
 
-    // Get the employee and course details for the new enrollment
-    const employee = employees.find(emp => emp.id === parseInt(employeeId))
-    const course = courses.find(course => course.id === parseInt(courseId))
-    const category = categories.find(cat => cat.id === parseInt(categoryId))
-
-    if (!employee || !course || !category) {
+  const fetchEmployees = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/employees/get_all_employee`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+      if (response.data?.data) {
+        setEmployees(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Invalid selection.",
-      })
-      return
+        text: "Failed to load employees.",
+      });
     }
+  };
 
-    // Check if employee is already enrolled in this course
-    const isAlreadyEnrolled = enrollments.some(
-      enrollment => enrollment.employee_id === parseInt(employeeId) &&
-                   enrollment.course_id === parseInt(courseId)
-    )
-
-    if (isAlreadyEnrolled) {
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/course_catergory/get_all_course_category`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+      if (response.data?.data) {
+        setCategories(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
       Swal.fire({
-        icon: "warning",
-        title: "Warning",
-        text: "This employee is already enrolled in this course.",
-      })
-      return
+        icon: "error",
+        title: "Error",
+        text: "Failed to load course categories.",
+      });
+    }
+  };
+
+  const fetchCourses = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/courses/get_all_course`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+      if (response.data?.data) {
+        setCourses(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching courses:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load courses.",
+      });
+    }
+  };
+
+  const handleEnrollEmployee = async (e) => {
+    e.preventDefault();
+
+    if (employeeIds.length === 0 || !categoryId || !courseId) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Please select at least one employee, a category, and a course.",
+      });
+      return;
     }
 
-    // Create new enrollment record
-    const newEnrollment = {
-      id: enrollments.length + 1,
-      employee_id: parseInt(employeeId),
-      employee_name: employee.name,
-      course_id: parseInt(courseId),
-      course_title: course.course_title,
-      category_id: parseInt(categoryId),
-      category_title: category.category_title,
-      enrollment_date: new Date().toISOString().split('T')[0],
-      status: "Not Started"
+    try {
+      const adminEmpId = localStorage.getItem("X-EMP-ID");
+
+      const requestData = {
+        array_employee_emp_id: employeeIds,
+        category_id: parseInt(categoryId),
+        course_id: parseInt(courseId),
+        admin_emp_id: adminEmpId
+      };
+
+      const response = await axios.post(
+        `${config.API_BASE_URL}/enrolls/add_enroll`,
+        requestData,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": adminEmpId,
+          },
+        }
+      );
+
+      if (response.data?.success) {
+        // Show success message from the backend
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: response.data.success,
+        });
+
+        // Reset form
+        setEmployeeIds([]);
+        setSelectedEmployees([]);
+        setCategoryId("");
+        setCourseId("");
+
+        // Refresh enrollments list
+        fetchEnrollments();
+      }
+    } catch (error) {
+      console.error("Error enrolling employees:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.error || "Failed to enroll employees.",
+      });
     }
+  };
 
-    // Add the new enrollment to the list
-    setEnrollments([...enrollments, newEnrollment])
+  // Handle employee selection using react-select
+  const handleEmployeeChange = (selectedOptions) => {
+    setSelectedEmployees(selectedOptions);
+    setEmployeeIds(selectedOptions ? selectedOptions.map(option => option.value) : []);
+  };
 
-    // Show success message
-    Swal.fire({
-      icon: "success",
-      title: "Success",
-      text: "Employee enrolled successfully.",
-    })
+  // Create options for react-select - Removed employee ID from display
+  const employeeOptions = employees.map(employee => ({
+    value: employee.emp_ID,
+    label: `${employee.fName} ${employee.lName}`
+  }));
 
-    // Reset form
-    setEmployeeId("")
-    setCategoryId("")
-    setCourseId("")
-  }
+  // Custom styles for react-select
+  const selectStyles = {
+    control: (base) => ({
+      ...base,
+      minHeight: '50px',
+      borderRadius: '0.5rem',
+      borderColor: selectedEmployees.length > 0 ? '#198754' : '#ced4da',
+      boxShadow: 'none',
+      '&:hover': {
+        borderColor: selectedEmployees.length > 0 ? '#198754' : '#80bdff',
+      },
+    }),
+    multiValue: (base) => ({
+      ...base,
+      backgroundColor: '#e8f0fe',
+    }),
+    multiValueLabel: (base) => ({
+      ...base,
+      fontSize: '0.9rem',
+    }),
+    placeholder: (base) => ({
+      ...base,
+      fontSize: '1rem',
+      color: '#6c757d',
+    }),
+  };
 
   const handleEditEnrollment = (enrollment) => {
+    // Create employee options for the select dropdown - Removed employee ID from display
+    const employeeSelectOptions = employees.map(emp => ({
+      value: emp.emp_ID,
+      label: `${emp.fName} ${emp.lName}`
+    }));
+
+    // Find the currently selected employee
+    const selectedEmployee = employeeSelectOptions.find(
+      emp => emp.value === enrollment.emp_ID // Use emp_ID here instead of employee_id
+    );
+
+    // Create the select element for employee
+    const employeeSelectHtml = `
+      <div class="mb-3">
+        <label class="form-label">
+          <i class="bi bi-person me-2"></i>Employee
+          <span class="text-danger">*</span>
+        </label>
+        <select id="employeeSelect" class="form-select form-select-lg">
+          ${employeeSelectOptions.map(emp =>
+            `<option value="${emp.value}" ${emp.value === enrollment.emp_ID ? 'selected' : ''}>
+              ${emp.label}
+            </option>`
+          ).join('')}
+        </select>
+      </div>
+    `;
+
+    // Create the select element for category
+    const categorySelectHtml = `
+      <div class="mb-3">
+        <label class="form-label">
+          <i class="bi bi-folder me-2"></i>Category
+          <span class="text-danger">*</span>
+        </label>
+        <select id="categorySelect" class="form-select form-select-lg">
+          ${categories.map(category =>
+            `<option value="${category.id}" ${category.id === enrollment.category_id ? 'selected' : ''}>
+              ${category.category_title}
+            </option>`
+          ).join('')}
+        </select>
+      </div>
+    `;
+
+    // Create the select element for course
+    const courseSelectHtml = `
+      <div class="mb-3">
+        <label class="form-label">
+          <i class="bi bi-journal me-2"></i>Course
+          <span class="text-danger">*</span>
+        </label>
+        <select id="courseSelect" class="form-select form-select-lg">
+          ${courses.map(course =>
+            `<option value="${course.id}" ${course.id === enrollment.course_id ? 'selected' : ''}>
+              ${course.course_title}
+            </option>`
+          ).join('')}
+        </select>
+      </div>
+    `;
+
     Swal.fire({
       title: "Edit Enrollment",
       html: `
         <form>
-          <div class="mb-3">
-            <label class="form-label">
-              <i class="bi bi-person me-2"></i>Employee
-              <span class="text-danger">*</span>
-            </label>
-            <select id="employeeId" class="form-select form-select-lg" disabled>
-              ${employees.map(emp => `
-                <option value="${emp.id}" ${enrollment.employee_id === emp.id ? 'selected' : ''}>
-                  ${emp.name}
-                </option>
-              `).join('')}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">
-              <i class="bi bi-tag me-2"></i>Course
-              <span class="text-danger">*</span>
-            </label>
-            <select id="courseId" class="form-select form-select-lg" disabled>
-              ${courses.map(course => `
-                <option value="${course.id}" ${enrollment.course_id === course.id ? 'selected' : ''}>
-                  ${course.course_title}
-                </option>
-              `).join('')}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">
-              <i class="bi bi-check-circle me-2"></i>Status
-              <span class="text-danger">*</span>
-            </label>
-            <select id="status" class="form-select form-select-lg">
-              <option value="Not Started" ${enrollment.status === 'Not Started' ? 'selected' : ''}>Not Started</option>
-              <option value="In Progress" ${enrollment.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-              <option value="Completed" ${enrollment.status === 'Completed' ? 'selected' : ''}>Completed</option>
-            </select>
-          </div>
+          ${employeeSelectHtml}
+          ${categorySelectHtml}
+          ${courseSelectHtml}
         </form>
       `,
       showCancelButton: true,
@@ -231,32 +332,59 @@ export default function EnrollEmployee() {
       confirmButtonColor: "#198754",
       cancelButtonColor: "#dc3545",
       preConfirm: () => {
-        const status = document.getElementById("status").value
+        const employeeId = document.getElementById("employeeSelect").value;
+        const categoryId = document.getElementById("categorySelect").value;
+        const courseId = document.getElementById("courseSelect").value;
+
+        if (!employeeId || !categoryId || !courseId) {
+          Swal.showValidationMessage("All fields are required");
+          return false;
+        }
 
         return {
-          ...enrollment,
-          status: status
-        }
+          emp_id: employeeId,
+          category_id: parseInt(categoryId),
+          course_id: parseInt(courseId)
+        };
       },
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        // Update enrollment status
-        const updatedEnrollments = enrollments.map(item =>
-          item.id === enrollment.id ? result.value : item
-        )
+        try {
+          // Call the API to update the enrollment
+          const response = await axios.put(
+            `${config.API_BASE_URL}/enrolls/update_enroll/${enrollment.id}`,
+            result.value,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
+            }
+          );
 
-        setEnrollments(updatedEnrollments)
+          if (response.data?.success) {
+            // Refresh the enrollments data to show the updated info
+            fetchEnrollments();
 
-        Swal.fire({
-          icon: "success",
-          title: "Success",
-          text: "Enrollment updated successfully",
-          timer: 1500,
-          showConfirmButton: false,
-        })
+            Swal.fire({
+              icon: "success",
+              title: "Success",
+              text: response.data.success,
+              timer: 1500,
+              showConfirmButton: false,
+            });
+          }
+        } catch (error) {
+          console.error("Error updating enrollment:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error.response?.data?.error || "Failed to update enrollment",
+          });
+        }
       }
-    })
-  }
+    });
+  };
 
   const handleDeleteEnrollment = (enrollment) => {
     Swal.fire({
@@ -325,30 +453,32 @@ export default function EnrollEmployee() {
                 </h5>
                 <form onSubmit={handleEnrollEmployee}>
                   <div className="form-group mb-4">
-                    <label htmlFor="employee_id" className="form-label">
-                      <i className="bi bi-person me-2"></i>Select Employee
+                    <label htmlFor="employee_ids" className="form-label">
+                      <i className="bi bi-people me-2"></i>Select Employee(s)
                       <span className="text-danger">*</span>
                     </label>
-                    <select
-                      className={`form-select form-select-lg ${employeeId ? "is-valid" : ""}`}
-                      id="employee_id"
-                      name="employee_id"
-                      value={employeeId}
-                      onChange={(e) => setEmployeeId(e.target.value)}
-                      required
-                    >
-                      <option value="">Select Employee</option>
-                      {employees.map((employee) => (
-                        <option key={employee.id} value={employee.id}>
-                          {employee.name} - {employee.position}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      id="employee_ids"
+                      name="employee_ids"
+                      isMulti
+                      options={employeeOptions}
+                      value={selectedEmployees}
+                      onChange={handleEmployeeChange}
+                      placeholder="Select employees..."
+                      noOptionsMessage={() => "No employees available"}
+                      styles={selectStyles}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                    <small className="form-text text-muted mt-2">
+                      <i className="bi bi-info-circle me-1"></i>
+                      You can search and select multiple employees.
+                    </small>
                   </div>
 
                   <div className="form-group mb-4">
                     <label htmlFor="category_id" className="form-label">
-                      <i className="bi bi-tag me-2"></i>Select Category
+                      <i className="bi bi-folder me-2"></i>Select Category
                       <span className="text-danger">*</span>
                     </label>
                     <select
@@ -366,6 +496,12 @@ export default function EnrollEmployee() {
                         </option>
                       ))}
                     </select>
+                    {categories.length === 0 && (
+                      <div className="form-text text-warning mt-2">
+                        <i className="bi bi-exclamation-triangle me-1"></i>
+                        No categories available.
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-group mb-4">
@@ -379,26 +515,19 @@ export default function EnrollEmployee() {
                       name="course_id"
                       value={courseId}
                       onChange={(e) => setCourseId(e.target.value)}
-                      disabled={!categoryId}
                       required
                     >
                       <option value="">Select Course</option>
-                      {filteredCourses.map((course) => (
+                      {courses.map((course) => (
                         <option key={course.id} value={course.id}>
                           {course.course_title}
                         </option>
                       ))}
                     </select>
-                    {categoryId && filteredCourses.length === 0 && (
+                    {courses.length === 0 && (
                       <div className="form-text text-warning mt-2">
                         <i className="bi bi-exclamation-triangle me-1"></i>
-                        No courses available in this category.
-                      </div>
-                    )}
-                    {!categoryId && (
-                      <div className="form-text text-muted mt-2">
-                        <i className="bi bi-info-circle me-1"></i>
-                        Please select a category first.
+                        No courses available.
                       </div>
                     )}
                   </div>
@@ -406,10 +535,10 @@ export default function EnrollEmployee() {
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
-                    disabled={!employeeId || !categoryId || !courseId}
+                    disabled={employeeIds.length === 0 || !categoryId || !courseId}
                   >
                     <i className="bi bi-person-check-fill"></i>
-                    Enroll Employee
+                    Enroll Employee(s)
                   </button>
                 </form>
               </div>

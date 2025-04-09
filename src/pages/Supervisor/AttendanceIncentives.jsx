@@ -49,9 +49,10 @@ export default function AttendanceIncentives() {
     const initializeData = async () => {
       await fetchSupervisorInfo();
       await fetchEmployees();
-      await fetchCutOffPeriods();
-      // Fetch incentives after we have employee and cutoff data
-      await fetchIncentives();
+      // First fetch cutoff periods and wait for them to be available
+      const cutoffData = await fetchCutOffPeriods();
+      // Only fetch incentives after we have cut-off data
+      await fetchIncentives(cutoffData);
     };
 
     initializeData();
@@ -123,13 +124,17 @@ export default function AttendanceIncentives() {
         }));
 
         setCutOffOptions(options);
+        return options; // Return the options for immediate use by other functions
       } else {
         console.warn("Cut-off periods not found in response data");
         setCutOffOptions([]);
+        return []; // Return empty array if no data
       }
     } catch (error) {
       console.error("Error fetching cut-off periods:", error);
       setError("Failed to load cut-off periods");
+      setCutOffOptions([]);
+      return []; // Return empty array on error
     } finally {
       setIsLoadingCutoffs(false);
     }
@@ -184,10 +189,59 @@ export default function AttendanceIncentives() {
     }
   };
 
-  const fetchIncentives = async () => {
+  const fetchIncentives = async (availableCutoffs = null) => {
     setIsLoading(true);
     try {
       const supervisorEmpId = localStorage.getItem("X-EMP-ID");
+
+      // Ensure we have employee data before proceeding
+      let currentEmployeeData = employeeData;
+      if (Object.keys(currentEmployeeData).length === 0) {
+        // If no employee data is available, fetch it first
+        try {
+          const response = await axios.get(
+            `${config.API_BASE_URL}/employees/get_all_employee_supervisor/${supervisorEmpId}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
+            }
+          );
+
+          if (response.data?.data && Array.isArray(response.data.data)) {
+            const filteredEmployees = response.data.data.filter(emp =>
+              emp.emp_ID && emp.fName && emp.lName && emp.employee_status === 'Active'
+            );
+
+            // Create employee data lookup object
+            currentEmployeeData = {};
+            filteredEmployees.forEach(emp => {
+              currentEmployeeData[emp.emp_ID] = {
+                fullName: `${emp.fName || ''} ${emp.mName ? emp.mName[0] + '. ' : ''}${emp.lName || ''}`.trim(),
+                firstName: emp.fName,
+                lastName: emp.lName
+              };
+            });
+            // Update the state
+            setEmployeeData(currentEmployeeData);
+          }
+        } catch (empError) {
+          console.error("Error fetching employee data:", empError);
+        }
+      }
+
+      // Get cutoff options - either use the passed data or what's in the state
+      const currentCutoffOptions = availableCutoffs || cutOffOptions;
+
+      // If we still don't have cutoff data, fetch it before proceeding
+      if (currentCutoffOptions.length === 0) {
+        console.log("No cutoff data available, fetching now before processing incentives");
+        const freshCutoffData = await fetchCutOffPeriods();
+        if (freshCutoffData.length === 0) {
+          console.warn("Could not load cutoff data, incentive display may be incomplete");
+        }
+      }
 
       const response = await axios.get(
         `${config.API_BASE_URL}/attendance_incentives/get_all_att_incentive_supervisor/${supervisorEmpId}`,
@@ -206,16 +260,19 @@ export default function AttendanceIncentives() {
         const formattedIncentives = response.data.data.map(incentive => {
           // Get employee name from our lookup object
           let employeeName = 'Unknown';
-          if (incentive.emp_ID && employeeData[incentive.emp_ID]) {
-            employeeName = employeeData[incentive.emp_ID].fullName;
+          if (incentive.emp_ID && currentEmployeeData[incentive.emp_ID]) {
+            employeeName = currentEmployeeData[incentive.emp_ID].fullName;
           }
 
-          // Get cutoff period from our cutoff options
+          // Get cutoff period from our cutoff options, use the most up-to-date options
           let cutOffPeriod = 'N/A';
-          const cutoffOption = cutOffOptions.find(co => co.value === incentive.cutoff_ID);
+          // First try the passed cutoff data or current state
+          const cutoffOption = currentCutoffOptions.find(co => co.value === incentive.cutoff_ID);
           if (cutoffOption) {
             cutOffPeriod = cutoffOption.label;
-          } else if (incentive.cutoffStart && incentive.cutoffEnd) {
+          }
+          // If not found but we have fallback data in the incentive itself
+          else if (incentive.cutoffStart && incentive.cutoffEnd) {
             cutOffPeriod = `${moment(incentive.cutoffStart).format('MMM DD, YYYY')} - ${moment(incentive.cutoffEnd).format('MMM DD, YYYY')}`;
           } else if (incentive.cutoff_period) {
             cutOffPeriod = incentive.cutoff_period;
@@ -246,18 +303,18 @@ export default function AttendanceIncentives() {
 
           // Get submitter/approver names from employee data
           let submitterName = incentive.plotted_by || 'N/A';
-          if (employeeData[incentive.plotted_by]) {
-            submitterName = employeeData[incentive.plotted_by].fullName;
+          if (currentEmployeeData[incentive.plotted_by]) {
+            submitterName = currentEmployeeData[incentive.plotted_by].fullName;
           }
 
           let approverName = incentive.approved_by || 'Pending';
-          if (employeeData[incentive.approved_by]) {
-            approverName = employeeData[incentive.approved_by].fullName;
+          if (currentEmployeeData[incentive.approved_by]) {
+            approverName = currentEmployeeData[incentive.approved_by].fullName;
           }
 
           let approver2Name = incentive.approved_by2 || 'Pending';
-          if (employeeData[incentive.approved_by2]) {
-            approver2Name = employeeData[incentive.approved_by2].fullName;
+          if (currentEmployeeData[incentive.approved_by2]) {
+            approver2Name = currentEmployeeData[incentive.approved_by2].fullName;
           }
 
           return {
@@ -444,8 +501,7 @@ export default function AttendanceIncentives() {
       }
 
       // Get supervisor information
-      const supervisorId = localStorage.getItem("X-EMP-ID");
-      const currentDateTime = moment().format('YYYY-MM-DD HH:mm:ss');
+      const supervisor_emp_id = localStorage.getItem("X-EMP-ID");
 
       // Track successful and failed submissions
       const results = {
@@ -463,19 +519,13 @@ export default function AttendanceIncentives() {
               emp_id: employee.value,
               amount: incentiveAmount,
               cutoff_id: cutOff.value,
-              plotted_by: supervisorId, // Set the supervisor as the submitter
-              datetime_plotted: currentDateTime, // Set submission time
-              status: "Approved", // Set first approval to "Approved"
-              approved_by: supervisorId, // Mark the supervisor as first approver
-              datetime_approved: currentDateTime, // Set the approval time
-              status2: "Pending", // Set second approval to "Pending" by default
-              approved_by2: null, // No second approver yet
-              datetime_approved2: null // No second approval timestamp yet
+              status: "Approved",
+              supervisor_emp_id: supervisor_emp_id
             },
             {
               headers: {
                 "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-                "X-EMP-ID": supervisorId,
+                "X-EMP-ID": supervisor_emp_id,
               },
             }
           );
@@ -793,7 +843,6 @@ export default function AttendanceIncentives() {
                                   Amount {sortField === 'amount' && (sortOrder === 'asc' ? '↑' : '↓')}
                                 </th>
                                 <th>Status</th>
-                                <th>Date Created</th>
                                 <th>Actions</th>
                               </tr>
                             </thead>
@@ -831,12 +880,6 @@ export default function AttendanceIncentives() {
                                       <span className={`badge ${incentive.statusBadgeClass}`}>
                                         {incentive.status}
                                       </span>
-                                    </td>
-                                    <td>
-                                      <small>
-                                        <i className="bi bi-calendar-date me-1"></i>
-                                        {incentive.dateCreated}
-                                      </small>
                                     </td>
                                     <td>
                                       <div className="btn-group">
