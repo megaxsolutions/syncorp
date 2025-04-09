@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import Navbar from "../components/Navbar"
 import Sidebar from "../components/Sidebar"
 import axios from "axios"
@@ -16,9 +16,6 @@ export default function AddMaterials() {
   const [materials, setMaterials] = useState([])
   const [categories, setCategories] = useState([])
   const [courses, setCourses] = useState([])
-  const fileInputRef = useRef(null)
-  const [file, setFile] = useState(null)
-  const [previewUrl, setPreviewUrl] = useState(null)
 
   // Fetch materials, categories, and courses on component mount
   useEffect(() => {
@@ -29,12 +26,8 @@ export default function AddMaterials() {
 
   useEffect(() => {
     // Cleanup function to revoke object URL when component unmounts
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl)
-      }
-    }
-  }, [previewUrl])
+    return () => {}
+  }, [])
 
   const fetchMaterials = async () => {
     try {
@@ -116,33 +109,6 @@ export default function AddMaterials() {
     })
   }
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0]
-    if (selectedFile) {
-      // Check if file is a PNG
-      if (!selectedFile.type.match('image/png')) {
-        Swal.fire({
-          icon: "error",
-          title: "Invalid File Type",
-          text: "Please upload only PNG image files.",
-        })
-        e.target.value = '' // Clear the file input
-        return
-      }
-
-      // Create a preview URL for the image
-      const objectUrl = URL.createObjectURL(selectedFile)
-      setPreviewUrl(objectUrl)
-
-      // Set file and update form data
-      setFile(selectedFile)
-      setMaterialData({
-        ...materialData,
-        filename: selectedFile.name
-      })
-    }
-  }
-
   const handleAddMaterial = async (e) => {
     e.preventDefault()
 
@@ -150,25 +116,28 @@ export default function AddMaterials() {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Please fill in all required fields and upload a file.",
+        text: "Please fill in all required fields including the URL.",
       })
       return
     }
+
+    // Validate URL format
+
 
     // Match the backend's expected field names
     const requestData = {
       course_id: Number(materialData.course_id), // Convert to number
       category_id: Number(materialData.category_id), // Convert to number
       title: materialData.title,
-      filename: materialData.filename,
+      filename: materialData.filename, // This is now the URL
       created_by: Number(materialData.created_by) // Convert to number
     }
 
     try {
       // Show loading indicator
       Swal.fire({
-        title: "Uploading...",
-        text: "Please wait while we upload your image",
+        title: "Saving...",
+        text: "Please wait while we save your material",
         allowOutsideClick: false,
         didOpen: () => {
           Swal.showLoading();
@@ -200,11 +169,6 @@ export default function AddMaterials() {
           filename: "",
           created_by: localStorage.getItem("X-EMP-ID") || ""
         })
-        setFile(null)
-        setPreviewUrl(null)
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ""
-        }
         fetchMaterials()
       }
     } catch (error) {
@@ -219,135 +183,120 @@ export default function AddMaterials() {
   }
 
   const handleEditMaterial = (material) => {
-  // For simplicity, we'll assume there's a base URL for material images
-  const imageUrl = `${config.API_BASE_URL}/uploads/${material.filename}`;
-
-  Swal.fire({
-    title: "Edit Material",
-    html: `
-      <form>
-        <div class="mb-3">
-          <label class="form-label">
-            <i class="bi bi-tag me-2"></i>Category
-          </label>
-          <select id="categoryId" class="form-select form-select-lg">
-            <option value="">Select Category</option>
-            ${categories.map(category => `
-              <option value="${category.id}" ${material.categoryID == category.id ? 'selected' : ''}>
-                ${category.category_title}
-              </option>
-            `).join('')}
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">
-            <i class="bi bi-journal-richtext me-2"></i>Course
-          </label>
-          <select id="courseId" class="form-select form-select-lg">
-            <option value="">Select Course</option>
-            ${courses.map(course => `
-              <option value="${course.id}" ${material.courseID == course.id ? 'selected' : ''}>
-                ${course.course_title}
-              </option>
-            `).join('')}
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">
-            <i class="bi bi-file-earmark-text me-2"></i>Material Title
-          </label>
-          <input
-            type="text"
-            id="title"
-            class="form-control form-control-lg"
-            value="${material.title || ''}"
-          >
-        </div>
-        <div class="mb-3">
-          <label class="form-label">
-            <i class="bi bi-file-image me-2"></i>Current Image
-          </label>
-          <input
-            type="text"
-            class="form-control form-control-lg mb-2"
-            value="${material.filename || ''}"
-            readonly
-          >
-          <div class="card">
-            <div class="card-body text-center p-3">
-              <img
-                src="${imageUrl}"
-                alt="Material Preview"
-                class="img-fluid"
-                style="max-height: 200px; max-width: 100%;"
-                onerror="this.src='https://via.placeholder.com/400x250?text=Image+Not+Found'; this.onerror='';"
-              />
-            </div>
+    Swal.fire({
+      title: "Edit Material",
+      html: `
+        <form>
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-tag me-2"></i>Category
+            </label>
+            <select id="categoryId" class="form-select form-select-lg">
+              <option value="">Select Category</option>
+              ${categories.map(category => `
+                <option value="${category.id}" ${material.categoryID == category.id ? 'selected' : ''}>
+                  ${category.category_title}
+                </option>
+              `).join('')}
+            </select>
           </div>
-        </div>
-      </form>
-    `,
-    width: 600, // Make the modal wider to better display the image
-    showCancelButton: true,
-    confirmButtonText: "Save Changes",
-    cancelButtonText: "Cancel",
-    confirmButtonColor: "#198754",
-    cancelButtonColor: "#dc3545",
-    preConfirm: () => {
-      const categoryId = document.getElementById("categoryId").value;
-      const courseId = document.getElementById("courseId").value;
-      const title = document.getElementById("title").value;
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-journal-richtext me-2"></i>Course
+            </label>
+            <select id="courseId" class="form-select form-select-lg">
+              <option value="">Select Course</option>
+              ${courses.map(course => `
+                <option value="${course.id}" ${material.courseID == course.id ? 'selected' : ''}>
+                  ${course.course_title}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-file-earmark-text me-2"></i>Material Title
+            </label>
+            <input
+              type="text"
+              id="title"
+              class="form-control form-control-lg"
+              value="${material.title || ''}"
+            >
+          </div>
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-link me-2"></i>URL
+            </label>
+            <input
+              type="text"
+              id="imageUrl"
+              class="form-control form-control-lg"
+              value="${material.filename || ''}"
+            >
+          </div>
+        </form>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Save Changes",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#198754",
+      cancelButtonColor: "#dc3545",
+      preConfirm: () => {
+        const categoryId = document.getElementById("categoryId").value;
+        const courseId = document.getElementById("courseId").value;
+        const title = document.getElementById("title").value;
+        const filename = document.getElementById("imageUrl").value;
 
-      // Create update data object keeping original values if not changed
-      const updateData = {
-        category_id: categoryId ? Number(categoryId) : Number(material.categoryID),
-        course_id: courseId ? Number(courseId) : Number(material.courseID),
-        title: material.title,
-        filename: material.filename, // Keep the existing filename
-        created_by: Number(material.created_by) // Keep the existing creator
-      };
+        // Create update data object with the new values
+        const updateData = {
+          category_id: categoryId ? Number(categoryId) : Number(material.categoryID),
+          course_id: courseId ? Number(courseId) : Number(material.courseID),
+          title: title || material.title,
+          filename: filename || material.filename,
+          created_by: Number(material.created_by)
+        };
 
-      return updateData;
-    },
-  }).then(async (result) => {
-    if (result.isConfirmed) {
-      try {
-        const response = await axios.put(
-          `${config.API_BASE_URL}/materials/update_material/${material.id}`,
-          result.value,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
+        return updateData;
+      },
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const response = await axios.put(
+            `${config.API_BASE_URL}/materials/update_material/${material.id}`,
+            result.value,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
+            }
+          )
+
+          if (response.data.success) {
+            await Swal.fire({
+              icon: "success",
+              title: "Success",
+              text: "Material updated successfully",
+              timer: 1500,
+              showConfirmButton: false,
+            });
+
+            // Re-fetch materials to reflect changes in UI
+            fetchMaterials();
           }
-        )
-
-        if (response.data.success) {
-          await Swal.fire({
-            icon: "success",
-            title: "Success",
-            text: "Material updated successfully",
-            timer: 1500,
-            showConfirmButton: false,
+        } catch (error) {
+          console.error("Update Material Error:", error);
+          console.error("Update Material Error Details:", error.response?.data);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error.response?.data?.error || "Failed to update material",
           });
-
-          // Re-fetch materials to reflect changes in UI
-          fetchMaterials();
         }
-      } catch (error) {
-        console.error("Update Material Error:", error);
-        console.error("Update Material Error Details:", error.response?.data);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: error.response?.data?.error || "Failed to update material",
-        });
       }
-    }
-  })
-}
-
+    })
+  }
 
   const handleDeleteMaterial = (material) => {
     Swal.fire({
@@ -502,68 +451,32 @@ export default function AddMaterials() {
                   </div>
 
                   <div className="form-group mb-4">
-                    <label htmlFor="file" className="form-label">
-                      <i className="bi bi-upload me-2"></i>Upload PNG Image
+                    <label htmlFor="filename" className="form-label">
+                      <i className="bi bi-link me-2"></i>URL
                       <span className="text-danger">*</span>
                     </label>
                     <input
-                      type="file"
-                      className={`form-control form-control-lg ${file ? "is-valid" : ""}`}
-                      id="file"
-                      name="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      accept="image/png" // Only accept PNG files
+                      type="text"
+                      className={`form-control form-control-lg ${materialData.filename ? "is-valid" : ""}`}
+                      id="filename"
+                      name="filename"
+                      value={materialData.filename}
+                      onChange={handleChange}
+                      placeholder="Enter URL"
                       required
                     />
                     <div className="form-text">
-                      Only PNG images are supported. Max file size: 10MB.
+                      Please provide a valid URL.
                     </div>
-
-                    {/* Add image preview */}
-                    {previewUrl && (
-                      <div className="mt-3">
-                        <div className="card">
-                          <div className="card-header bg-light d-flex justify-content-between align-items-center">
-                            <span><i className="bi bi-eye me-2"></i>Image Preview</span>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={() => {
-                                setPreviewUrl(null);
-                                setFile(null);
-                                if (fileInputRef.current) {
-                                  fileInputRef.current.value = "";
-                                }
-                                setMaterialData({
-                                  ...materialData,
-                                  filename: ""
-                                });
-                              }}
-                            >
-                              <i className="bi bi-x-lg"></i>
-                            </button>
-                          </div>
-                          <div className="card-body text-center p-3">
-                            <img
-                              src={previewUrl}
-                              alt="Preview"
-                              className="img-fluid"
-                              style={{ maxHeight: '200px' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
-                    disabled={!materialData.category_id || !materialData.course_id || !materialData.title || !file}
+                    disabled={!materialData.category_id || !materialData.course_id || !materialData.title || !materialData.filename}
                   >
                     <i className="bi bi-plus-circle-fill"></i>
-                    Upload Material
+                    Save Material
                   </button>
                 </form>
               </div>
@@ -604,20 +517,9 @@ export default function AddMaterials() {
                         materials.map((material) => (
                           <tr key={material.id}>
                             <td>
-                              <div className="d-flex align-items-center">
-                                <div className="me-3" style={{ width: "40px", height: "40px" }}>
-                                  <img
-                                    src={`${config.API_BASE_URL}/uploads/${material.filename}`}
-                                    alt={material.title}
-                                    className="img-thumbnail"
-                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-
-                                  />
-                                </div>
-                                <div>
-                                  <div className="fw-medium">{material.title}</div>
-                                  <small className="text-muted">{material.filename}</small>
-                                </div>
+                              <div>
+                                <div className="fw-medium">{material.title}</div>
+                                <small className="text-muted">{material.filename}</small>
                               </div>
                             </td>
                             <td>

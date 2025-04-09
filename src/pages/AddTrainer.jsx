@@ -4,6 +4,7 @@ import Sidebar from "../components/Sidebar";
 import axios from "axios";
 import config from "../config";
 import Swal from "sweetalert2";
+import Select from 'react-select';
 
 export default function AddTrainer() {
   const [employeeId, setEmployeeId] = useState("");
@@ -13,6 +14,8 @@ export default function AddTrainer() {
   const [employees, setEmployees] = useState([]);
   const [categories, setCategories] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
+  const [employeeOptions, setEmployeeOptions] = useState([]);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -22,14 +25,28 @@ export default function AddTrainer() {
     fetchCourses();
   }, []);
 
+  useEffect(() => {
+    if (employees.length > 0) {
+      const formattedOptions = employees.map(employee => ({
+        value: employee.emp_ID,
+        label: `${employee.fName} ${employee.lName}`
+      }));
+      setEmployeeOptions(formattedOptions);
+    }
+  }, [employees]);
+
   const fetchTrainers = async () => {
     try {
+      const empID = localStorage.getItem("X-EMP-ID");
       const response = await axios.get(
-        `${config.API_BASE_URL}/trainers/get_all_trainers`,
+        `${config.API_BASE_URL}/trainers/get_all_trainer`,
         {
+          params: {
+            emp_ID: empID // Add the employee ID as a query parameter
+          },
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "X-EMP-ID": empID,
           },
         }
       );
@@ -121,11 +138,11 @@ export default function AddTrainer() {
   const handleAddTrainer = async (e) => {
     e.preventDefault();
 
-    if (!employeeId || !categoryId || !courseId) {
+    if (selectedEmployees.length === 0 || !categoryId || !courseId) {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Please select an employee, category, and course.",
+        text: "Please select employees, category, and course.",
       });
       return;
     }
@@ -134,8 +151,10 @@ export default function AddTrainer() {
       const response = await axios.post(
         `${config.API_BASE_URL}/trainers/add_trainer`,
         {
-          employee_id: employeeId,
-          course_id: courseId
+          array_employee_emp_id: selectedEmployees,
+          category_id: categoryId,
+          course_id: courseId,
+          admin_emp_id: localStorage.getItem("X-EMP-ID")
         },
         {
           headers: {
@@ -149,10 +168,10 @@ export default function AddTrainer() {
         Swal.fire({
           icon: "success",
           title: "Success",
-          text: "Trainer assigned successfully.",
+          text: response.data.success,
         });
         // Reset form
-        setEmployeeId("");
+        setSelectedEmployees([]);
         setCategoryId("");
         setCourseId("");
         fetchTrainers();
@@ -180,8 +199,22 @@ export default function AddTrainer() {
             <select id="employeeId" class="form-select form-select-lg">
               <option value="">Select Employee</option>
               ${employees.map(employee => `
-                <option value="${employee.id}" ${trainer.employee_id == employee.id ? 'selected' : ''}>
-                  ${employee.first_name} ${employee.last_name}
+                <option value="${employee.emp_ID}" ${trainer.emp_ID === employee.emp_ID ? 'selected' : ''}>
+                  ${employee.fName} ${employee.lName}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-tag me-2"></i>Category
+              <span class="text-danger">*</span>
+            </label>
+            <select id="categoryId" class="form-select form-select-lg">
+              <option value="">Select Category</option>
+              ${categories.map(category => `
+                <option value="${category.id}" ${trainer.categoryID == category.id ? 'selected' : ''}>
+                  ${category.category_title}
                 </option>
               `).join('')}
             </select>
@@ -194,7 +227,7 @@ export default function AddTrainer() {
             <select id="courseId" class="form-select form-select-lg">
               <option value="">Select Course</option>
               ${courses.map(course => `
-                <option value="${course.id}" ${trainer.course_id == course.id ? 'selected' : ''}>
+                <option value="${course.id}" ${trainer.courseID == course.id ? 'selected' : ''}>
                   ${course.course_title}
                 </option>
               `).join('')}
@@ -209,15 +242,17 @@ export default function AddTrainer() {
       cancelButtonColor: "#dc3545",
       preConfirm: () => {
         const employeeId = document.getElementById("employeeId").value;
+        const categoryId = document.getElementById("categoryId").value;
         const courseId = document.getElementById("courseId").value;
 
-        if (!employeeId || !courseId) {
-          Swal.showValidationMessage("Employee and course are required");
+        if (!employeeId || !categoryId || !courseId) {
+          Swal.showValidationMessage("Employee, category, and course are required");
           return false;
         }
 
         return {
-          employee_id: employeeId,
+          emp_id: employeeId,
+          category_id: categoryId,
           course_id: courseId
         };
       },
@@ -307,13 +342,19 @@ export default function AddTrainer() {
   // Helper functions to get names by ID
   const getEmployeeName = (employeeId) => {
     if (!employeeId) return "N/A";
-    const employee = employees.find(emp => emp.id.toString() === employeeId.toString());
-    return employee ? `${employee.first_name} ${employee.last_name}` : "N/A";
+    const employee = employees.find(emp => emp.emp_ID === employeeId);
+    return employee ? `${employee.fName} ${employee.lName}` : "N/A";
+  };
+
+  const getCategoryName = (categoryId) => {
+    if (!categoryId) return "N/A";
+    const category = categories.find(cat => cat.id === parseInt(categoryId, 10));
+    return category ? category.category_title : "N/A";
   };
 
   const getCourseName = (courseId) => {
     if (!courseId) return "N/A";
-    const course = courses.find(course => course.id.toString() === courseId.toString());
+    const course = courses.find(course => course.id === courseId);
     return course ? course.course_title : "N/A";
   };
 
@@ -347,28 +388,39 @@ export default function AddTrainer() {
                 <form onSubmit={handleAddTrainer}>
                   <div className="form-group mb-4">
                     <label htmlFor="employee_id" className="form-label">
-                      <i className="bi bi-person me-2"></i>Select Employee
+                      <i className="bi bi-person me-2"></i>Select Employees
                       <span className="text-danger">*</span>
                     </label>
-                    <select
-                      className={`form-select form-select-lg ${employeeId ? "is-valid" : ""}`}
-                      id="employee_id"
+                    <Select
+                      className="basic-multi-select"
+                      classNamePrefix="select"
+                      isMulti
                       name="employee_id"
-                      value={employeeId}
-                      onChange={(e) => setEmployeeId(e.target.value)}
-                      required
-                    >
-                      <option value="">Select Employee</option>
-                      {employees.map((employee) => (
-                        <option key={employee.id} value={employee.id}>
-                          {employee.fName} {employee.lName}
-                        </option>
-                      ))}
-                    </select>
-                    {employees.length === 0 && (
-                      <div className="form-text text-warning mt-2">
-                        <i className="bi bi-exclamation-triangle me-1"></i>
-                        No employees available.
+                      options={employeeOptions}
+                      onChange={(selectedOptions) => {
+                        const values = selectedOptions ? selectedOptions.map(option => option.value) : [];
+                        setSelectedEmployees(values);
+                      }}
+                      placeholder="Select employees..."
+                      noOptionsMessage={() => "No employees available"}
+                      styles={{
+                        control: (baseStyles, state) => ({
+                          ...baseStyles,
+                          padding: '0.375rem 0.5rem',
+                          fontSize: '1rem',
+                          borderColor: state.isFocused ? '#86b7fe' : '#ced4da',
+                          boxShadow: state.isFocused ? '0 0 0 0.25rem rgba(13, 110, 253, 0.25)' : 'none',
+                        }),
+                        multiValue: (styles) => ({
+                          ...styles,
+                          backgroundColor: '#e9ecef',
+                        }),
+                      }}
+                    />
+                    {selectedEmployees.length > 0 && (
+                      <div className="form-text text-success mt-2">
+                        <i className="bi bi-check-circle me-1"></i>
+                        {selectedEmployees.length} employee{selectedEmployees.length > 1 ? 's' : ''} selected
                       </div>
                     )}
                   </div>
@@ -432,10 +484,10 @@ export default function AddTrainer() {
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
-                    disabled={!employeeId || !categoryId || !courseId}
+                    disabled={selectedEmployees.length === 0 || !categoryId || !courseId}
                   >
                     <i className="bi bi-plus-circle-fill"></i>
-                    Assign Trainer
+                    Assign Trainer{selectedEmployees.length > 1 ? 's' : ''}
                   </button>
                 </form>
               </div>
@@ -460,7 +512,7 @@ export default function AddTrainer() {
                       <tr>
                         <th>Trainer</th>
                         <th>Course</th>
-                        <th>Date Assigned</th>
+                        <th>Category</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -478,18 +530,20 @@ export default function AddTrainer() {
                             <td>
                               <div className="d-flex align-items-center">
                                 <i className="bi bi-person-badge me-2 text-primary"></i>
-                                <div className="fw-medium">{getEmployeeName(trainer.employee_id)}</div>
+                                <div className="fw-medium">{getEmployeeName(trainer.emp_ID)}</div>
                               </div>
                             </td>
                             <td>
                               <span className="badge bg-info text-dark">
                                 <i className="bi bi-book-fill me-1"></i>
-                                {getCourseName(trainer.course_id)}
+                                {getCourseName(trainer.courseID)}
                               </span>
                             </td>
                             <td>
-                              <i className="bi bi-calendar-date me-2"></i>
-                              {trainer.date_assigned || "N/A"}
+                              <span className="badge bg-success">
+                                <i className="bi bi-tag-fill me-1"></i>
+                                {getCategoryName(trainer.categoryID)}
+                              </span>
                             </td>
                             <td>
                               <div className="btn-group">

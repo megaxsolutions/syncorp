@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import config from "../../config";
 import moment from "moment";
@@ -16,9 +16,17 @@ export default function ComplexityAllowance() {
   // States for data and UI
   const [cutOffOptions, setCutOffOptions] = useState([]);
   const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [employeeData, setEmployeeData] = useState({});
   const [complexities, setComplexities] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Add a state to track loaded data
+  const [loadingState, setLoadingState] = useState({
+    employeesLoaded: false,
+    cutoffsLoaded: false,
+    complexitiesLoaded: false
+  });
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -43,15 +51,91 @@ export default function ComplexityAllowance() {
   // Loading animation state
   const [loadingAnimation, setLoadingAnimation] = useState(0);
 
+  // Define formatted complexity data as a memoized callback that depends on employeeData
+  const formatComplexityData = useCallback((rawComplexityData) => {
+    if (!rawComplexityData || !Array.isArray(rawComplexityData) || rawComplexityData.length === 0) {
+      return [];
+    }
+
+    return rawComplexityData.map(complexity => {
+      // Use the employee data from our lookup map
+      const empData = employeeData[complexity.emp_ID];
+      const employeeName = empData
+        ? empData.fullName
+        : `Employee ${complexity.emp_ID}`;
+
+      // Find cutoff period details by matching the cutoff ID exactly
+      const cutoffDetails = cutOffOptions.find(co => co.value === complexity.cutoff_ID);
+      const cutOffPeriod = cutoffDetails
+        ? cutoffDetails.label
+        : `Period ID: ${complexity.cutoff_ID}`;
+
+      // Determine status text and badge class
+      let statusText = complexity.status || "Pending";
+      let statusBadgeClass = "bg-warning";
+
+      if (statusText.toLowerCase() === "approved") {
+        statusBadgeClass = "bg-success";
+      } else if (statusText.toLowerCase() === "rejected") {
+        statusBadgeClass = "bg-danger";
+      }
+
+      // Determine final status based on approved_by2
+      let finalStatus = complexity.status2 || "Pending";
+      let finalStatusBadgeClass = "bg-warning";
+
+      if (finalStatus.toLowerCase() === "approved") {
+        finalStatusBadgeClass = "bg-success";
+      } else if (finalStatus.toLowerCase() === "rejected") {
+        finalStatusBadgeClass = "bg-danger";
+      }
+
+      return {
+        id: complexity.id,
+        empId: complexity.emp_ID,
+        employeeName: employeeName,
+        amount: complexity.amount || "0.00",
+        cutOffPeriod: cutOffPeriod,
+        submittedBy: complexity.plotted_by || 'N/A',
+        approvedBy: complexity.approved_by || 'Pending',
+        approvedBy2: complexity.approved_by2 || 'Pending',
+        dateApproved: complexity.datetime_approved || 'N/A',
+        dateApproved2: complexity.datetime_approved2 || 'N/A',
+        status: statusText,
+        status2: finalStatus,
+        statusBadgeClass,
+        finalStatusBadgeClass
+      };
+    });
+  }, [employeeData, cutOffOptions]);
+
+  // Effect to update complexities when employee data or cutoffs change
+  useEffect(() => {
+    // Only reformat if we have both complexity data and employee data
+    if (loadingState.complexitiesLoaded && loadingState.employeesLoaded) {
+      fetchComplexities();
+    }
+  }, [loadingState.employeesLoaded, loadingState.cutoffsLoaded]);
+
   // Update the useEffect for proper loading sequence
   useEffect(() => {
     const initializeData = async () => {
-      // First fetch employees and cut-off periods
-      await fetchEmployees();
-      await fetchCutOffPeriods();
+      setIsLoading(true);
+      try {
+        // First fetch employees and cut-off periods in parallel
+        await Promise.all([
+          fetchEmployees(),
+          fetchCutOffPeriods()
+        ]);
 
-      // Then fetch complexities after employees data is available
-      await fetchComplexities();
+        // Fetch complexities after employee and cutoff data is loaded
+        await fetchComplexities();
+      } catch (error) {
+        console.error("Error initializing data:", error);
+        setError("Failed to initialize data. Please refresh the page.");
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     initializeData();
@@ -137,11 +221,11 @@ export default function ComplexityAllowance() {
 
         const options = cutOffData.map(cutOff => ({
           value: cutOff.id,
-          // Use the correct property names as shown in your data (startDate and endDate)
           label: `${moment(cutOff.startDate).format('MMM DD, YYYY')} - ${moment(cutOff.endDate).format('MMM DD, YYYY')}`
         }));
 
         setCutOffOptions(options);
+        setLoadingState(prev => ({ ...prev, cutoffsLoaded: true }));
       } else {
         console.warn("Cut-off periods not found in response data");
         setCutOffOptions([]);
@@ -178,6 +262,16 @@ export default function ComplexityAllowance() {
           emp.emp_ID && emp.fName && emp.lName && emp.employee_status === 'Active'
         );
 
+        // Create a mapping of employee IDs to their full details for efficient lookups
+        const employeeMap = {};
+        filteredEmployees.forEach(employee => {
+          employeeMap[employee.emp_ID] = {
+            fullName: `${employee.fName} ${employee.lName}`,
+            empId: employee.emp_ID
+          };
+        });
+        setEmployeeData(employeeMap);
+
         const options = filteredEmployees.map(employee => ({
           value: employee.emp_ID,
           label: `${employee.emp_ID} - ${employee.fName} ${employee.lName}`
@@ -185,6 +279,7 @@ export default function ComplexityAllowance() {
 
         console.log("Processed employee options:", options.length);
         setEmployeeOptions(options);
+        setLoadingState(prev => ({ ...prev, employeesLoaded: true }));
       } else {
         console.warn("No employee data found or invalid format");
         setEmployeeOptions([]);
@@ -224,74 +319,32 @@ export default function ComplexityAllowance() {
       console.log("Complexity API response:", response.data);
 
       if (response.data?.data && Array.isArray(response.data.data)) {
-        // Log the raw data first
-        console.log("Raw complexity data:", response.data.data);
+        // Store raw data
+        const rawComplexityData = response.data.data;
+        setLoadingState(prev => ({ ...prev, complexitiesLoaded: true }));
 
-        if (response.data.data.length === 0) {
+        if (rawComplexityData.length === 0) {
           console.log("No complexity allowances found for this supervisor");
           setComplexities([]);
           setFilteredComplexities([]);
           return;
         }
 
-        // Process and format the complexity data
-        const formattedComplexities = response.data.data.map(complexity => {
-          // Find employee name from employee options
-          const employee = employeeOptions.find(emp => emp.value === complexity.emp_ID);
+        // Format the complexity data using our memoized formatter
+        const formattedData = formatComplexityData(rawComplexityData);
 
-          // Find cutoff period details
-          const cutoffDetails = cutOffOptions.find(co => co.value === complexity.cutoff_ID);
-
-          // Determine status text and badge class
-          let statusText = complexity.status || "Pending";
-          let statusBadgeClass = "bg-warning";
-
-          if (statusText.toLowerCase() === "approved") {
-            statusBadgeClass = "bg-success";
-          } else if (statusText.toLowerCase() === "rejected") {
-            statusBadgeClass = "bg-danger";
-          }
-
-          // Determine final status based on approved_by2
-          let finalStatus = complexity.status2 || "Pending";
-          let finalStatusBadgeClass = "bg-warning";
-
-          if (finalStatus.toLowerCase() === "approved") {
-            finalStatusBadgeClass = "bg-success";
-          } else if (finalStatus.toLowerCase() === "rejected") {
-            finalStatusBadgeClass = "bg-danger";
-          }
-
-          return {
-            id: complexity.id,
-            empId: complexity.emp_ID,
-            employeeName: employee ? employee.label.split(' - ')[1] : `Employee ${complexity.emp_ID}`,
-            amount: complexity.amount || "0.00",
-            cutOffPeriod: cutoffDetails ? cutoffDetails.label : `Period ID: ${complexity.cutoff_ID}`,
-            submittedBy: complexity.plotted_by || 'N/A',
-            approvedBy: complexity.approved_by || 'Pending',
-            approvedBy2: complexity.approved_by2 || 'Pending',
-            dateApproved: complexity.datetime_approved || 'N/A',
-            dateApproved2: complexity.datetime_approved2 || 'N/A',
-            status: statusText,
-            status2: finalStatus,
-            statusBadgeClass,
-            finalStatusBadgeClass
-          };
-        });
-
-        console.log("Formatted complexities:", formattedComplexities);
-        setComplexities(formattedComplexities);
+        console.log("Formatted complexities:", formattedData);
+        setComplexities(formattedData);
 
         // Apply any active filters
         if (filterStatus) {
-          const filtered = formattedComplexities.filter(complexity =>
+          const filtered = formattedData.filter(complexity =>
             complexity.status.toLowerCase() === filterStatus.toLowerCase() ||
             complexity.status2.toLowerCase() === filterStatus.toLowerCase()
           );
           setFilteredComplexities(filtered);
         } else {
-          setFilteredComplexities(formattedComplexities);
+          setFilteredComplexities(formattedData);
         }
       } else {
         console.warn("No complexity data found in response or invalid format");
@@ -312,6 +365,12 @@ export default function ComplexityAllowance() {
     }
   };
 
+  // Add a refresh function that can be called to reload complexity data with current employee data
+  const refreshComplexitiesWithEmployeeData = () => {
+    fetchComplexities();
+  };
+
+  // ... rest of your code remains the same ...
   const resetForm = () => {
     setCutOff(null);
     setSelectedEmployees([]);

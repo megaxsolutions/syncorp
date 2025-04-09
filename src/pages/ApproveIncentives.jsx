@@ -49,9 +49,12 @@ export default function ApproveIncentives() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      await fetchCutoffs();
+      // First fetch cutoffs and store the result
+      const cutoffData = await fetchCutoffs();
+      // Then fetch employees
       await fetchEmployees();
-      await fetchIncentiveRequests();
+      // Finally fetch incentive requests using the cutoff data
+      await fetchIncentiveRequests(cutoffData);
     } catch (err) {
       console.error('Error in fetchData:', err);
       setError('Failed to load data. Please try again later.');
@@ -93,8 +96,10 @@ export default function ApproveIncentives() {
       });
 
       setCutoffs(cutoffMap);
+      return cutoffMap; // Return the map for immediate use
     } catch (error) {
       console.error("Fetch Cut-offs Error:", error);
+      return {}; // Return empty object in case of error
     }
   };
 
@@ -135,7 +140,7 @@ export default function ApproveIncentives() {
   };
 
   // Function to fetch attendance incentive requests
-  const fetchIncentiveRequests = async () => {
+  const fetchIncentiveRequests = async (cutoffData = {}) => {
     try {
       const response = await axios.get(
         `${config.API_BASE_URL}/attendance_incentives/get_all_att_incentive`,
@@ -182,8 +187,8 @@ export default function ApproveIncentives() {
 
           // Get cutoff period from our mapping or use direct values from incentive if available
           let cutoffPeriod = 'N/A';
-          if (incentive.cutoff_ID && cutoffs[incentive.cutoff_ID]) {
-            cutoffPeriod = cutoffs[incentive.cutoff_ID];
+          if (incentive.cutoff_ID && cutoffData && cutoffData[incentive.cutoff_ID]) {
+            cutoffPeriod = cutoffData[incentive.cutoff_ID];
           } else if (incentive.cutoffStart && incentive.cutoffEnd) {
             // Format using moment if direct dates are provided
             cutoffPeriod = `${moment(incentive.cutoffStart).format("MMM DD")} - ${moment(incentive.cutoffEnd).format("MMM DD, YYYY")}`;
