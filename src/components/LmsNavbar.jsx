@@ -1,10 +1,28 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 
 export const LmsNavbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [activeLink, setActiveLink] = useState("home");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const location = useLocation();
+  const [activeLink, setActiveLink] = useState("");
+
+  // Set active link based on current URL path
+  useEffect(() => {
+    const path = location.pathname;
+
+    if (path === "/lms") {
+      setActiveLink("home");
+    } else if (path === "/lms/about") {
+      setActiveLink("about");
+    } else if (path.includes("/courses")) {
+      setActiveLink("courses");
+    } else if (path === "/contact") {
+      setActiveLink("contact");
+    } else if (["/team", "/testimonials", "/faqs"].some(route => path.includes(route))) {
+      setActiveLink("pages");
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,6 +40,7 @@ export const LmsNavbar = () => {
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
+
   return <>
   <nav className={`navbar navbar-expand-lg navbar-light shadow-sm sticky-top ${isScrolled ? 'bg-white py-2' : 'bg-light py-3'}`}
            style={{ transition: "all 0.3s ease-in-out" }}>
@@ -90,8 +109,8 @@ export const LmsNavbar = () => {
             <Link to="/register" className="btn btn-primary py-2 px-4 ms-3 d-none d-lg-block">
               Join Now<i className="fa fa-arrow-right ms-2"></i>
             </Link>
-
           </div>
         </div>
-      </nav></>
+      </nav>
+  </>
 }
