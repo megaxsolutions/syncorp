@@ -17,7 +17,6 @@ const EmployeeSidebar = () => {
   const isActive = (path) => location.pathname === path;
 
   // Navigation items for better organization
-   // Navigation items for better organization
 const navItems = [
   { path: "/employee_dashboard", icon: "bi-grid", label: "Dashboard" },
   { path: "/employee_attendance", icon: "bi-calendar-check", label: "Attendance" },
@@ -25,7 +24,9 @@ const navItems = [
   { path: "/employee_leave_request", icon: "bi-arrow-right-square", label: "Leave Request" },
   { path: "/employee_overtime_request", icon: "bi-clock-history", label: "Overtime Request" },
   { path: "/employee_time_adjustment", icon: "bi-calendar-plus", label: "Time Adjustment" },
+  { path: "/employee_dtr", icon: "bi-file-earmark-text", label: "DTR" }, // Added DTR navigation
   { path: "/employee_my_performance", icon: "bi-graph-up", label: "My Performance" },
+  { path: "/employee_signature", icon: "bi-pen", label: "Signature" }, // Add signature navigation
   { path: "/lms", icon: "bi-book", label: "LMS" },
   { path: "/employee_end_of_the_day", icon: "bi-sunset", label: "EOD" }
 ];
@@ -311,8 +312,7 @@ const navItems = [
 
   return (
     <aside id="sidebar" className={`sidebar employee-sidebar ${collapsed ? 'collapsed' : ''}`}>
-
-
+      {/* Existing sidebar header */}
       <div className="sidebar-header">
         <div className="d-flex flex-column align-items-center mt-4">
           {/* Profile Photo with Status Indicator */}
@@ -396,6 +396,8 @@ const navItems = [
           ))}
         </ul>
       </div>
+
+
     </aside>
   );
 };

@@ -63,6 +63,8 @@ import ApproveIncentives from "./pages/ApproveIncentives";
 import AddUser from "./pages/AddUser";
 import Homepage from "./pages/lms/Homepage";
 import { About } from "./pages/lms/About";
+import Signature from "./pages/Employee Page/Signature";
+import EmployeeDtr from "./pages/Employee Page/EmployeeDtr";
 
 function App() {
   return (
@@ -122,6 +124,8 @@ function App() {
         <Route path="/employee_my_performance" element={<MyPerformance />} />
         <Route path="/employee_time_adjustment" element={<TimeAdjustment />} />
         <Route path="/employee_end_of_the_day" element={<EndOfTheDay />} />
+        <Route path="/employee_signature" element={<Signature />} />
+        <Route path="/employee_dtr" element={<EmployeeDtr />} />
         <Route path="/lms" element={<Homepage />} />
         <Route path="/lms/about" element={<About />} />
       </Route>
