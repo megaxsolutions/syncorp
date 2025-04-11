@@ -27,7 +27,8 @@ const SupervisorSidebar = () => {
         { path: "/supervisor_live_attendance", icon: "bi-broadcast", label: "Live Attendance" },
         { path: "/supervisor_leave_request", icon: "bi-arrow-right-square", label: "Leave Request" },
         { path: "/supervisor_overtime_request", icon: "bi-clock-history", label: "Overtime Request" },
-        { path: "/supervisor_schedule", icon: "bi-calendar2-week", label: "Schedule" }
+        { path: "/supervisor_schedule", icon: "bi-calendar2-week", label: "Schedule" },
+        { path: "/supervisor_incident_report", icon: "bi-exclamation-triangle-fill", label: "Incident Report" }
       ]
     },
     {

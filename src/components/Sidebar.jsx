@@ -11,6 +11,7 @@ const Sidebar = () => {
     settings: location.pathname.startsWith("/settings"),
     approvals: location.pathname.startsWith("/approvals"),
     lms: location.pathname.startsWith("/lms"), // Add LMS to expanded menus state
+    incidents: location.pathname.startsWith("/incidents"), // Add this new line
   })
 
   const toggleMenu = (menu) => {
@@ -274,6 +275,21 @@ const Sidebar = () => {
                 </Link>
               ))}
             </div>
+          </li>
+
+          {/* Incident Reports - Single Link */}
+          <li className="nav-item mb-1">
+            <Link
+              to="/view-incident"
+              className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                isActive("/view-incident") ? "bg-primary text-white" : "text-dark hover-bg-light"
+              }`}
+            >
+              <i
+                className={`bi bi-exclamation-triangle me-3 ${isActive("/view-incident") ? "text-white" : "text-primary"}`}
+              ></i>
+              <span>Incident Reports</span>
+            </Link>
           </li>
 
           {/* Other menu items */}

@@ -177,6 +177,26 @@
   font-size: 1.5rem;
 }
 
+/* Add smooth transition for modal */
+.fade-in-modal {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Prevent layout shift */
+.mood-meter-modal .modal-dialog {
+  transform: none !important;
+}
+
+/* Smooth transitions for mood selection */
+.mood-option {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .bulletin-overlay {
