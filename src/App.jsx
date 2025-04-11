@@ -65,6 +65,8 @@ import Homepage from "./pages/lms/Homepage";
 import { About } from "./pages/lms/About";
 import Signature from "./pages/Employee Page/Signature";
 import EmployeeDtr from "./pages/Employee Page/EmployeeDtr";
+import IncidentReport from "./pages/Supervisor/IncidentReport";
+import ViewIncident from "./pages/ViewIncident";
 
 function App() {
   return (
@@ -111,6 +113,7 @@ function App() {
         <Route path="/lms/add-trainer" element={<AddTrainer />} />
         <Route path="/lms/create-quiz" element={<CreateQuiz />} />
         <Route path="/lms/add-users" element={<AddUser />} />
+        <Route path="/view-incident" element={<ViewIncident />} />
 
       </Route>
 
@@ -142,6 +145,7 @@ function App() {
         <Route path="/supervisor_view_eod" element={<ViewEod />} />
         <Route path="/supervisor_incentives" element={<AttendanceIncentives />} />
         <Route path="/supervisor_complexity" element={<ComplexityAllowance />} />
+        <Route path="/supervisor_incident_report" element={<IncidentReport />} />
       </Route>
 
       {/* 404 Page */}
