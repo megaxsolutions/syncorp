@@ -11,13 +11,15 @@ import Modal from 'react-bootstrap/Modal'; // Add Bootstrap Modal
 
 const OvertimeRequest = () => {
   const [selectedDate, setSelectedDate] = useState("");
-  const [hours, setHours] = useState("");
+  const [selectedStartDate, setSelectedStartDate] = useState("");
+  const [selectedEndDate, setSelectedEndDate] = useState("");
+  const [hours, setHours] = useState(0);
   const [otType, setOtType] = useState("");
   const [otHistory, setOtHistory] = useState([]);
   const [error, setError] = useState("");
   const [otTypes, setOtTypes] = useState([]);
   const [employeeData, setEmployeeData] = useState(null);
-
+  
   // Mood meter states
   const [showMoodModal, setShowMoodModal] = useState(false);
   const [todaysMood, setTodaysMood] = useState(null);
@@ -446,6 +448,8 @@ const OvertimeRequest = () => {
         {
           ot_type: parseInt(otType),  // Convert the ID to integer
           hrs: hours,
+          startSpec:selectedStartDate,
+          endSpec:selectedEndDate,
           date: selectedDate,
           emp_ID: empId,
           status: "Pending"
@@ -480,6 +484,26 @@ const OvertimeRequest = () => {
       });
     }
   };
+
+ 
+  const calculateHours = (start, end) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (!isNaN(startDate) && !isNaN(endDate) && endDate > startDate) {
+      const diffMs = endDate - startDate;
+      const diffHours = diffMs / (1000 * 60 * 60);
+      return diffHours.toFixed(2);
+    }
+    return 0;
+  };
+
+  // Auto-calculate on change of end date
+  useEffect(() => {
+    if (selectedStartDate && selectedEndDate) {
+      setHours(calculateHours(selectedStartDate, selectedEndDate));
+    }
+  }, [selectedEndDate, selectedStartDate]);
 
   return (
     <div className="overtime-request-page">
@@ -532,7 +556,7 @@ const OvertimeRequest = () => {
                   <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
                     <div className="form-group mb-4">
                       <label htmlFor="date" className="form-label">
-                        <i className="bi bi-calendar3 me-2"></i>Date
+                        <i className="bi bi-calendar3 me-2"></i>Shift Date
                         <span className="text-danger">*</span>
                       </label>
                       <input
@@ -543,6 +567,38 @@ const OvertimeRequest = () => {
                         onChange={(e) => setSelectedDate(e.target.value)}
                         required
                       />
+                    <div className="row p-2">
+                    <div className="col-lg-6">
+                        <label htmlFor="date" className="form-label">
+                            <i className="bi bi-calendar3 me-2"></i>Start
+                            <span className="text-danger">*</span>
+                          </label>
+                          <input
+                            type="datetime-local"
+                            className={`form-control form-control-lg ${selectedStartDate ? 'is-valid' : ''}`}
+                            id="date"
+                            value={selectedStartDate}
+                            onChange={(e) => setSelectedStartDate(e.target.value)}
+                            required
+                          />
+                    </div>
+                    <div className="col-lg-6">
+                        <label htmlFor="date" className="form-label">
+                            <i className="bi bi-calendar3 me-2"></i>End
+                            <span className="text-danger">*</span>
+                          </label>
+                          <input
+                            type="datetime-local"
+                            className={`form-control form-control-lg ${selectedEndDate ? 'is-valid' : ''}`}
+                            id="date"
+                            value={selectedEndDate}
+                            onChange={(e) => setSelectedEndDate(e.target.value)}
+                            required
+                          />
+                    </div>
+                    </div>  
+                    
+                    
                     </div>
 
                     <div className="form-group mb-4">
@@ -551,14 +607,15 @@ const OvertimeRequest = () => {
                         <span className="text-danger">*</span>
                       </label>
                       <input
-                        type="number"
+                        type="text"
                         className={`form-control form-control-lg ${hours ? 'is-valid' : ''}`}
                         id="hours"
                         min="1"
                         max="24"
+                        readOnly
                         value={hours}
                         onChange={(e) => setHours(e.target.value)}
-                        placeholder="Enter overtime hours"
+                        placeholder="overtime hours"
                         required
                       />
                     </div>
