@@ -546,7 +546,7 @@ const OvertimeRequest = () => {
           </nav>
 
           <div className="row g-4">
-            <div className="col-12 col-md-5 order-md-1">
+            <div className="col-12 col-md-6 order-md-1">
               <div className="card shadow-sm h-100">
                 <div className="card-body p-4">
                   <h5 className="card-title d-flex align-items-center mb-4">
@@ -654,7 +654,7 @@ const OvertimeRequest = () => {
               </div>
             </div>
 
-            <div className="col-md-7">
+            <div className="col-md-6">
               <div className="card shadow-sm">
                 <div className="card-body">
                   <h5 className="card-title d-flex align-items-center justify-content-between">
