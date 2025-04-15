@@ -17,8 +17,6 @@ const OvertimeRequest = () => {
   const [error, setError] = useState("");
   const [otTypes, setOtTypes] = useState([]);
   const [employeeData, setEmployeeData] = useState(null);
-
-  // Add mood meter states
   const [showMoodModal, setShowMoodModal] = useState(false);
   const [selectedMood, setSelectedMood] = useState(null);
   const [todayMood, setTodayMood] = useState(null);
