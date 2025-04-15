@@ -17,7 +17,8 @@ function Coaching() {
     metrix_1: '',
     metrix_2: '',
     metrix_3: '',
-    metrix_4: ''
+    metrix_4: '',
+    metrix_5: ''         // Added metrix_5
   });
   const [coachingTypes, setCoachingTypes] = useState([]);
   const [employeeOptions, setEmployeeOptions] = useState([]); // Add this for React-Select options
@@ -30,13 +31,18 @@ function Coaching() {
     metrix_1: '',
     metrix_2: '',
     metrix_3: '',
-    metrix_4: ''
+    metrix_4: '',
+    metrix_5: ''         // Added metrix_5
   });
 
   // Add state for search and filtering
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredCoachingData, setFilteredCoachingData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Add a new state for view modal
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewData, setViewData] = useState(null);
 
   // Custom styles for React Select
   const selectStyles = {
@@ -158,7 +164,7 @@ function Coaching() {
         return;
       }
 
-      // Use the new endpoint with supervisor_emp_id parameter
+      // Use the endpoint with supervisor_emp_id parameter
       const response = await axios.get(
         `${config.API_BASE_URL}/coaching/get_all_coaching_supervisor/${supervisorId}`,
         {
@@ -169,8 +175,9 @@ function Coaching() {
         }
       );
 
-      // Make sure we're setting an array
+      // Make sure we're setting an array and log it to see the structure
       if (response.data && Array.isArray(response.data.data)) {
+        console.log("Coaching data from API:", response.data.data);
         setCoachingData(response.data.data);
         setFilteredCoachingData(response.data.data);
       } else {
@@ -180,7 +187,7 @@ function Coaching() {
       }
     } catch (error) {
       console.error('Error fetching coaching data:', error);
-      setCoachingData([]); // Set empty array on error
+      setCoachingData([]);
       setFilteredCoachingData([]);
       Swal.fire({
         icon: 'error',
@@ -250,6 +257,21 @@ function Coaching() {
     }
   }, [searchTerm, coachingData, employees, coachingTypes]);
 
+  // Add this useEffect to control body scrolling
+  useEffect(() => {
+    // When modal is shown, disable body scrolling
+    if (showEditModal || showViewModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    // Clean up when component unmounts
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showEditModal, showViewModal]);
+
   // Update the handleSubmit function
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -297,7 +319,8 @@ function Coaching() {
         metrix_1: formData.metrix_1 || '',
         metrix_2: formData.metrix_2 || '',
         metrix_3: formData.metrix_3 || '',
-        metrix_4: formData.metrix_4 || ''
+        metrix_4: formData.metrix_4 || '',
+        metrix_5: formData.metrix_5 || '' // Add metrix_5
       };
 
       // Debug logging to inspect the request data
@@ -330,7 +353,8 @@ function Coaching() {
           metrix_1: '',
           metrix_2: '',
           metrix_3: '',
-          metrix_4: ''
+          metrix_4: '',
+          metrix_5: ''
         });
 
         // Refresh coaching data
@@ -372,9 +396,32 @@ function Coaching() {
       metrix_1: record.metrix_1,
       metrix_2: record.metrix_2,
       metrix_3: record.metrix_3,
-      metrix_4: record.metrix_4
+      metrix_4: record.metrix_4,
+      metrix_5: record.metrix_5
     });
     setShowEditModal(true);
+  };
+
+  // Add a new handler function for viewing
+  const handleViewCoaching = (record) => {
+    setViewData({
+      id: record.id,
+      emp_id: record.emp_ID,
+      coaching_type: record.coaching_type,
+      coached_by: record.coached_by,
+      metrix_1: record.metrix_1,
+      metrix_2: record.metrix_2,
+      metrix_3: record.metrix_3,
+      metrix_4: record.metrix_4,
+      metrix_5: record.metrix_5,
+      date_coached: record.date_coached,
+      acknowledge_datetime: record.acknowledge_datetime,
+      employee_fullname: record.employee_fullname,
+      coach_fullname: record.coach_fullname,
+      employee_signature: record.employee_signature,
+      coach_signature: record.coach_signature
+    });
+    setShowViewModal(true);
   };
 
   // Handle submitting updates to the server
@@ -414,6 +461,7 @@ function Coaching() {
         metrix_2: editFormData.metrix_2 || '',
         metrix_3: editFormData.metrix_3 || '',
         metrix_4: editFormData.metrix_4 || '',
+        metrix_5: editFormData.metrix_5 || '', // Add metrix_5
       };
 
       // Log the request data for debugging
@@ -535,11 +583,32 @@ function Coaching() {
     });
   };
 
-  // Make sure to map “value” to the name (type.coaching_type) instead of the ID
+
   const coachingTypeOptions = coachingTypes.map((type) => ({
-    value: type.id,        // store the ID
-    label: type.coaching_type // display the name
+    value: type.id,
+    label: type.coaching_type
   }));
+
+
+  const formatSignaturePath = (signaturePath) => {
+    if (!signaturePath) return null;
+
+
+    if (signaturePath.includes('/uploads/signatures/')) {
+      return signaturePath;
+    }
+
+    if (signaturePath.startsWith('http://') || signaturePath.startsWith('https://')) {
+      return signaturePath;
+    }
+
+    const cleanPath = signaturePath.startsWith('/')
+      ? signaturePath.substring(1)
+      : signaturePath;
+
+
+    return `/uploads/signatures/${cleanPath}`;
+  };
 
   return (
     <>
@@ -618,7 +687,7 @@ function Coaching() {
                         <h6 className="mb-0">Coaching Matrix Points</h6>
                       </div>
                       <div className="card-body">
-                        {[1, 2, 3, 4].map((num) => (
+                        {[1, 2, 3, 4, 5].map((num) => (
                           <div className="mb-3" key={`matrix-${num}`}>
                             <label className="form-label">
                               <div className="d-flex align-items-center">
@@ -747,9 +816,16 @@ function Coaching() {
                                   <td>
                                     <div className="d-flex justify-content-center gap-2">
                                       <button
+                                        className="btn btn-sm btn-outline-info"
+                                        onClick={() => handleViewCoaching(record)}
+                                        title="View Details"
+                                      >
+                                        <i className="bi bi-eye"></i>
+                                      </button>
+                                      <button
                                         className="btn btn-sm btn-outline-primary"
                                         onClick={() => handleViewDetails(record)}
-                                        title="View and Edit"
+                                        title="Edit"
                                       >
                                         <i className="bi bi-pencil-square"></i>
                                       </button>
@@ -792,7 +868,26 @@ function Coaching() {
 
         {/* Enhanced Edit Modal */}
         {showEditModal && (
-          <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
+          <div
+            className="modal show d-block"
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 1050,
+              overflow: 'auto'
+            }}
+            tabIndex="-1"
+            onClick={(e) => {
+              // Close modal when clicking outside
+              if (e.target === e.currentTarget) {
+                setShowEditModal(false);
+              }
+            }}
+          >
             <div className="modal-dialog modal-dialog-centered modal-lg">
               <div className="modal-content">
                 <div className="modal-header bg-primary text-white">
@@ -878,7 +973,7 @@ function Coaching() {
                       </div>
                       <div className="card-body">
                         <div className="row g-3">
-                          {[1, 2, 3, 4].map(num => (
+                          {[1, 2, 3, 4, 5].map(num => (
                             <div className="col-md-6" key={`edit-matrix-${num}`}>
                               <div className="card h-100 border">
                                 <div className="card-header bg-white py-2 d-flex align-items-center">
@@ -917,6 +1012,218 @@ function Coaching() {
                       </button>
                     </div>
                   </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Modal - Enhanced with all API data fields */}
+        {showViewModal && viewData && (
+          <div
+            className="modal show d-block"
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 1050,
+              overflow: 'auto'
+            }}
+            tabIndex="-1"
+            onClick={(e) => {
+              // Close modal when clicking outside
+              if (e.target === e.currentTarget) {
+                setShowViewModal(false);
+              }
+            }}
+          >
+            <div className="modal-dialog modal-dialog-centered modal-lg">
+              <div className="modal-content">
+                <div className="modal-header bg-info text-white">
+                  <h5 className="modal-title d-flex align-items-center">
+                    <i className="bi bi-eye me-2"></i>
+                    View Coaching Record
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() => setShowViewModal(false)}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {/* Employee and Coach Info - Now first */}
+                  <div className="alert alert-light border mb-4">
+                    <div className="row align-items-center">
+                      <div className="col-md-6">
+                        <div className="d-flex align-items-center">
+                          <div className="avatar bg-info-subtle text-info rounded-circle p-3 me-3">
+                            <i className="bi bi-person-fill fs-4"></i>
+                          </div>
+                          <div>
+                            <h6 className="mb-0">{viewData.employee_fullname || 'Employee'}</h6>
+                            <div className="text-muted small">Employee ID: {viewData.emp_id}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-md-6">
+                        <div className="d-flex align-items-center">
+                          <div className="avatar bg-primary-subtle text-primary rounded-circle p-3 me-3">
+                            <i className="bi bi-person-workspace fs-4"></i>
+                          </div>
+                          <div>
+                            <h6 className="mb-0">{viewData.coach_fullname || 'Coach'}</h6>
+                            <div className="text-muted small">Coach ID: {viewData.coached_by}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="row mt-3">
+                      <div className="col-md-6">
+                        <div className="d-flex align-items-center mt-2">
+                          <span className="badge bg-info me-2">
+                            {coachingTypes.find(ct => ct.id === Number(viewData.coaching_type))?.coaching_type || 'Unknown Type'}
+                          </span>
+                          <span className="text-muted small">
+                            <i className="bi bi-calendar-event me-1"></i>
+                            Coaching Date: {viewData.date_coached || 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Matrix points - Read only */}
+                  <div className="card border shadow-sm mb-4 bg-light">
+                    <div className="card-header bg-light">
+                      <h6 className="mb-0">Coaching Matrix Points</h6>
+                    </div>
+                    <div className="card-body">
+                      <div className="row g-3">
+                        {[1, 2, 3, 4, 5].map(num => (
+                          <div className="col-md-6" key={`view-matrix-${num}`}>
+                            <div className="card h-100 border">
+                              <div className="card-header bg-white py-2 d-flex align-items-center">
+                                <span className="badge bg-info rounded-circle me-2">{num}</span>
+                                <h6 className="mb-0">Matrix Point {num}</h6>
+                              </div>
+                              <div className="card-body">
+                                <div className="p-2 bg-light rounded">
+                                  {viewData[`metrix_${num}`] || 'No data provided'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Acknowledgment Status Banner - Moved below */}
+                  <div className={`alert ${viewData.acknowledge_datetime ? 'alert-success' : 'alert-warning'} d-flex align-items-center mb-4`}>
+                    <i className={`bi ${viewData.acknowledge_datetime ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2 fs-4`}></i>
+                    <div>
+                      <strong>
+                        {viewData.acknowledge_datetime
+                          ? 'Acknowledged by Employee'
+                          : 'Pending Acknowledgment'}
+                      </strong>
+                      <div>
+                        {viewData.acknowledge_datetime
+                          ? `Date Acknowledged: ${viewData.acknowledge_datetime}`
+                          : 'Employee has not acknowledged this coaching record yet.'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Signatures Section - Moved below acknowledgment */}
+                  <div className="card border shadow-sm mb-4">
+                    <div className="card-header bg-light">
+                      <h6 className="mb-0">Signatures</h6>
+                    </div>
+                    <div className="card-body">
+                      <div className="row">
+                        <div className="col-md-6 border-end">
+                          <div className="text-center">
+                            <h6>Employee Signature</h6>
+                            <div className="mb-2">
+                              {viewData.employee_signature ? (
+                                <div className="p-3">
+                                  <img
+                                    src={`${config.API_BASE_URL}/uploads/${viewData.employee_signature}`}
+                                    alt="Employee Signature"
+                                    className="img-fluid border p-2"
+                                    style={{ maxHeight: '100px' }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="alert alert-warning mt-2 mb-3">
+                                  <i className="bi bi-exclamation-triangle me-2"></i>
+                                  No signature available
+                                </div>
+                              )}
+                              <div className="mt-2">
+                                <strong>{viewData.employee_fullname || 'Employee'}</strong>
+                                <div className="text-muted small">
+                                  {viewData.acknowledge_datetime ? (
+                                    <span className="text-success">
+                                      <i className="bi bi-calendar-check me-1"></i>
+                                      Acknowledged: {moment(viewData.acknowledge_datetime).format('MMM D, YYYY h:mm A')}
+                                    </span>
+                                  ) : (
+                                    <span className="text-warning">
+                                      <i className="bi bi-clock-history me-1"></i>
+                                      Pending acknowledgment
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="text-center">
+                            <h6>Coach Signature</h6>
+                            <div className="mb-2">
+                              {viewData.coach_signature ? (
+                                <div className="p-3">
+                                  <img
+                                    src={`${config.API_BASE_URL}/uploads/${viewData.coach_signature}`}
+                                    alt="Coach Signature"
+                                    className="img-fluid border p-2"
+                                    style={{ maxHeight: '100px' }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="alert alert-warning mt-2 mb-3">
+                                  <i className="bi bi-exclamation-triangle me-2"></i>
+                                  No signature available
+                                </div>
+                              )}
+                              <div className="mt-2">
+                                <strong>{viewData.coach_fullname || 'Coach'}</strong>
+                                <div className="text-muted small">
+                                  <i className="bi bi-person-workspace me-1"></i>
+                                  Supervisor
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* View Modal footer - with only Close button */}
+                  <div className="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowViewModal(false)}>
+                      <i className="bi bi-x-circle me-1"></i>
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

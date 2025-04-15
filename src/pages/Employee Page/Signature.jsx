@@ -382,7 +382,7 @@ const Signature = () => {
       } else {
         // Add new signature
         response = await axios.post(
-          `${config.API_BASE_URL}/signatures/add_bulletin`,
+          `${config.API_BASE_URL}/signatures/add_signature`,
           formData,
           {
             headers: {
