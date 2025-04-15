@@ -195,6 +195,191 @@
 /* Smooth transitions for mood selection */
 .mood-option {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.mood-option:hover {
+  transform: translateY(-5px) !important;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.1) !important;
+}
+
+/* Mood Modal Styles */
+.mood-card {
+  transition: all 0.2s ease;
+}
+
+.mood-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.mood-card.selected {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.mood-indicator {
+  background-color: rgba(0, 123, 255, 0.1);
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.mood-text {
+  font-weight: 500;
+}
+
+/* Mood container overrides for horizontal alignment */
+.mood-container {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: nowrap !important;
+  gap: 8px; /* Reduce gap to fit all items */
+  width: 100%;
+  max-width: 100% !important;
+  margin: 0 auto;
+}
+
+.mood-option {
+  flex: 0 0 18% !important; /* Slightly reduce each item's width */
+  min-height: 150px;
+  padding: 15px 3px !important; /* Reduce horizontal padding */
+  margin-bottom: 0 !important;
+  height: auto !important;
+}
+
+.mood-image-container {
+  height: 80px !important;
+}
+
+.mood-name {
+  font-size: 0.95rem !important; /* Slightly reduce font size */
+  margin-top: auto;
+  font-weight: 500 !important;
+}
+
+.mood-modal .modal-dialog {
+  max-width: 750px !important; /* Increase modal width */
+}
+
+.mood-modal .modal-content {
+  border-radius: 15px;
+  border: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.mood-modal .modal-header {
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  padding: 1.5rem;
+  justify-content: center;
+}
+
+.mood-modal .modal-header .modal-title {
+  font-weight: 600;
+}
+
+.mood-modal .modal-body {
+  padding: 2rem 1.5rem; /* Increase horizontal padding */
+}
+
+.mood-modal .modal-footer {
+  border-top: 1px solid rgba(0,0,0,0.1);
+  padding: 1.5rem;
+  justify-content: space-between;
+}
+
+/* Responsive adjustments for small screens */
+@media (max-width: 576px) {
+  .mood-container {
+    flex-wrap: wrap !important;
+    justify-content: center;
+  }
+
+  .mood-option {
+    flex: 0 0 30% !important;
+    margin: 5px !important;
+  }
+
+  .mood-image-container img {
+    width: 50px !important;
+    height: 50px !important;
+  }
+
+  .mood-name {
+    font-size: 0.8rem !important;
+  }
+}
+
+.mood-container {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  max-width: 600px !important;
+  margin: 0 auto;
+}
+
+.mood-option {
+  flex: 0 0 120px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 10px !important;
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.mood-option:hover {
+  transform: translateY(-5px) !important;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.1) !important;
+}
+
+.mood-image-container {
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px !important;
+}
+
+.mood-name {
+  margin-top: auto;
+  font-weight: 500 !important;
+  font-size: 1rem !important;
+}
+
+.mood-modal .modal-dialog {
+  max-width: 650px;
+}
+
+.mood-modal .modal-content {
+  border-radius: 15px;
+  border: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.mood-modal .modal-header {
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  padding: 1.5rem;
+  justify-content: center;
+}
+
+.mood-modal .modal-header .modal-title {
+  font-weight: 600;
+}
+
+.mood-modal .modal-body {
+  padding: 2rem 1rem;
+}
+
+.mood-modal .modal-footer {
+  border-top: 1px solid rgba(0,0,0,0.1);
+  padding: 1.5rem;
+  justify-content: space-between;
 }
 
 /* Responsive adjustments */

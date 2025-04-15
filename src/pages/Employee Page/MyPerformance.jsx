@@ -572,10 +572,148 @@ const MyPerformance = () => {
                   </button>
                 </div>
 
-                {/* Rest of the existing UI code... */}
+                {/* Date filters */}
+                <div className="d-flex align-items-center">
+                  <div className="d-flex me-3">
+                    <div className="me-2">
+                      <label htmlFor="startDate" className="form-label">From</label>
+                      <input
+                        type="date"
+                        id="startDate"
+                        className="form-control"
+                        value={dateFilter.startDate}
+                        onChange={(e) => setDateFilter({...dateFilter, startDate: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="endDate" className="form-label">To</label>
+                      <input
+                        type="date"
+                        id="endDate"
+                        className="form-control"
+                        value={dateFilter.endDate}
+                        onChange={(e) => setDateFilter({...dateFilter, endDate: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-outline-primary mt-4"
+                    onClick={filterRecordsByDate}
+                  >
+                    Apply Filter
+                  </button>
+                </div>
               </div>
 
-              {/* Rest of the component... */}
+              {/* Records table */}
+              {loading ? (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="mt-3">Loading coaching records...</p>
+                </div>
+              ) : filteredRecords.length === 0 ? (
+                <div className="alert alert-info text-center">
+                  <i className="bi bi-info-circle me-2"></i>
+                  No coaching records found
+                </div>
+              ) : (
+                <>
+                  <div className="table-responsive">
+                    <table className="table table-striped table-hover">
+                      <thead className="table-light">
+                        <tr>
+                          <th>Date</th>
+                          <th>Type</th>
+                          <th>Subject</th>
+                          <th>Reviewer</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentRecords.map((record) => (
+                          <tr key={record.id}>
+                            <td>{record.date}</td>
+                            <td>
+                              <span className={`badge ${getCoachingTypeBadge(record.coachingType)}`}>
+                                {record.coachingType}
+                              </span>
+                            </td>
+                            <td>{record.subject}</td>
+                            <td>{record.reviewerName}</td>
+                            <td>
+                              {record.acknowledged ? (
+                                <span className="badge bg-success">Acknowledged</span>
+                              ) : (
+                                <span className="badge bg-warning">Pending</span>
+                              )}
+                            </td>
+                            <td>
+                              <button
+                                className="btn btn-sm btn-primary me-2"
+                                onClick={() => handleViewDetails(record)}
+                              >
+                                <i className="bi bi-eye-fill"></i> View
+                              </button>
+                              {!record.acknowledged && (
+                                <button
+                                  className="btn btn-sm btn-success"
+                                  onClick={() => handleAcknowledge(record.id)}
+                                >
+                                  <i className="bi bi-check-circle"></i> Acknowledge
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <nav aria-label="Coaching records pagination">
+                      <ul className="pagination justify-content-center mt-4">
+                        <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                          <button
+                            className="page-link"
+                            onClick={() => goToPage(currentPage - 1)}
+                            disabled={currentPage === 1}
+                          >
+                            Previous
+                          </button>
+                        </li>
+
+                        {[...Array(totalPages)].map((_, index) => (
+                          <li
+                            key={index}
+                            className={`page-item ${currentPage === index + 1 ? 'active' : ''}`}
+                          >
+                            <button
+                              className="page-link"
+                              onClick={() => goToPage(index + 1)}
+                            >
+                              {index + 1}
+                            </button>
+                          </li>
+                        ))}
+
+                        <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                          <button
+                            className="page-link"
+                            onClick={() => goToPage(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                          >
+                            Next
+                          </button>
+                        </li>
+                      </ul>
+                    </nav>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

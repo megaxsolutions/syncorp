@@ -93,14 +93,27 @@ export const EmployeeDtr = () => {
           // Sort by date in descending order
           return new Date(b.date) - new Date(a.date);
         })
-        .map(record => ({
-          ...record,
-          date: new Date(record.date).toLocaleDateString(),
-          timeIN: record.timeIN ? new Date(record.timeIN).toLocaleTimeString() : 'N/A',
-          timeOUT: record.timeOUT ? new Date(record.timeOUT).toLocaleTimeString() : 'N/A',
-          total_hours: formatHours(record.total_hours),
-          status: record.status || 'Regular'
-        }));
+        .map(record => {
+          // Check for null values before formatting
+          const isTimeInNull = record.timein === null;
+          const isTimeOutNull = record.timeout === null;
+          const isRegHrNull = record.reg_hr === null || record.reg_hr === undefined;
+
+          return {
+            ...record,
+            date: new Date(record.date).toLocaleDateString(),
+            // Store information about null values
+            hasTimeIn: !!record.timein,
+            hasTimeOut: !!record.timeout,
+            hasRegHr: !!record.reg_hr,
+            isNullRecord: isTimeInNull && isTimeOutNull,
+            timein: record.timein ? new Date(record.timein).toLocaleTimeString() : 'No Record',
+            timeout: record.timeout ? new Date(record.timeout).toLocaleTimeString() : 'No Record',
+            regular_hours: isRegHrNull ? null : record.reg_hr,
+            total_hours: formatHours(record.total_hrs),
+            status: record.state || 'Regular'
+          };
+        });
 
       setDtrData(formattedData);
       setFilteredDtr(formattedData);
@@ -115,7 +128,8 @@ export const EmployeeDtr = () => {
 
   // Format hours for display
   const formatHours = (totalHours) => {
-    if (!totalHours) return '-';
+    if (totalHours === null || totalHours === undefined) return 'No Record';
+    if (totalHours === 0) return '-';
 
     const hours = Math.floor(totalHours);
     const minutes = Math.round((totalHours - hours) * 60);
@@ -131,15 +145,16 @@ export const EmployeeDtr = () => {
 
   // Get status badge color
   const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'absent': return 'danger';
-      case 'late': return 'warning';
+    if (!status) return 'secondary';
+
+    switch (status.toLowerCase()) {
+      case 'abs': return 'danger';
+      case 'off': return 'warning';
       case 'undertime': return 'warning';
       case 'overtime': return 'info';
-      case 'leave': return 'secondary';
       case 'holiday': return 'primary';
-      case 'regular': return 'success';
-      default: return 'secondary';
+      case 'P': return 'success';
+      default: return 'success';
     }
   };
 
@@ -148,8 +163,12 @@ export const EmployeeDtr = () => {
     if (!filteredDtr.length) return { totalDays: 0, regularDays: 0, overtimeDays: 0, lateDays: 0 };
 
     const totalDays = filteredDtr.length;
-    const regularDays = filteredDtr.filter(record => record.status?.toLowerCase() === 'regular').length;
-    const overtimeDays = filteredDtr.filter(record => record.status?.toLowerCase() === 'overtime').length;
+    const regularDays = filteredDtr.filter(record =>
+      record.status?.toLowerCase() === 'abs' || !record.status
+    ).length;
+    const overtimeDays = filteredDtr.filter(record =>
+      record.status?.toLowerCase() === 'overtime'
+    ).length;
     const lateDays = filteredDtr.filter(record =>
       record.status?.toLowerCase() === 'late' || record.status?.toLowerCase() === 'undertime'
     ).length;
@@ -391,34 +410,34 @@ export const EmployeeDtr = () => {
               {/* DTR Statistics Cards */}
               <div className="row mb-4">
                 <div className="col-md-3">
-                  <div className="card bg-light">
+                  <div className="card bg-primary">
                     <div className="card-body py-3">
-                      <h6 className="card-title mb-0">Total Work Days</h6>
-                      <h2 className="mb-0">{stats.totalDays}</h2>
+                      <h6 className="card-title mb-0 text-white">Total Work Days</h6>
+                      <h2 className="mb-0 text-white">{stats.totalDays}</h2>
                     </div>
                   </div>
                 </div>
                 <div className="col-md-3">
-                  <div className="card bg-light">
+                  <div className="card bg-danger">
                     <div className="card-body py-3">
-                      <h6 className="card-title mb-0">Regular Days</h6>
+                      <h6 className="card-title mb-0 text-white">Total Absent</h6>
                       <h2 className="mb-0">{stats.regularDays}</h2>
                     </div>
                   </div>
                 </div>
                 <div className="col-md-3">
-                  <div className="card bg-light">
+                  <div className="card bg-warning">
                     <div className="card-body py-3">
-                      <h6 className="card-title mb-0">Overtime Days</h6>
-                      <h2 className="mb-0">{stats.overtimeDays}</h2>
+                      <h6 className="card-title mb-0 text-white">Overtime Hours</h6>
+                      <h2 className="mb-0 text-white">{stats.overtimeDays}</h2>
                     </div>
                   </div>
                 </div>
                 <div className="col-md-3">
-                  <div className="card bg-light">
+                  <div className="card bg-dark">
                     <div className="card-body py-3">
-                      <h6 className="card-title mb-0">Late/Undertime</h6>
-                      <h2 className="mb-0">{stats.lateDays}</h2>
+                      <h6 className="card-title mb-0 text-white">Late/Undertime</h6>
+                      <h2 className="mb-0 text-white">{stats.lateDays}</h2>
                     </div>
                   </div>
                 </div>
@@ -472,30 +491,39 @@ export const EmployeeDtr = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {currentRecords.length > 0 ? (
-                        currentRecords.map((record, index) => (
-                          <tr key={index}>
-                            <td>{record.date}</td>
-                            <td>{record.timein}</td>
-                            <td>{record.timeout}</td>
-                            <td>{formatHours(record.regular_hours) || '-'}</td>
-                            <td>{formatHours(record.overtime_hours) || '-'}</td>
-                            <td><strong>{record.total_hours}</strong></td>
-                            <td>
-                              <span className={`badge bg-${getStatusColor(record.status)}`}>
-                                {record.status || 'Regular'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="7" className="text-center">
-                            {selectedCutoff ? 'No DTR records found for this period.' : 'Please select a pay period to view DTR.'}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
+  {currentRecords.length > 0 ? (
+    currentRecords.map((record, index) => {
+      // Use the isNullRecord flag or check both time records
+      const isMissingBothRecords = record.isNullRecord || (!record.hasTimeIn && !record.hasTimeOut);
+
+      return (
+        <tr
+          key={index}
+          className={isMissingBothRecords ? 'table-danger bg-opacity-25' : 'table-success bg-opacity-25'}
+          style={isMissingBothRecords ? {color: '#842029'} : {}}
+        >
+          <td>{record.date}</td>
+          <td>{record.timein}</td>
+          <td>{record.timeout}</td>
+          <td>{record.hasRegHr ? formatHours(record.regular_hours) : 'No Record'}</td>
+          <td>{formatHours(record.overtime_hours) || '-'}</td>
+          <td><strong className={record.total_hrs ? 'text-success' : 'text-danger'}>{record.total_hrs}</strong></td>
+          <td>
+            <span className={`badge bg-${getStatusColor(record.status)}`}>
+              {record.status || 'Regular'}
+            </span>
+          </td>
+        </tr>
+      );
+    })
+  ) : (
+    <tr>
+      <td colSpan="7" className="text-center">
+        {selectedCutoff ? 'No DTR records found for this period.' : 'Please select a pay period to view DTR.'}
+      </td>
+    </tr>
+  )}
+</tbody>
                   </table>
                 </div>
               )}
