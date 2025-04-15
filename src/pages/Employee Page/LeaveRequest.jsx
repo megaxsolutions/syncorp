@@ -400,9 +400,6 @@ const LeaveRequest = () => {
     }
     return <span className="badge bg-secondary">{status}</span>;
   };
-
-  
-  // Add these new state variables for mood tracking
   const [showMoodModal, setShowMoodModal] = useState(false);
   const [selectedMood, setSelectedMood] = useState(null);
   const [todayMood, setTodayMood] = useState(null);
