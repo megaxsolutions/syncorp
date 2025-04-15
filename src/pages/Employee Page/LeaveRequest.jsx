@@ -641,6 +641,133 @@ const LeaveRequest = () => {
     return <span className="badge bg-secondary">{status}</span>;
   };
 
+  // Add these new state variables for mood tracking
+  const [showMoodModal, setShowMoodModal] = useState(false);
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [todayMood, setTodayMood] = useState(null);
+
+  // Array of available moods
+  const moods = [
+    { id: 1, name: 'Perfect', image: 'perfect.png', emoji: '/src/assets/img/perfect.png', color: '#4caf50' },
+    { id: 2, name: 'Good', image: 'good.png', emoji: '/src/assets/img/good.png', color: '#8bc34a' },
+    { id: 3, name: 'Neutral', image: 'neutral.png', emoji: '/src/assets/img/neutral.png', color: '#ffc107' },
+    { id: 4, name: 'Poor', image: 'poor.png', emoji: '/src/assets/img/poor.png', color: '#ff9800' },
+    { id: 5, name: 'Bad', image: 'bad.png', emoji: '/src/assets/img/bad.png', color: '#f44336' }
+  ];
+
+  // Function to handle mood selection
+  const handleMoodSelect = (mood) => {
+    setSelectedMood(mood);
+  };
+
+  // Save mood function
+  const saveMood = async () => {
+    if (!selectedMood) return;
+
+    try {
+      setShowMoodModal(false);
+
+      // Get user credentials
+      const empId = localStorage.getItem("X-EMP-ID");
+      const token = localStorage.getItem("X-JWT-TOKEN");
+
+      // Call the API to save the mood
+      const response = await axios.post(
+        `${config.API_BASE_URL}/mood_meters/add_mood_meter`,
+        {
+          emp_id: empId,
+          mood: selectedMood.name
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": token,
+            "X-EMP-ID": empId,
+          },
+        }
+      );
+
+      setTodayMood(selectedMood);
+      toast.success(`Mood updated to ${selectedMood.name}!`);
+    } catch (error) {
+      console.error('Error saving mood:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to update mood';
+      toast.error(errorMsg);
+
+      // If error is not about already submitting today, show modal again
+      if (!error.response?.data?.error?.includes('already submitted')) {
+        setShowMoodModal(true);
+      }
+    }
+  };
+
+  // Add this useEffect for checking mood
+  useEffect(() => {
+    const checkMoodMeter = async () => {
+      try {
+        const empId = localStorage.getItem("X-EMP-ID");
+        const token = localStorage.getItem("X-JWT-TOKEN");
+
+        if (!empId || !token) return;
+
+        // First check if user has already submitted mood for today
+        try {
+          const checkResponse = await axios.get(
+            `${config.API_BASE_URL}/mood_meters/check_mood_meter/${empId}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": token,
+                "X-EMP-ID": empId,
+              },
+            }
+          );
+
+          // If check is successful, user has not submitted mood yet, show the modal
+          if (checkResponse.status === 200 && checkResponse.data.data === true) {
+            setTimeout(() => {
+              setShowMoodModal(true);
+            }, 1000);
+          }
+        } catch (error) {
+          // If error status is 400, user has already submitted mood today
+          if (error.response && error.response.status === 400) {
+            // Get today's mood from the API
+            try {
+              const response = await axios.get(
+                `${config.API_BASE_URL}/mood_meters/get_all_user_mood_meter/${empId}`,
+                {
+                  headers: {
+                    "X-JWT-TOKEN": token,
+                    "X-EMP-ID": empId,
+                  },
+                }
+              );
+
+              if (response.data && response.data.data) {
+                const today = new Date().toISOString().split('T')[0];
+                const todayEntry = response.data.data.find(entry =>
+                  new Date(entry.date).toISOString().split('T')[0] === today
+                );
+
+                if (todayEntry) {
+                  // Find the matching mood from our moods array
+                  const matchedMood = moods.find(m => m.name === todayEntry.mood);
+                  if (matchedMood) {
+                    setTodayMood(matchedMood);
+                  }
+                }
+              }
+            } catch (fetchError) {
+              console.error('Error fetching mood data:', fetchError);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error in mood check process:', error);
+      }
+    };
+
+    checkMoodMeter();
+  }, []);
     const addWeekdays = (startDate, daysToAdd) => {
       let count = 0;
       let date = moment(startDate);
