@@ -401,6 +401,7 @@ const LeaveRequest = () => {
     return <span className="badge bg-secondary">{status}</span>;
   };
 
+  
   // Add these new state variables for mood tracking
   const [showMoodModal, setShowMoodModal] = useState(false);
   const [selectedMood, setSelectedMood] = useState(null);
@@ -528,7 +529,20 @@ const LeaveRequest = () => {
 
     checkMoodMeter();
   }, []);
-
+const addWeekdays = (startDate, daysToAdd) => {
+      let count = 0;
+      let date = moment(startDate);
+  
+      while (count < daysToAdd) {
+        date = date.add(1, 'days');
+        if (date.day() !== 0 && date.day() !== 6) {
+          count++;
+        }
+      }
+  
+      return date;
+    };
+    const minDate = isVL ? '' : addWeekdays(moment(), 5).format('YYYY-MM-DD');
   return (
     <div>
       <EmployeeNavbar />
