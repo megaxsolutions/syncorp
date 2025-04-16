@@ -5,6 +5,104 @@ import axios from "axios";
 import config from "../config";
 import moment from "moment-timezone";
 import Swal from "sweetalert2";
+import Select from 'react-select'
+
+// Add CSS styles
+const calendarStyles = `
+  .calendar-card {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .calendar-day {
+    height: 100px;
+    cursor: pointer;
+    padding: 8px;
+    transition: background-color 0.2s;
+    position: relative;
+    vertical-align: top;
+  }
+
+  .calendar-day:hover {
+    background-color: rgba(0,0,0,0.05);
+  }
+
+  .today {
+    border: 2px solid #0d6efd;
+  }
+
+  .date-number {
+    font-weight: 500;
+    font-size: 1.1rem;
+  }
+
+  .today-marker {
+    font-size: 0.7rem;
+    color: #0d6efd;
+    font-weight: bold;
+  }
+
+  .weekend {
+    background-color: rgba(0,0,0,0.025);
+  }
+
+  .empty-day {
+    background-color: #f9f9f9;
+  }
+
+  .holiday-badges {
+    margin-top: 4px;
+    font-size: 0.75rem;
+  }
+
+  .holiday-item {
+    padding: 3px;
+    border-radius: 4px;
+    margin-bottom: 3px;
+  }
+
+  .special-holiday {
+    background-color: rgba(106, 90, 205, 0.2);
+  }
+
+  .regular-holiday {
+    background-color: rgba(139, 0, 0, 0.2);
+  }
+
+  .holiday-name {
+    font-weight: bold;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .holiday-type-badge {
+    font-size: 0.65rem;
+    color: #555;
+    display: block;
+  }
+
+  .holiday-divider {
+    margin: 3px 0;
+    border-color: rgba(0,0,0,0.1);
+  }
+
+  .multiple-holidays-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    background-color: #ccc;
+    color: #333;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-top: 2px;
+  }
+
+  .table-bordered th {
+    background-color: #f3f3f3;
+  }
+`;
 
 const Calendar = () => {
   const todayDate = moment().startOf('day').toDate();
@@ -19,6 +117,7 @@ const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState("");
   const [holidayName, setHolidayName] = useState("");
   const [holidayType, setHolidayType] = useState(""); // default empty to force selecting
+  const [holidaySites, setHolidaySites] = useState(""); // default empty to force selecting
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -26,6 +125,69 @@ const Calendar = () => {
 
   // Modals & messages
   const [showModal, setShowModal] = useState(false);
+  const [siteIDs, setSiteIDs] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [selectedSite, setSelectedSite] = useState("");
+  const [selectedDept, setSelectedDept] = useState("");
+  const [clusterName, setClusterName] = useState("");
+  const [clusters, setClusters] = useState([]);
+  const [filteredDepartments, setFilteredDepartments] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Fetch sites, departments and clusters
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+          }
+        );
+
+        const parsedData =
+          typeof response.data === "string"
+            ? JSON.parse(response.data)
+            : response.data;
+
+        const sitesData = parsedData.sites || parsedData.data?.sites || [];
+        const departmentsData =
+          parsedData.departments || parsedData.data?.departments || [];
+        const clustersData =
+          parsedData.clusters || parsedData.data?.clusters || parsedData.data || [];
+
+        const updatedClusters = clustersData.map((c) => {
+          const siteID = c.siteID || c.site_id;
+          const departmentID = c.departmentID || c.department_id;
+
+          const site = sitesData.find((s) => s.id === siteID);
+          const department = departmentsData.find((d) => d.id === departmentID);
+
+          return {
+            id: c.id,
+            name: c.cluster_name || c.name || c.clusterName || "Unnamed Cluster",
+            site: site || { id: siteID, siteName: "Site not found" },
+            department: department || { id: departmentID, departmentName: "Department not found" },
+            siteID: siteID,
+            departmentID: departmentID,
+          };
+        });
+
+        setSites(sitesData);
+
+      } catch (error) {
+        console.error("Fetch data error:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -73,7 +235,10 @@ const Calendar = () => {
       });
       return;
     }
+
+    console.log(siteIDs);
     try {
+
       const formattedDate = moment(selectedDate).format("YYYY-MM-DD");
       const response = await axios.post(
         `${config.API_BASE_URL}/holidays/add_holiday`,
@@ -81,6 +246,7 @@ const Calendar = () => {
           date: formattedDate,
           holiday_name: holidayName.trim(),
           holiday_type: holidayType,
+          siteIDs:siteIDs,
         },
         {
           headers: {
@@ -118,6 +284,7 @@ const Calendar = () => {
           date: formattedDate,
           holiday_name: holidayName.trim(),
           holiday_type: holidayType,
+          siteIDs: siteIDs,
         },
         {
           headers: {
@@ -189,20 +356,171 @@ const Calendar = () => {
   const onDateClick = (day) => {
     const dayStr = moment(day).format('YYYY-MM-DD');
     setSelectedDate(dayStr);
-    const existing = holidays.find((h) => h.date === dayStr);
+    const existingHolidays = holidays.filter((h) => h.date === dayStr);
 
-    if (existing) {
-      setIsEditing(true);
-      setSelectedHoliday(existing);
-      setHolidayName(existing.holiday_name);
-      setHolidayType(existing.holiday_type);
+    // Check if there's a Special Holiday
+    const hasSpecialHoliday = existingHolidays.some(h => h.holiday_type === "SH");
+
+    if (existingHolidays.length > 0) {
+      // If Special Holiday exists, only allow edit
+      if (hasSpecialHoliday) {
+        Swal.fire({
+          title: 'Special Holiday',
+          text: 'A Special Holiday already exists on this date. You cannot add another holiday on the same date as a Special Holiday.',
+          icon: 'info',
+          showDenyButton: true,
+          denyButtonText: 'Edit Holiday',
+          showCancelButton: true,
+          confirmButtonText: 'OK',
+        }).then((result) => {
+          if (result.isDenied) {
+            // If multiple holidays, let user select which to edit
+            if (existingHolidays.length > 1) {
+              const options = existingHolidays.map(h =>
+                `${h.holiday_name} (${h.holiday_type === 'RH' ? 'Regular' : 'Special'})`
+              );
+
+              Swal.fire({
+                title: 'Select Holiday to Edit',
+                input: 'select',
+                inputOptions: options.reduce((acc, val, idx) => {
+                  acc[idx] = val;
+                  return acc;
+                }, {}),
+                inputPlaceholder: 'Select a holiday',
+                showCancelButton: true,
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  const selectedIndex = result.value;
+                  const holiday = existingHolidays[selectedIndex];
+
+                  setIsEditing(true);
+                  setSelectedHoliday(holiday);
+                  setHolidayName(holiday.holiday_name);
+                  setHolidayType(holiday.holiday_type);
+
+                  // Set selected sites for editing
+                  if (holiday.siteIDs) {
+                    const sitesToSelect = siteOptions.filter(option =>
+                      holiday.siteIDs.includes(option.value)
+                    );
+                    setSelectedSite(sitesToSelect);
+                    setSiteIDs(holiday.siteIDs);
+                  }
+
+                  setShowModal(true);
+                }
+              });
+            } else {
+              // If only one holiday, edit it directly
+              const holiday = existingHolidays[0];
+              setIsEditing(true);
+              setSelectedHoliday(holiday);
+              setHolidayName(holiday.holiday_name);
+              setHolidayType(holiday.holiday_type);
+
+              // Set selected sites for editing
+              if (holiday.siteIDs) {
+                const sitesToSelect = siteOptions.filter(option =>
+                  holiday.siteIDs.includes(option.value)
+                );
+                setSelectedSite(sitesToSelect);
+                setSiteIDs(holiday.siteIDs);
+              }
+
+              setShowModal(true);
+            }
+          }
+        });
+      } else {
+        // Only regular holidays exist, allow adding more or editing
+        Swal.fire({
+          title: 'Holiday Action',
+          text: `${existingHolidays.length} regular holiday(s) already exist on this date. What would you like to do?`,
+          icon: 'question',
+          showCancelButton: true,
+          showDenyButton: true,
+          confirmButtonText: 'Add Another Regular Holiday',
+          denyButtonText: 'Edit Existing',
+          cancelButtonText: 'Cancel'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Add new regular holiday - pre-select Regular Holiday type
+            setIsEditing(false);
+            setSelectedHoliday(null);
+            setHolidayName("");
+            setHolidayType("RH"); // Pre-select Regular Holiday
+            setSelectedSite("");
+            setSiteIDs([]);
+            setShowModal(true);
+          } else if (result.isDenied && existingHolidays.length > 1) {
+            // If multiple holidays, let user select which to edit
+            const options = existingHolidays.map(h =>
+              `${h.holiday_name} (Regular)`
+            );
+
+            Swal.fire({
+              title: 'Select Holiday to Edit',
+              input: 'select',
+              inputOptions: options.reduce((acc, val, idx) => {
+                acc[idx] = val;
+                return acc;
+              }, {}),
+              inputPlaceholder: 'Select a holiday',
+              showCancelButton: true,
+            }).then((result) => {
+              if (result.isConfirmed) {
+                const selectedIndex = result.value;
+                const holiday = existingHolidays[selectedIndex];
+
+                setIsEditing(true);
+                setSelectedHoliday(holiday);
+                setHolidayName(holiday.holiday_name);
+                setHolidayType(holiday.holiday_type);
+
+                // Set selected sites for editing
+                if (holiday.siteIDs) {
+                  const sitesToSelect = siteOptions.filter(option =>
+                    holiday.siteIDs.includes(option.value)
+                  );
+                  setSelectedSite(sitesToSelect);
+                  setSiteIDs(holiday.siteIDs);
+                }
+
+                setShowModal(true);
+              }
+            });
+          } else if (result.isDenied) {
+            // If only one holiday, edit it directly
+            const holiday = existingHolidays[0];
+            setIsEditing(true);
+            setSelectedHoliday(holiday);
+            setHolidayName(holiday.holiday_name);
+            setHolidayType(holiday.holiday_type);
+
+            // Set selected sites for editing
+            if (holiday.siteIDs) {
+              const sitesToSelect = siteOptions.filter(option =>
+                holiday.siteIDs.includes(option.value)
+              );
+              setSelectedSite(sitesToSelect);
+              setSiteIDs(holiday.siteIDs);
+            }
+
+            setShowModal(true);
+          }
+        });
+      }
     } else {
+      // No existing holiday, proceed to add new
       setIsEditing(false);
       setSelectedHoliday(null);
       setHolidayName("");
-      setHolidayType("");
+      setHolidayType(""); // Default to empty for a fresh selection
+      setSelectedSite("");
+      setSiteIDs([]);
+      setShowModal(true);
     }
-    setShowModal(true);
   };
 
   // Days in month
@@ -245,38 +563,61 @@ const Calendar = () => {
 
     // Blank cells for days before first weekday
     for (let i = 0; i < firstWeekday; i++) {
-      cells.push(<td key={`empty-${i}`}></td>);
+      cells.push(<td key={`empty-${i}`} className="empty-day"></td>);
     }
 
     daysInMonth.forEach((day) => {
       const dayStr = moment(day).format('YYYY-MM-DD');
       const isToday = dayStr === todayStr;
-      const holiday = holidays.find((h) => h.date === dayStr);
+      const dayHolidays = holidays.filter((h) => h.date === dayStr);
+      const isWeekend = day.getDay() === 0 || day.getDay() === 6;
 
-      const baseStyle = { cursor: "pointer", padding: "15px", textAlign: "center" };
-      let holidayStyle = {};
-      if (holiday) {
-        holidayStyle = holiday.holiday_type === "SH"
-          ? { backgroundColor: "#6a5acd", color: "#fff" }
-          : { backgroundColor: "#8b0000", color: "#fff" };
+      const cellClasses = [
+        "calendar-day",
+        isToday ? "today" : "",
+        isWeekend ? "weekend" : "",
+        dayHolidays.length > 0 ? "has-holiday" : ""
+      ].filter(Boolean).join(" ");
+
+      // Custom styling based on holiday type
+      let cellStyle = {};
+      if (dayHolidays.length > 0) {
+        const firstHoliday = dayHolidays[0];
+        cellStyle = firstHoliday.holiday_type === "SH"
+          ? { backgroundColor: "rgba(106, 90, 205, 0.15)" }
+          : { backgroundColor: "rgba(139, 0, 0, 0.15)" };
+
+        // If there's a Special Holiday, it takes design precedence
+        if (dayHolidays.some(h => h.holiday_type === "SH")) {
+          cellStyle = { backgroundColor: "rgba(106, 90, 205, 0.15)" };
+        }
       }
-      const todayStyle = isToday ? { border: "2px solid #000", fontWeight: "bold" } : {};
 
       cells.push(
         <td
           key={dayStr}
-          style={{ ...baseStyle, ...holidayStyle, ...todayStyle }}
+          className={cellClasses}
+          style={cellStyle}
           onClick={() => onDateClick(day)}
         >
-          <div>{day.getDate()}</div>
-          {isToday && <small>Today</small>}
-          {holiday && (
-            <div style={{ fontSize: "0.75rem", marginTop: "4px" }}>
-              <span className="badge bg-warning text-dark">{holiday.holiday_name}</span>
-              <br />
-              <span className="text-light" style={{ fontSize: "0.7rem" }}>
-                {holiday.holiday_type === "SH" ? "Special" : "Regular"}
-              </span>
+          <div className="date-number">{day.getDate()}</div>
+          {isToday && <small className="today-marker">Today</small>}
+          {dayHolidays.length > 0 && (
+            <div className="holiday-badges">
+              {dayHolidays.map((holiday, index) => (
+                <div key={index} className={`holiday-item ${holiday.holiday_type === "SH" ? "special-holiday" : "regular-holiday"}`}>
+                  <span className="holiday-name">{holiday.holiday_name}</span>
+                  <span className="holiday-type-badge">
+                    {holiday.holiday_type === "SH" ? "Special" : "Regular"}
+                  </span>
+                  {index < dayHolidays.length - 1 && <hr className="holiday-divider" />}
+                </div>
+              ))}
+              {dayHolidays.length > 1 && (
+                <span className="multiple-holidays-badge">
+                  {dayHolidays.length} holidays
+                </span>
+              )}
             </div>
           )}
         </td>
@@ -289,11 +630,25 @@ const Calendar = () => {
     });
 
     if (cells.length) {
+      // Add empty cells to complete the last row
+      while (cells.length < 7) {
+        cells.push(<td key={`empty-end-${cells.length}`} className="empty-day"></td>);
+      }
       weeks.push(<tr key="last-week">{cells}</tr>);
     }
     return weeks;
   };
 
+  const siteOptions = sites.map(site => ({
+    value: site.id,
+    label: `${site.siteName}`
+  }));
+
+  const handleSiteChange = (selectedOptions) => {
+    setSelectedSite(selectedOptions);
+
+    setSiteIDs(selectedOptions ? selectedOptions.map(option => option.value) : []);
+  };
   return (
     <>
       <Navbar />
@@ -316,22 +671,73 @@ const Calendar = () => {
           </nav>
         </div>
 
+        <div className="card mb-3">
+          <div className="card-body">
+            <h5 className="card-title">Holiday Types</h5>
+            <div className="d-flex gap-4">
+              <div className="d-flex align-items-center">
+                <div
+                  className="me-2"
+                  style={{ width: "20px", height: "20px", backgroundColor: "#8b0000", borderRadius: "4px" }}
+                ></div>
+                <span>Regular Holiday</span>
+              </div>
+              <div className="d-flex align-items-center">
+                <div
+                  className="me-2"
+                  style={{ width: "20px", height: "20px", backgroundColor: "#6a5acd", borderRadius: "4px" }}
+                ></div>
+                <span>Special Holiday</span>
+              </div>
+              <div className="d-flex align-items-center">
+                <div
+                  className="me-2"
+                  style={{ width: "20px", height: "20px", border: "2px solid #000", borderRadius: "4px" }}
+                ></div>
+                <span>Today</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div
           className="d-flex justify-content-center"
           style={{ maxWidth: "900px", margin: "0 auto" }}
         >
           <div className="card calendar-card w-100" style={{ minHeight: "600px" }}>
-            <div className="card-header text-center">
+            <div className="card-header">
               <div className="d-flex justify-content-between align-items-center">
-                <a onClick={prevMonth} className="text-secondary" style={{ cursor: "pointer" }}>
-                  &laquo;
-                </a>
-                <h4>
-                  {monthNames[currentMonth]} {currentYear}
-                </h4>
-                <a onClick={nextMonth} className="text-secondary" style={{ cursor: "pointer" }}>
-                  &raquo;
-                </a>
+                <div>
+                  <button
+                    onClick={prevMonth}
+                    className="btn btn-sm btn-outline-secondary"
+                    title="Previous Month"
+                  >
+                    <i className="bi bi-chevron-left"></i>
+                  </button>
+                </div>
+                <div className="d-flex align-items-center">
+                  <h4 className="mb-0">{monthNames[currentMonth]} {currentYear}</h4>
+                  <button
+                    onClick={() => {
+                      setCurrentMonth(todayDate.getMonth());
+                      setCurrentYear(todayDate.getFullYear());
+                    }}
+                    className="btn btn-sm btn-outline-primary ms-3"
+                    title="Go to Today"
+                  >
+                    Today
+                  </button>
+                </div>
+                <div>
+                  <button
+                    onClick={nextMonth}
+                    className="btn btn-sm btn-outline-secondary"
+                    title="Next Month"
+                  >
+                    <i className="bi bi-chevron-right"></i>
+                  </button>
+                </div>
               </div>
             </div>
             <div className="card-body p-0">
@@ -358,16 +764,17 @@ const Calendar = () => {
         <div className="modal d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
           <div className="modal-dialog">
             <div className="modal-content">
-              <div className="modal-header">
+              <div className="modal-header bg-light">
                 <h5 className="modal-title">
+                  <i className={`bi ${isEditing ? "bi-pencil" : "bi-calendar-plus"} me-2`}></i>
                   {isEditing ? "Edit Holiday" : "Add Holiday"} for {selectedDate}
                 </h5>
                 <button type="button" className="btn-close" onClick={closeModal}></button>
               </div>
               <div className="modal-body">
                 <div className="mb-3">
-                  <label htmlFor="holidayName" className="form-label">
-                    Holiday Name
+                  <label htmlFor="holidayName" className="form-label fw-bold">
+                    Holiday Name*
                   </label>
                   <input
                     type="text"
@@ -376,46 +783,106 @@ const Calendar = () => {
                     value={holidayName}
                     onChange={(e) => setHolidayName(e.target.value)}
                     placeholder="Enter holiday name"
+                    autoFocus
                   />
                 </div>
                 <div className="mb-3">
-                  <label htmlFor="holidayType" className="form-label">
-                    Holiday Type
+                  <label htmlFor="holidayType" className="form-label fw-bold">
+                    Holiday Type*
                   </label>
-                  <select
-                    className="form-select"
-                    id="holidayType"
-                    value={holidayType}
-                    onChange={(e) => setHolidayType(e.target.value)}
-                  >
-                    <option value="">Select type</option>
-                    <option value="SH">Special Holiday</option>
-                    <option value="RH">Regular Holiday</option>
-                  </select>
+                  <div className="d-flex gap-2">
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="holidayType"
+                        id="regularHoliday"
+                        value="RH"
+                        checked={holidayType === "RH"}
+                        onChange={() => setHolidayType("RH")}
+                        disabled={holidayType === "RH" && !isEditing}
+                      />
+                      <label className="form-check-label" htmlFor="regularHoliday">
+                        Regular Holiday
+                      </label>
+                    </div>
+                    {(isEditing || !holidayType || holidayType !== "RH") && (
+                      <div className="form-check">
+                        <input
+                          className="form-check-input"
+                          type="radio"
+                          name="holidayType"
+                          id="specialHoliday"
+                          value="SH"
+                          checked={holidayType === "SH"}
+                          onChange={() => setHolidayType("SH")}
+                        />
+                        <label className="form-check-label" htmlFor="specialHoliday">
+                          Special Holiday
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Applicable Sites*</label>
+                  <Select
+                    id="siteID"
+                    name="siteID"
+                    isMulti
+                    options={siteOptions}
+                    value={selectedSite}
+                    onChange={handleSiteChange}
+                    placeholder="Select sites"
+                    noOptionsMessage={() => "No sites available"}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                  />
+                  <small className="text-muted">
+                    Select sites where this holiday applies
+                  </small>
                 </div>
 
-                <div className="mt-4">
+                <div className="d-flex justify-content-end gap-2 pt-3 border-top mt-4">
                   {isEditing ? (
                     <>
                       <button
-                        className="btn btn-warning me-2"
-                        onClick={handleUpdateHoliday}
+                        className="btn btn-danger"
+                        onClick={() => {
+                          Swal.fire({
+                            title: 'Are you sure?',
+                            text: "You won't be able to revert this!",
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#dc3545',
+                            cancelButtonColor: '#6c757d',
+                            confirmButtonText: 'Yes, delete it!'
+                          }).then((result) => {
+                            if (result.isConfirmed) {
+                              handleDeleteHoliday();
+                            }
+                          });
+                        }}
                       >
-                        Update
+                        <i className="bi bi-trash me-1"></i> Delete
                       </button>
                       <button
-                        className="btn btn-danger me-2"
-                        onClick={handleDeleteHoliday}
+                        className="btn btn-primary"
+                        onClick={handleUpdateHoliday}
                       >
-                        Delete
+                        <i className="bi bi-check-lg me-1"></i> Update
                       </button>
                     </>
                   ) : (
-                    <button className="btn btn-success me-2" onClick={addNewHoliday}>
-                      Save
+                    <button
+                      className="btn btn-success"
+                      onClick={addNewHoliday}
+                      disabled={!holidayName || !holidayType || siteIDs.length === 0}
+                    >
+                      <i className="bi bi-plus-lg me-1"></i> Save Holiday
                     </button>
                   )}
-                  <button className="btn btn-secondary" onClick={closeModal}>
+                  <button className="btn btn-outline-secondary" onClick={closeModal}>
                     Cancel
                   </button>
                 </div>

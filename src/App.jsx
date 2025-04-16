@@ -67,6 +67,8 @@ import Signature from "./pages/Employee Page/Signature";
 import EmployeeDtr from "./pages/Employee Page/EmployeeDtr";
 import IncidentReport from "./pages/Supervisor/IncidentReport";
 import ViewIncident from "./pages/ViewIncident";
+import Course from "./pages/lms/Course";
+import ViewCourse from "./pages/lms/ViewCourse";
 
 function App() {
   return (
@@ -131,6 +133,8 @@ function App() {
         <Route path="/employee_dtr" element={<EmployeeDtr />} />
         <Route path="/lms" element={<Homepage />} />
         <Route path="/lms/about" element={<About />} />
+        <Route path="/lms/courses" element={<Course />} />
+        <Route path="/lms/view-course/:courseId"element={<ViewCourse />} />
       </Route>
 
       <Route element={<SupervisorProtectedLayout />}>

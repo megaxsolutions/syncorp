@@ -7,11 +7,21 @@ import config from '../../config';
 import { Toaster, toast } from 'sonner';
 
 export const EmployeeDtr = () => {
+
   const [dtrData, setDtrData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cutoffs, setCutoffs] = useState([]);
   const [selectedCutoff, setSelectedCutoff] = useState('');
   const [filteredDtr, setFilteredDtr] = useState([]);
+
+  const [dtrComputation, setDtrComputation] = useState({
+    overtime: '',
+    undertime: '',
+    late: '',
+    late_and_undertime: '',
+    total_days : '',
+    total_absent : ''
+  });
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,8 +97,11 @@ export const EmployeeDtr = () => {
         }
       );
 
+
+
+
       // Format and sort the DTR data
-      const formattedData = (response.data.data || [])
+      const formattedData = (response.data.data.dtr || [])
         .sort((a, b) => {
           // Sort by date in descending order
           return new Date(b.date) - new Date(a.date);
@@ -118,6 +131,8 @@ export const EmployeeDtr = () => {
       setDtrData(formattedData);
       setFilteredDtr(formattedData);
       setCurrentPage(1); // Reset to first page
+      setDtrComputation(response.data.data);
+
     } catch (error) {
       console.error("Error fetching DTR data:", error);
       toast.error("Failed to load DTR data");
@@ -413,7 +428,7 @@ export const EmployeeDtr = () => {
                   <div className="card bg-primary">
                     <div className="card-body py-3">
                       <h6 className="card-title mb-0 text-white">Total Work Days</h6>
-                      <h2 className="mb-0 text-white">{stats.totalDays}</h2>
+                      <h2 className="mb-0 text-white">{dtrComputation.total_days}</h2>
                     </div>
                   </div>
                 </div>
@@ -421,7 +436,7 @@ export const EmployeeDtr = () => {
                   <div className="card bg-danger">
                     <div className="card-body py-3">
                       <h6 className="card-title mb-0 text-white">Total Absent</h6>
-                      <h2 className="mb-0">{stats.regularDays}</h2>
+                      <h2 className="mb-0">{dtrComputation.total_absent}</h2>
                     </div>
                   </div>
                 </div>
@@ -429,7 +444,7 @@ export const EmployeeDtr = () => {
                   <div className="card bg-warning">
                     <div className="card-body py-3">
                       <h6 className="card-title mb-0 text-white">Overtime Hours</h6>
-                      <h2 className="mb-0 text-white">{stats.overtimeDays}</h2>
+                      <h2 className="mb-0 text-white">{dtrComputation.overtime}</h2>
                     </div>
                   </div>
                 </div>
@@ -437,7 +452,7 @@ export const EmployeeDtr = () => {
                   <div className="card bg-dark">
                     <div className="card-body py-3">
                       <h6 className="card-title mb-0 text-white">Late/Undertime</h6>
-                      <h2 className="mb-0 text-white">{stats.lateDays}</h2>
+                      <h2 className="mb-0 text-white">{dtrComputation.late_and_undertime}</h2>
                     </div>
                   </div>
                 </div>
