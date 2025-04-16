@@ -5,6 +5,7 @@ import axios from "axios";
 import config from "../config";
 import moment from "moment-timezone";
 import Swal from "sweetalert2";
+import Select from 'react-select'
 
 const Calendar = () => {
   const todayDate = moment().startOf('day').toDate();
@@ -19,13 +20,77 @@ const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState("");
   const [holidayName, setHolidayName] = useState("");
   const [holidayType, setHolidayType] = useState(""); // default empty to force selecting
-
+  const [holidaySites, setHolidaySites] = useState(""); // default empty to force selecting
+  
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
   const [selectedHoliday, setSelectedHoliday] = useState(null);
 
   // Modals & messages
   const [showModal, setShowModal] = useState(false);
+  const [siteIDs, setSiteIDs] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [selectedSite, setSelectedSite] = useState("");
+  const [selectedDept, setSelectedDept] = useState("");
+  const [clusterName, setClusterName] = useState("");
+  const [clusters, setClusters] = useState([]);
+  const [filteredDepartments, setFilteredDepartments] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Fetch sites, departments and clusters
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+          }
+        );
+
+        const parsedData =
+          typeof response.data === "string"
+            ? JSON.parse(response.data)
+            : response.data;
+
+        const sitesData = parsedData.sites || parsedData.data?.sites || [];
+        const departmentsData =
+          parsedData.departments || parsedData.data?.departments || [];
+        const clustersData =
+          parsedData.clusters || parsedData.data?.clusters || parsedData.data || [];
+
+        const updatedClusters = clustersData.map((c) => {
+          const siteID = c.siteID || c.site_id;
+          const departmentID = c.departmentID || c.department_id;
+
+          const site = sitesData.find((s) => s.id === siteID);
+          const department = departmentsData.find((d) => d.id === departmentID);
+
+          return {
+            id: c.id,
+            name: c.cluster_name || c.name || c.clusterName || "Unnamed Cluster",
+            site: site || { id: siteID, siteName: "Site not found" },
+            department: department || { id: departmentID, departmentName: "Department not found" },
+            siteID: siteID,
+            departmentID: departmentID,
+          };
+        });
+
+        setSites(sitesData);
+        
+      } catch (error) {
+        console.error("Fetch data error:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -73,7 +138,10 @@ const Calendar = () => {
       });
       return;
     }
+
+    console.log(siteIDs);
     try {
+     
       const formattedDate = moment(selectedDate).format("YYYY-MM-DD");
       const response = await axios.post(
         `${config.API_BASE_URL}/holidays/add_holiday`,
@@ -81,6 +149,7 @@ const Calendar = () => {
           date: formattedDate,
           holiday_name: holidayName.trim(),
           holiday_type: holidayType,
+          siteIDs:siteIDs,
         },
         {
           headers: {
@@ -118,6 +187,7 @@ const Calendar = () => {
           date: formattedDate,
           holiday_name: holidayName.trim(),
           holiday_type: holidayType,
+          siteIDs: siteIDs,
         },
         {
           headers: {
@@ -294,6 +364,16 @@ const Calendar = () => {
     return weeks;
   };
 
+  const siteOptions = sites.map(site => ({
+    value: site.id,
+    label: `${site.siteName}`
+  }));
+
+  const handleSiteChange = (selectedOptions) => {
+    setSelectedSite(selectedOptions);
+
+    setSiteIDs(selectedOptions ? selectedOptions.map(option => option.value) : []);
+  };
   return (
     <>
       <Navbar />
@@ -392,6 +472,21 @@ const Calendar = () => {
                     <option value="SH">Special Holiday</option>
                     <option value="RH">Regular Holiday</option>
                   </select>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Select Sites</label>
+                  <Select
+                      id="siteID"
+                      name="siteID"
+                      isMulti
+                      options={siteOptions}
+                      value={selectedSite}
+                      onChange={handleSiteChange}
+                      placeholder="Select sites"
+                      noOptionsMessage={() => "No sites available"}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
                 </div>
 
                 <div className="mt-4">
