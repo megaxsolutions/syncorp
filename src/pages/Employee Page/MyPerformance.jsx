@@ -12,6 +12,7 @@ const MyPerformance = () => {
   const [coachingRecords, setCoachingRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [employeeData, setEmployeeData] = useState(null);
+  const [coachingTypes, setCoachingTypes] = useState([]);
 
   // Client-side pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -277,33 +278,36 @@ const MyPerformance = () => {
 
       console.log("API Response:", response.data);
 
-      // Map coaching types to text
-      const getCoachingTypeText = (typeId) => {
-        switch(typeId) {
-          case 1: return 'Praise';
-          case 2: return 'Improvement';
-          case 3: return 'Disciplinary';
-          default: return 'Other';
-        }
-      };
-
-      // Format data from the backend structure
+      // Format data from the backend structure - use coaching_type directly
       const sortedData = (response.data.data || [])
         .sort((a, b) => new Date(b.date_coached) - new Date(a.date_coached))
         .map(record => ({
           id: record.id,
           emp_ID: record.emp_ID,
-          coachingType: getCoachingTypeText(record.coaching_type),
+          coachingType: record.coaching_type, // Using camelCase in state but snake_case in the API
           date: new Date(record.date_coached).toLocaleDateString(),
-          subject: `Performance Review`,
-          reviewerName: `Coach ID: ${record.coached_by}`,
+          rawDate: record.date_coached,
+          // Use coaching goal as subject/title
+          subject: record.coaching_goal || 'Performance Review',
+          // Use coach's full name if available
+          reviewerName: record.coach_fullname || `Coach ID: ${record.coached_by}`,
+          reviewerId: record.coached_by,
           acknowledged: record.acknowledge_datetime !== null,
           acknowledgedDate: record.acknowledge_datetime,
-          description: record.metrix_1,
-          feedback: record.metrix_2,
-          actionPlan: record.metrix_3,
-          additionalNotes: record.metrix_4,
-          metrix_5: record.metrix_5
+          // Map to SYNC method fields
+          goal: record.coaching_goal,           // Settings Objectives
+          behavior: record.behavior,            // Yield Insights
+          rootCause: record.root_cause,         // Yield Insights
+          coacheeActionPlan: record.coachees_action_plan, // Navigate Action
+          coachActionPlan: record.coachs_action_plan,     // Navigate Action
+          glidepath: record.glidepath,          // Course Correct
+          stopDoing: record.stop,               // Course Correct
+          startDoing: record.start,             // Course Correct
+          continueDoing: record.continue_,      // Course Correct
+          followUpDate: record.follow_up_date,  // Follow-up
+          // Signatures
+          employeeSignature: record.employee_signature,
+          coachSignature: record.coach_signature
         }));
 
       console.log("Processed Records:", sortedData);
@@ -314,6 +318,28 @@ const MyPerformance = () => {
       toast.error("Failed to load coaching records");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch coaching types
+  const fetchCoachingTypes = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/coaching_types/get_all_coaching_type`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (response.data?.data) {
+        setCoachingTypes(response.data.data);
+        console.log("Coaching Types:", response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching coaching types:", error);
     }
   };
 
@@ -381,9 +407,33 @@ const MyPerformance = () => {
     setShowDetailsModal(true);
   };
 
+  // Function to get coaching type name
+  const getCoachingTypeName = (typeId) => {
+    const type = coachingTypes.find(type => type.id == typeId);
+    return type ? type.type : typeId; // Return the type name or ID if not found
+  };
+
+  // Get badge color based on coaching type
+  const getCoachingTypeBadge = (type) => {
+    switch(type) {
+      case '1':
+      case 1:
+        return 'bg-success';
+      case '2':
+      case 2:
+        return 'bg-warning';
+      case '3':
+      case 3:
+        return 'bg-danger';
+      default:
+        return 'bg-info';
+    }
+  };
+
   // Initial data fetch
   useEffect(() => {
     fetchCoachingRecords();
+    fetchCoachingTypes();
   }, [emp_id]);
 
   // Pagination logic
@@ -396,20 +446,6 @@ const MyPerformance = () => {
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
-    }
-  };
-
-  // Get badge color based on coaching type
-  const getCoachingTypeBadge = (type) => {
-    switch(type?.toLowerCase()) {
-      case 'praise':
-        return 'bg-success';
-      case 'improvement':
-        return 'bg-warning';
-      case 'disciplinary':
-        return 'bg-danger';
-      default:
-        return 'bg-info';
     }
   };
 
@@ -513,8 +549,9 @@ const MyPerformance = () => {
                         <tr>
                           <th>Date</th>
                           <th>Type</th>
-                          <th>Subject</th>
-                          <th>Reviewer</th>
+                          <th>Coaching Goal</th>
+                          <th>Coach</th>
+                          <th>Follow-up Date</th>
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>
@@ -525,11 +562,14 @@ const MyPerformance = () => {
                             <td>{record.date}</td>
                             <td>
                               <span className={`badge ${getCoachingTypeBadge(record.coachingType)}`}>
-                                {record.coachingType}
+                                {getCoachingTypeName(record.coachingType)}
                               </span>
                             </td>
-                            <td>{record.subject}</td>
+                            <td>{record.goal || record.subject}</td>
                             <td>{record.reviewerName}</td>
+                            <td>
+                              {record.followUpDate ? new Date(record.followUpDate).toLocaleDateString() : 'Not set'}
+                            </td>
                             <td>
                               {record.acknowledged ? (
                                 <span className="badge bg-success">Acknowledged</span>
@@ -620,37 +660,179 @@ const MyPerformance = () => {
                   <div className="row mb-3">
                     <div className="col-md-6">
                       <p><strong>Date:</strong> {selectedRecord.date}</p>
-                      <p><strong>Type:</strong> <span className={`badge ${getCoachingTypeBadge(selectedRecord.coachingType)}`}>{selectedRecord.coachingType}</span></p>
-                      <p><strong>Subject:</strong> {selectedRecord.subject}</p>
-                      <p><strong>Reviewer:</strong> {selectedRecord.reviewerName || 'HR Department'}</p>
+                      <p>
+                        <strong>Type:</strong>
+                        <span className={`badge ${getCoachingTypeBadge(selectedRecord.coachingType)}`}>
+                          {getCoachingTypeName(selectedRecord.coachingType)}
+                        </span>
+                      </p>
+                      <p><strong>Coach:</strong> {selectedRecord.reviewerName}</p>
                     </div>
                     <div className="col-md-6">
-                      <p><strong>Status:</strong> {selectedRecord.acknowledged ? 'Acknowledged' : 'Pending Acknowledgement'}</p>
-                      <p><strong>Created On:</strong> {selectedRecord.formattedCreatedAt}</p>
-                      {selectedRecord.acknowledged && <p><strong>Acknowledged On:</strong> {new Date(selectedRecord.acknowledgedDate).toLocaleDateString()}</p>}
+                      <p>
+                        <strong>Status:</strong>
+                        {selectedRecord.acknowledged ? 'Acknowledged' : 'Pending Acknowledgement'}
+                      </p>
+                      {selectedRecord.acknowledged && (
+                        <p>
+                          <strong>Acknowledged On:</strong>
+                          {selectedRecord.acknowledgedDate ?
+                            new Date(selectedRecord.acknowledgedDate).toLocaleString() : 'N/A'}
+                        </p>
+                      )}
+                      <p>
+                        <strong>Follow-up Date:</strong>
+                        {selectedRecord.followUpDate ?
+                          new Date(selectedRecord.followUpDate).toLocaleDateString() : 'Not set'}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="mb-3">
-                    <h6 className="fw-bold">Description</h6>
-                    <div className="p-3 bg-light rounded">
-                      {selectedRecord.description || 'No description provided.'}
+                  {/* SYNC Method Sections */}
+                  <h5 className="text-primary mb-3">Coaching Details</h5>
+
+                  {/* S - Setting Objectives */}
+                  <div className="card mb-3">
+                    <div className="card-header bg-light">
+                      <h6 className="mb-0">
+                        <i className="bi bi-bullseye me-2"></i>
+                        Setting Objectives
+                      </h6>
+                    </div>
+                    <div className="card-body">
+                      <strong>Coaching Goal:</strong>
+                      <p className="mb-0">{selectedRecord.goal || 'No goal provided.'}</p>
                     </div>
                   </div>
 
-                  <div className="mb-3">
-                    <h6 className="fw-bold">Feedback</h6>
-                    <div className="p-3 bg-light rounded">
-                      {selectedRecord.feedback || 'No feedback provided.'}
+                  {/* Y - Yield Insights */}
+                  <div className="card mb-3">
+                    <div className="card-header bg-light">
+                      <h6 className="mb-0">
+                        <i className="bi bi-lightbulb me-2"></i>
+                        Yield Insights
+                      </h6>
+                    </div>
+                    <div className="card-body">
+                      <div className="mb-3">
+                        <strong>Behavior:</strong>
+                        <p>{selectedRecord.behavior || 'No behavior details provided.'}</p>
+                      </div>
+                      <div>
+                        <strong>Root Cause:</strong>
+                        <p className="mb-0">{selectedRecord.rootCause || 'No root cause identified.'}</p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mb-3">
-                    <h6 className="fw-bold">Action Plan</h6>
-                    <div className="p-3 bg-light rounded">
-                      {selectedRecord.actionPlan || 'No action plan provided.'}
+                  {/* N - Navigate Action */}
+                  <div className="card mb-3">
+                    <div className="card-header bg-light">
+                      <h6 className="mb-0">
+                        <i className="bi bi-compass me-2"></i>
+                        Navigate Action
+                      </h6>
+                    </div>
+                    <div className="card-body">
+                      <div className="mb-3">
+                        <strong>Coachee's Action Plan:</strong>
+                        <p>{selectedRecord.coacheeActionPlan || 'No coachee action plan provided.'}</p>
+                      </div>
+                      <div>
+                        <strong>Coach's Action Plan:</strong>
+                        <p className="mb-0">{selectedRecord.coachActionPlan || 'No coach action plan provided.'}</p>
+                      </div>
                     </div>
                   </div>
+
+                  {/* C - Course Correct */}
+                  <div className="card mb-3">
+                    <div className="card-header bg-light">
+                      <h6 className="mb-0">
+                        <i className="bi bi-arrow-repeat me-2"></i>
+                        Course Correct
+                      </h6>
+                    </div>
+                    <div className="card-body">
+                      <div className="mb-3">
+                        <strong>Glidepath:</strong>
+                        <p>{selectedRecord.glidepath || 'No glidepath details provided.'}</p>
+                      </div>
+
+                      <div className="row">
+                        <div className="col-md-4">
+                          <div className="p-3 bg-danger bg-opacity-10 rounded h-100">
+                            <strong className="text-danger">
+                              <i className="bi bi-x-circle me-1"></i> Stop Doing:
+                            </strong>
+                            <p className="mb-0">{selectedRecord.stopDoing || 'Not specified.'}</p>
+                          </div>
+                        </div>
+                        <div className="col-md-4">
+                          <div className="p-3 bg-success bg-opacity-10 rounded h-100">
+                            <strong className="text-success">
+                              <i className="bi bi-play-circle me-1"></i> Start Doing:
+                            </strong>
+                            <p className="mb-0">{selectedRecord.startDoing || 'Not specified.'}</p>
+                          </div>
+                        </div>
+                        <div className="col-md-4">
+                          <div className="p-3 bg-primary bg-opacity-10 rounded h-100">
+                            <strong className="text-primary">
+                              <i className="bi bi-arrow-repeat me-1"></i> Continue Doing:
+                            </strong>
+                            <p className="mb-0">{selectedRecord.continueDoing || 'Not specified.'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Signatures Section */}
+                  {(selectedRecord.employeeSignature || selectedRecord.coachSignature) && (
+                    <div className="card mb-3">
+                      <div className="card-header bg-light">
+                        <h6 className="mb-0">
+                          <i className="bi bi-pen me-2"></i>
+                          Signatures
+                        </h6>
+                      </div>
+                      <div className="card-body">
+                        <div className="row">
+                          {selectedRecord.coachSignature && (
+                            <div className="col-md-6 text-center mb-3 mb-md-0">
+                              <p><strong>Coach Signature:</strong></p>
+                              <img
+                                src={`${config.API_BASE_URL}/uploads/${selectedRecord.coachSignature}`}
+                                alt="Coach Signature"
+                                className="img-fluid border p-2"
+                                style={{maxHeight: "100px"}}
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='50'%3E%3Crect width='100' height='50' fill='%23f8f9fa'/%3E%3Ctext x='50%' y='50%' font-family='Arial' font-size='10' text-anchor='middle' dominant-baseline='middle' fill='%23adb5bd'%3ENo Signature%3C/text%3E%3C/svg%3E";
+                                }}
+                              />
+                            </div>
+                          )}
+                          {selectedRecord.employeeSignature && (
+                            <div className="col-md-6 text-center">
+                              <p><strong>Employee Signature:</strong></p>
+                              <img
+                                src={`${config.API_BASE_URL}/uploads/${selectedRecord.employeeSignature}`}
+                                alt="Employee Signature"
+                                className="img-fluid border p-2"
+                                style={{maxHeight: "100px"}}
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='50'%3E%3Crect width='100' height='50' fill='%23f8f9fa'/%3E%3Ctext x='50%' y='50%' font-family='Arial' font-size='10' text-anchor='middle' dominant-baseline='middle' fill='%23adb5bd'%3ENo Signature%3C/text%3E%3C/svg%3E";
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

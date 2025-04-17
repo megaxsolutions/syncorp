@@ -7,6 +7,8 @@ import Swal from "sweetalert2"
 
 export default function AddCategory() {
   const [categoryTitle, setCategoryTitle] = useState("")
+  const [categoryImage, setCategoryImage] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
   const [categories, setCategories] = useState([])
 
   // Fetch categories on component mount
@@ -38,6 +40,23 @@ export default function AddCategory() {
     }
   }
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setCategoryImage(file);
+
+      // Generate preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setCategoryImage(null);
+      setImagePreview(null);
+    }
+  };
+
   const handleAddCategory = async (e) => {
     e.preventDefault()
 
@@ -51,15 +70,23 @@ export default function AddCategory() {
     }
 
     try {
+      // Create form data to handle file upload
+      const formData = new FormData();
+      formData.append("category_title", categoryTitle);
+
+      // Only append the file if one has been selected
+      if (categoryImage) {
+        formData.append("file", categoryImage);
+      }
+
       const response = await axios.post(
         `${config.API_BASE_URL}/course_catergory/add_course_category`,
-        {
-          category_title: categoryTitle
-        },
+        formData,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "Content-Type": "multipart/form-data", // Important for file uploads
           },
         }
       )
@@ -72,6 +99,8 @@ export default function AddCategory() {
         })
         // Reset form
         setCategoryTitle("")
+        setCategoryImage(null)
+        setImagePreview(null)
         fetchCategories()
       }
     } catch (error) {
@@ -85,75 +114,176 @@ export default function AddCategory() {
   }
 
   const handleEditCategory = (category) => {
-    Swal.fire({
-      title: "Edit Category",
-      html: `
-        <form>
-          <div class="mb-3">
-            <label class="form-label">
-              <i class="bi bi-tag me-2"></i>Category Title
-              <span class="text-danger">*</span>
-            </label>
-            <input
-              type="text"
-              id="categoryTitle"
-              class="form-control form-control-lg"
-              value="${category.category_title || ''}"
-            >
+    // Create a modal with Bootstrap instead of SweetAlert for file upload support
+    const modalId = "editCategoryModal";
+    const modalHtml = `
+      <div class="modal fade" id="${modalId}" tabindex="-1" aria-labelledby="${modalId}Label" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="${modalId}Label">Edit Category</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <form id="editCategoryForm">
+                <div class="mb-3">
+                  <label class="form-label">
+                    <i class="bi bi-tag me-2"></i>Category Title
+                    <span class="text-danger">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="editCategoryTitle"
+                    class="form-control"
+                    value="${category.category_title || ''}"
+                    required
+                  >
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">
+                    <i class="bi bi-image me-2"></i>Category Image
+                  </label>
+                  <input
+                    type="file"
+                    id="editCategoryImage"
+                    class="form-control"
+                    accept="image/*"
+                  >
+                  <small class="text-muted d-block mt-1">
+                    Leave empty to keep the current image.
+                  </small>
+
+                  ${category.filename ? `
+                  <div class="mt-3 text-center">
+                    <p class="mb-2">Current Image:</p>
+                    <img
+                      src="${config.API_BASE_URL}/uploads/${category.filename}"
+                      alt="${category.category_title}"
+                      class="img-thumbnail"
+                      style="max-height: 100px"
+                    />
+                  </div>
+                  ` : ''}
+
+                  <div id="imagePreviewContainer" class="mt-3 text-center" style="display: none;">
+                    <p class="mb-2">New Image Preview:</p>
+                    <img
+                      id="editImagePreview"
+                      src=""
+                      alt="Preview"
+                      class="img-thumbnail"
+                      style="max-height: 100px"
+                    />
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" id="saveEditButton" class="btn btn-primary">Save Changes</button>
+            </div>
           </div>
-        </form>
-      `,
-      showCancelButton: true,
-      confirmButtonText: "Save Changes",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#198754",
-      cancelButtonColor: "#dc3545",
-      preConfirm: () => {
-        const categoryTitle = document.getElementById("categoryTitle").value
+        </div>
+      </div>
+    `;
 
-        if (!categoryTitle.trim()) {
-          Swal.showValidationMessage("Category title is required")
-          return false
-        }
+    // Remove any existing modal with the same ID
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+      existingModal.remove();
+    }
 
-        return {
-          category_title: categoryTitle
-        }
-      },
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const response = await axios.put(
-            `${config.API_BASE_URL}/course_catergory/update_course_category/${category.id}`,
-            result.value,
-            {
-              headers: {
-                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-              },
-            }
-          )
+    // Append the modal to the body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-          if (response.data.success) {
-            await Swal.fire({
-              icon: "success",
-              title: "Success",
-              text: "Category updated successfully",
-              timer: 1500,
-              showConfirmButton: false,
-            })
-            fetchCategories()
-          }
-        } catch (error) {
-          console.error("Update Category Error:", error)
-          Swal.fire({
-            icon: "error",
-            title: "Error",
-            text: error.response?.data?.error || "Failed to update category",
-          })
-        }
+    // Initialize the modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+
+    // Preview image when selected
+    const editCategoryImageInput = document.getElementById('editCategoryImage');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    const editImagePreview = document.getElementById('editImagePreview');
+
+    editCategoryImageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          editImagePreview.src = reader.result;
+          imagePreviewContainer.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      } else {
+        imagePreviewContainer.style.display = 'none';
       }
-    })
+    });
+
+    // Handle form submission
+    const saveEditButton = document.getElementById('saveEditButton');
+    saveEditButton.addEventListener('click', async () => {
+      const titleInput = document.getElementById('editCategoryTitle');
+      const imageInput = document.getElementById('editCategoryImage');
+
+      if (!titleInput.value.trim()) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Category title is required',
+        });
+        return;
+      }
+
+      try {
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('category_title', titleInput.value.trim());
+
+        // Add file if selected
+        if (imageInput.files.length > 0) {
+          formData.append('file', imageInput.files[0]);
+        }
+
+        // Show loading state
+        saveEditButton.disabled = true;
+        saveEditButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+
+        // Send API request
+        const response = await axios.put(
+          `${config.API_BASE_URL}/course_catergory/update_course_category/${category.id}`,
+          formData,
+          {
+            headers: {
+              'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
+              'X-EMP-ID': localStorage.getItem('X-EMP-ID'),
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+
+        // Close the modal
+        modal.hide();
+
+        if (response.data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: 'Category updated successfully',
+            timer: 1500,
+            showConfirmButton: false,
+          });
+          fetchCategories();
+        }
+      } catch (error) {
+        console.error('Update Category Error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.response?.data?.error || 'Failed to update category',
+        });
+      }
+    });
   }
 
   const handleDeleteCategory = (category) => {
@@ -248,6 +378,46 @@ export default function AddCategory() {
                     />
                   </div>
 
+                  <div className="form-group mb-4">
+                    <label htmlFor="category_image" className="form-label">
+                      <i className="bi bi-image me-2"></i>Category Image
+                    </label>
+                    <input
+                      type="file"
+                      className="form-control"
+                      id="category_image"
+                      name="category_image"
+                      onChange={handleImageChange}
+                      accept="image/*"
+                    />
+                    <small className="text-muted d-block mt-1">
+                      Optional. Upload an image for the category.
+                    </small>
+
+                    {/* Image preview */}
+                    {imagePreview && (
+                      <div className="mt-3 text-center">
+                        <img
+                          src={imagePreview}
+                          alt="Category Preview"
+                          className="img-thumbnail"
+                          style={{ maxHeight: "150px" }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger d-block mx-auto mt-2"
+                          onClick={() => {
+                            setCategoryImage(null);
+                            setImagePreview(null);
+                          }}
+                        >
+                          <i className="bi bi-x-circle me-1"></i>
+                          Remove Image
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
@@ -277,7 +447,7 @@ export default function AddCategory() {
                   <table className="table table-hover align-middle">
                     <thead className="table-light">
                       <tr>
-                        <th>Category Title</th>
+                        <th>Category</th>
                         <th>Date Added</th>
                         <th>Actions</th>
                       </tr>
@@ -295,7 +465,20 @@ export default function AddCategory() {
                           <tr key={category.id}>
                             <td>
                               <div className="d-flex align-items-center">
-                                <i className="bi bi-tag-fill me-2 text-primary"></i>
+                                {category.filename ? (
+                                  <img
+                                    src={`${config.API_BASE_URL}/uploads/${category.filename}`}
+                                    alt={category.category_title}
+                                    className="me-2 rounded"
+                                    style={{ width: "40px", height: "40px", objectFit: "cover" }}
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = "https://via.placeholder.com/40";
+                                    }}
+                                  />
+                                ) : (
+                                  <i className="bi bi-tag-fill me-2 text-primary fs-5"></i>
+                                )}
                                 <div className="fw-medium">{category.category_title}</div>
                               </div>
                             </td>
