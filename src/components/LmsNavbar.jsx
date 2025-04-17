@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import logo from "../assets/logo.png"; // Import the logo image
 
 export const LmsNavbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -46,9 +47,7 @@ export const LmsNavbar = () => {
            style={{ transition: "all 0.3s ease-in-out" }}>
         <div className="container">
           <Link to="/lms" className="navbar-brand d-flex align-items-center">
-            <h2 className="m-0 text-primary">
-              <i className="fa fa-book me-2"></i>Syncorp
-            </h2>
+            <img src={logo} alt="Syncorp Logo" height="40" />
           </Link>
           <button
             type="button"
@@ -73,7 +72,7 @@ export const LmsNavbar = () => {
                     onClick={() => setActiveLink("about")}>
                 About
               </Link>
-              <Link to="/courses"
+              <Link to="/lms/courses"
                     className={`nav-item nav-link mx-2 ${activeLink === "courses" ? "active fw-bold text-white" : ""}`}
                     onClick={() => setActiveLink("courses")}>
                 Courses
@@ -106,9 +105,7 @@ export const LmsNavbar = () => {
                 Contact
               </Link>
             </div>
-            <Link to="/register" className="btn btn-primary py-2 px-4 ms-3 d-none d-lg-block">
-              Join Now<i className="fa fa-arrow-right ms-2"></i>
-            </Link>
+
           </div>
         </div>
       </nav>

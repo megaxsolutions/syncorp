@@ -32,6 +32,79 @@ const Payroll = () => {
 
         if (response.data && response.data.data) {
           setPayrollData(response.data.data)
+
+          // Extract unique year-month combinations from dates (assuming payroll data has date or cutoff_date field)
+          // If payroll data doesn't have dates directly, we'll extract unique months from the available data
+          const uniqueMonths = [...new Set(response.data.data
+            .filter(item => item.date || item.cutoff_date)
+            .map(item => moment(item.date || item.cutoff_date).format('YYYY-MM')))]
+            .sort((a, b) => moment(b).diff(moment(a))); // Sort desc (newest first)
+
+          // If no dates found in payroll data, get current month
+          if (uniqueMonths.length === 0) {
+            uniqueMonths.push(moment().format('YYYY-MM'));
+          }
+
+          // Create pay periods (1-15 and 16-end of month) for each month
+          const payPeriods = [];
+          uniqueMonths.forEach(month => {
+            const daysInMonth = moment(month).daysInMonth();
+
+            // First pay period (1-15)
+            payPeriods.push({
+              id: `${month}-first`,
+              startDate: `${month}-01`,
+              endDate: `${month}-15`,
+              formattedDate: `${moment(month).format('MMM 1-15, YYYY')}`,
+              sortOrder: 1 // Add sort order for consistent display
+            });
+
+            // Second pay period (16-end of month)
+            payPeriods.push({
+              id: `${month}-second`,
+              startDate: `${month}-16`,
+              endDate: `${month}-${daysInMonth}`,
+              formattedDate: `${moment(month).format(`MMM 16-${daysInMonth}, YYYY`)}`,
+              sortOrder: 2 // Add sort order for consistent display
+            });
+          });
+
+          // Sort pay periods: first by month (newest first), then by period within month (1-15 before 16-end)
+          const sortedPayPeriods = payPeriods.sort((a, b) => {
+            // Extract month from startDate for comparison
+            const monthA = moment(a.startDate).format('YYYY-MM');
+            const monthB = moment(b.startDate).format('YYYY-MM');
+
+            // First sort by month (descending)
+            if (monthA !== monthB) {
+              return moment(monthB).diff(moment(monthA));
+            }
+
+            // If same month, sort by period (1-15 first, then 16-end)
+            return a.sortOrder - b.sortOrder;
+          });
+
+          setCutoffs(sortedPayPeriods);
+
+          // Set default selected cutoff to the current period
+          const today = moment();
+          const currentMonth = today.format('YYYY-MM');
+          const currentDay = today.date();
+
+          // Determine if we're in the first half (1-15) or second half (16+) of the month
+          const currentPeriodId = currentDay <= 15
+            ? `${currentMonth}-first`
+            : `${currentMonth}-second`;
+
+          // Find if this period exists in our data
+          const periodExists = sortedPayPeriods.some(period => period.id === currentPeriodId);
+
+          if (periodExists) {
+            setSelectedCutOff(currentPeriodId);
+          } else if (sortedPayPeriods.length > 0) {
+            // If current period doesn't exist in data, default to most recent period
+            setSelectedCutOff(sortedPayPeriods[0].id);
+          }
         }
       } catch (error) {
         console.error("Error fetching Payroll data:", error)
@@ -44,35 +117,26 @@ const Payroll = () => {
     fetchPayrollData()
   }, [])
 
-  // Fetch cutoff data from backend using get_all_dropdown_data endpoint
-  useEffect(() => {
-    const fetchCutoffs = async () => {
-      try {
-        const response = await axios.get(`${config.API_BASE_URL}/main/get_all_dropdown_data`, {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          },
-        })
-        if (response.data?.data?.cutoff) {
-          setCutoffs(response.data.data.cutoff)
-        }
-      } catch (error) {
-        console.error("Error fetching cutoff data:", error)
-        setError("Failed to load cutoff data")
-      }
-    }
-
-    fetchCutoffs()
-  }, [])
-
   // Filter logic based on search term and selected cutoff
   const filteredData = payrollData.filter((item) => {
     const matchesSearch = item && item.emp_ID ? item.emp_ID.toString().includes(searchTerm.toLowerCase()) : false
 
-    const matchesCutoff = selectedCutOff ? item.cutoff_id === selectedCutOff : true
+    // If no cutoff selected, show all records
+    if (!selectedCutOff) return matchesSearch;
 
-    return matchesSearch && matchesCutoff
+    // If cutoff is selected, check if date falls within selected pay period
+    const selectedPeriod = cutoffs.find(period => period.id === selectedCutOff);
+    if (!selectedPeriod) return matchesSearch;
+
+    // Check if item date is within the selected pay period range
+    const itemDate = item.date || item.cutoff_date || null;
+    if (!itemDate) return matchesSearch; // Include if no date to filter on
+
+    const recordDate = moment(itemDate);
+    const periodStart = moment(selectedPeriod.startDate);
+    const periodEnd = moment(selectedPeriod.endDate);
+
+    return matchesSearch && recordDate.isBetween(periodStart, periodEnd, 'day', '[]');
   })
 
   // Pagination logic: slice filteredData for current page
@@ -232,7 +296,7 @@ const Payroll = () => {
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <div className="row mb-3">
-                {/* Left side: Select cut off */}
+                {/* Left side: Select cutoff */}
                 <div className="col-md-4">
                   <label className="form-label">Pay Period</label>
                   <select
@@ -243,15 +307,13 @@ const Payroll = () => {
                       setCurrentPage(0) // Reset to first page when filter changes
                     }}
                   >
-                    <option value="">All Cut Off Periods</option>
                     {cutoffs.length > 0
-                      ? cutoffs.map((cutoff) => (
-                          <option key={cutoff.id} value={cutoff.id}>
-                            {moment(cutoff.startDate).format("MMM DD")} -{" "}
-                            {moment(cutoff.endDate).format("MMM DD, YYYY")}
+                      ? cutoffs.map((period) => (
+                          <option key={period.id} value={period.id}>
+                            {period.formattedDate}
                           </option>
                         ))
-                      : null}
+                      : <option value="">Loading periods...</option>}
                   </select>
                 </div>
                 {/* Right side: Search bar */}
@@ -286,10 +348,14 @@ const Payroll = () => {
                   <Badge bg="info" className="me-2">
                     {filteredData.length} Records
                   </Badge>
-                  {selectedCutOff && <Badge bg="secondary">Filtered by Cut Off</Badge>}
+                  {selectedCutOff && (
+                    <Badge bg="secondary">
+                      {cutoffs.find(c => c.id === selectedCutOff)?.formattedDate || 'Selected Period'}
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-muted small">
-                  Showing {indexOfFirstRecord + 1} -{" "}
+                  Showing {filteredData.length > 0 ? indexOfFirstRecord + 1 : 0} -{" "}
                   {Math.min(indexOfFirstRecord + recordsPerPage, filteredData.length)} of {filteredData.length}
                 </div>
               </div>

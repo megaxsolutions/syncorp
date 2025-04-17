@@ -13,23 +13,25 @@ const AdminUser = () => {
     emp_id: "",
     password: "",
     user_level: "",
-    cluster_id: "", // Add this new field
+    cluster_id: "",
+    site_id: "", // Add this new field
   });
   const [employees, setEmployees] = useState([]);
   const [adminLevels, setAdminLevels] = useState([]);
   const [adminUsers, setAdminUsers] = useState([]);
   const [userInDeleteMode, setUserInDeleteMode] = useState(null);
-  const [clusters, setClusters] = useState([]); // Add this new state for clusters
+  const [clusters, setClusters] = useState([]);
+  const [sites, setSites] = useState([]); // Add this new state for sites
 
   // Fetch data on component mount
   useEffect(() => {
     fetchEmployees();
     fetchAdminLevels();
     fetchAdmins();
-    fetchClusters(); // Add this new function call
+    fetchClusters();
+    fetchSites(); // Add this new function call
   }, []);
 
-  // API calls
   const fetchEmployees = async () => {
     try {
       const response = await axios.get(
@@ -94,7 +96,6 @@ const AdminUser = () => {
     }
   };
 
-  // Add the new function to fetch clusters
   const fetchClusters = async () => {
     try {
       const response = await axios.get(
@@ -108,7 +109,6 @@ const AdminUser = () => {
       );
 
       if (response.data?.data?.clusters) {
-        // Extract the clusters array from the nested structure
         setClusters(response.data.data.clusters || []);
       } else {
         setClusters([]);
@@ -116,20 +116,42 @@ const AdminUser = () => {
     } catch (error) {
       console.error("Error fetching clusters:", error);
       Swal.fire({ icon: "error", title: "Error", text: "Failed to load clusters" });
-      setClusters([]); // Ensure we always have an array
+      setClusters([]);
     }
   };
 
-  // Event handlers
+  const fetchSites = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (response.data?.data?.sites) {
+        setSites(response.data.data.sites || []);
+      } else {
+        setSites([]);
+      }
+    } catch (error) {
+      console.error("Error fetching sites:", error);
+      Swal.fire({ icon: "error", title: "Error", text: "Failed to load sites" });
+      setSites([]);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // Reset cluster_id when user_level changes
     if (name === 'user_level') {
       setFormData({
         ...formData,
         [name]: value,
-        cluster_id: '' // Reset cluster selection when role changes
+        cluster_id: ''
       });
     } else {
       setFormData({
@@ -139,12 +161,11 @@ const AdminUser = () => {
     }
   };
 
-  // Update the handleEdit function
   const handleEdit = (user) => {
     setSelectedUser(user);
     setFormData({
       ...formData,
-      user_level: "" // Reset level selection
+      user_level: ""
     });
     setShowEditModal(true);
   };
@@ -154,7 +175,6 @@ const AdminUser = () => {
     setSelectedUser(null);
   };
 
-  // Update handleSubmit validation
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -167,7 +187,6 @@ const AdminUser = () => {
       return;
     }
 
-    // Check if this is a supervisor role and cluster is required
     if (isSupervisorLevel(formData.user_level) && !formData.cluster_id) {
       Swal.fire({
         icon: "error",
@@ -177,12 +196,20 @@ const AdminUser = () => {
       return;
     }
 
+    // Check if this is an admin role and site is required
+    if (isAdminLevel(formData.user_level) && !formData.site_id) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Please select a site for the admin"
+      });
+      return;
+    }
+
     try {
       let response;
 
-      // Different logic based on role type
       if (isAdminLevel(formData.user_level)) {
-        // For admin roles, require password and use the add_admin endpoint
         if (!formData.password) {
           Swal.fire({
             icon: "error",
@@ -198,7 +225,8 @@ const AdminUser = () => {
           {
             emp_id: formData.emp_id,
             password: formData.password,
-            user_level: Number(formData.user_level)
+            user_level: Number(formData.user_level),
+            site_id: Number(formData.site_id) // Add this new field
           },
           {
             headers: {
@@ -208,7 +236,6 @@ const AdminUser = () => {
           }
         );
       } else if (isSupervisorLevel(formData.user_level)) {
-        // For supervisor roles, use the special endpoint with cluster assignment
         response = await axios.post(
           `${config.API_BASE_URL}/admins/update_admin_user_level_supervisor_cluster`,
           {
@@ -224,7 +251,6 @@ const AdminUser = () => {
           }
         );
       } else {
-        // For non-admin, non-supervisor roles (HR, trainee), use update_admin_user_level endpoint
         response = await axios.post(
           `${config.API_BASE_URL}/admins/update_admin_user_level`,
           {
@@ -246,7 +272,7 @@ const AdminUser = () => {
           title: "Success",
           text: response.data.success
         });
-        setFormData({ emp_id: "", password: "", user_level: "", cluster_id: "" });
+        setFormData({ emp_id: "", password: "", user_level: "", cluster_id: "", site_id: "" });
         fetchAdmins();
       }
     } catch (error) {
@@ -261,7 +287,6 @@ const AdminUser = () => {
     }
   };
 
-  // Update the handleUpdate function to handle supervisor role
   const handleUpdate = async (e) => {
     e.preventDefault();
 
@@ -274,7 +299,6 @@ const AdminUser = () => {
       return;
     }
 
-    // Check if supervisor role is selected but no cluster is provided
     if (isSupervisorLevel(formData.user_level) && !formData.cluster_id) {
       Swal.fire({
         icon: "error",
@@ -287,7 +311,6 @@ const AdminUser = () => {
     try {
       let response;
 
-      // Use different endpoint based on the role type
       if (isSupervisorLevel(formData.user_level)) {
         response = await axios.post(
           `${config.API_BASE_URL}/admins/update_admin_user_level_supervisor_cluster`,
@@ -326,7 +349,7 @@ const AdminUser = () => {
           text: response.data.success
         });
         handleModalClose();
-        fetchAdmins(); // Refresh the admin list
+        fetchAdmins();
       }
     } catch (error) {
       const errorMsg = error.response?.data?.error || "Failed to update level";
@@ -338,7 +361,6 @@ const AdminUser = () => {
     }
   };
 
-  // Add this new function after your existing functions
   const handleDeleteLevel = async (emp_id, level_id) => {
     try {
       const result = await Swal.fire({
@@ -368,8 +390,8 @@ const AdminUser = () => {
             title: 'Success',
             text: response.data.success
           });
-          setUserInDeleteMode(null); // Reset delete mode
-          fetchAdmins(); // Refresh the list
+          setUserInDeleteMode(null);
+          fetchAdmins();
         }
       }
     } catch (error) {
@@ -382,16 +404,13 @@ const AdminUser = () => {
     }
   };
 
-  // Add handleDeleteModeToggle function
   const handleDeleteModeToggle = (userId) => {
     setUserInDeleteMode(userInDeleteMode === userId ? null : userId);
   };
 
-  // In the getLevelNames function, modify it to accept the userId parameter:
   const getLevelNames = (userLevels, userId) => {
     try {
       const levels = JSON.parse(userLevels);
-      // Return span instead of div for inline elements
       return (
         <span className="d-flex flex-wrap gap-2">
           {levels.map(levelId => {
@@ -427,29 +446,24 @@ const AdminUser = () => {
     }
   };
 
-  // Add this function to check if selected level is admin
   const isAdminLevel = (levelId) => {
     if (!levelId) return false;
 
     const selectedLevel = adminLevels.find(level => level.id === Number(levelId));
     if (!selectedLevel) return false;
 
-    // Check if the level name contains "admin" (case-insensitive)
     return selectedLevel.level.toLowerCase().includes('admin');
   };
 
-  // Check if selected level is supervisor
   const isSupervisorLevel = (levelId) => {
     if (!levelId) return false;
 
     const selectedLevel = adminLevels.find(level => level.id === Number(levelId));
     if (!selectedLevel) return false;
 
-    // Check if the level is supervisor (ID 2 or name contains "supervisor")
     return selectedLevel.id === 2 || selectedLevel.level.toLowerCase().includes('supervisor');
   };
 
-  // Render employees in dropdown
   const renderEmployeeOptions = () => {
     if (!employees || employees.length === 0) {
       return <option value="">No employees available</option>;
@@ -472,7 +486,6 @@ const AdminUser = () => {
     );
   };
 
-  // Update the renderAdminLevelOptions function to show all levels, not just admin levels
   const renderAdminLevelOptions = () => {
     if (!adminLevels || adminLevels.length === 0) {
       return <option value="">No levels available</option>;
@@ -490,9 +503,7 @@ const AdminUser = () => {
     );
   };
 
-  // Render cluster options
   const renderClusterOptions = () => {
-    // Safety check to ensure clusters is an array
     const clusterArray = Array.isArray(clusters) ? clusters : [];
 
     if (clusterArray.length === 0) {
@@ -514,7 +525,28 @@ const AdminUser = () => {
     );
   };
 
-  // Update the filteredAdmins definition
+  const renderSiteOptions = () => {
+    const siteArray = Array.isArray(sites) ? sites : [];
+
+    if (siteArray.length === 0) {
+      return <option value="">No sites available</option>;
+    }
+
+    return (
+      <>
+        <option value="">Select Site</option>
+        {siteArray.map((site) => (
+          <option
+            key={`site-${site.site_ID || site.id}`}
+            value={site.site_ID || site.id}
+          >
+            {site.siteName || site.name}
+          </option>
+        ))}
+      </>
+    );
+  };
+
   const filteredAdmins = adminUsers
     .filter((user) => {
       const fullName = `${user.fName || ""} ${user.lName || ""}`.toLowerCase();
@@ -525,11 +557,9 @@ const AdminUser = () => {
       );
     })
     .sort((a, b) => {
-      // Sort by addedAt (newest at bottom)
       return (a.addedAt || 0) - (b.addedAt || 0);
     });
 
-  // Add handleDeleteAdmin inside the component
   const handleDeleteAdmin = async (emp_id) => {
     try {
       const result = await Swal.fire({
@@ -560,10 +590,8 @@ const AdminUser = () => {
             text: 'Admin successfully deleted.'
           });
 
-          // Update the admin list without page refresh
           await fetchAdmins();
 
-          // Update the filtered list immediately
           setAdminUsers(prevUsers => prevUsers.filter(user => user.emp_ID !== emp_id));
         }
       }
@@ -639,7 +667,6 @@ const AdminUser = () => {
                       </select>
                     </div>
 
-                    {/* Conditionally show cluster dropdown for supervisors */}
                     {isSupervisorLevel(formData.user_level) && (
                       <div className="mb-3">
                         <label htmlFor="cluster_id" className="form-label">
@@ -661,7 +688,6 @@ const AdminUser = () => {
                       </div>
                     )}
 
-                    {/* Show password field for admin roles */}
                     {isAdminLevel(formData.user_level) && (
                       <div className="mb-3">
                         <label htmlFor="password" className="form-label">
@@ -683,6 +709,27 @@ const AdminUser = () => {
                       </div>
                     )}
 
+                    {isAdminLevel(formData.user_level) && (
+                      <div className="mb-3">
+                        <label htmlFor="site_id" className="form-label">
+                          Assign to Site <span className="text-danger">*</span>
+                        </label>
+                        <select
+                          id="site_id"
+                          name="site_id"
+                          className="form-select"
+                          value={formData.site_id}
+                          onChange={handleChange}
+                          required
+                        >
+                          {renderSiteOptions()}
+                        </select>
+                        <small className="form-text text-muted">
+                          Admins must be assigned to a specific site.
+                        </small>
+                      </div>
+                    )}
+
                     {!isAdminLevel(formData.user_level) && !isSupervisorLevel(formData.user_level) && (
                       <div className="mb-3">
                         <small className="form-text text-muted">
@@ -691,7 +738,6 @@ const AdminUser = () => {
                       </div>
                     )}
 
-                    {/* Update the submit button text to be more appropriate */}
                     <button type="submit" className="btn btn-primary w-100">
                       {isAdminLevel(formData.user_level)
                         ? "Add Admin"
@@ -737,7 +783,7 @@ const AdminUser = () => {
                               {user.fName} {user.lName}
                             </td>
                             <td>
-                              {getLevelNames(user.user_level, user.emp_ID)} {/* Pass the user's emp_ID */}
+                              {getLevelNames(user.user_level, user.emp_ID)}
                             </td>
                             <td>
                               <div className="btn-group">
@@ -779,8 +825,6 @@ const AdminUser = () => {
         </div>
       </main>
 
-      {/* Edit Modal */}
-      {/* Update the Edit Modal JSX */}
       {showEditModal && (
         <div className="modal show fade" tabIndex="-1" style={{ display: "block" }}>
           <div className="modal-dialog modal-dialog-centered">
@@ -807,7 +851,6 @@ const AdminUser = () => {
                     >
                       <option value="">Select Level</option>
                       {adminLevels.map((level) => {
-                        // Check if level is already assigned
                         let currentLevels = [];
                         try {
                           currentLevels = selectedUser?.user_level ?
@@ -831,7 +874,6 @@ const AdminUser = () => {
                     </select>
                   </div>
 
-                  {/* Add the conditional cluster dropdown in the edit modal */}
                   {isSupervisorLevel(formData.user_level) && (
                     <div className="mb-3">
                       <label htmlFor="edit_cluster_id" className="form-label">

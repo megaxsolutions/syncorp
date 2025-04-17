@@ -48,9 +48,9 @@ export default function ViewIncident() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // First fetch employees for proper name display
+      // Fetch employees for the dropdown filter
       await fetchEmployees();
-      // Then fetch incident reports
+      // Then fetch incident reports with employee names included
       await fetchIncidentReports();
     } catch (err) {
       console.error('Error in fetchData:', err);
@@ -120,7 +120,8 @@ export default function ViewIncident() {
             submitted_datetime: incident.submitted_datetime ?
               moment(incident.submitted_datetime).format('MMM DD, YYYY h:mm A') : 'N/A',
             raw_datetime: incident.submitted_datetime || null,
-            employeeName: employees[incident.emp_ID] || 'Unknown Employee'
+            // Use the employee_fullname directly from API instead of looking it up
+            employeeName: incident.employee_fullname || 'Unknown Employee'
           };
         });
 
