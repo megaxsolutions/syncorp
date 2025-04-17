@@ -9,7 +9,6 @@ import moment from 'moment';
 import Swal from 'sweetalert2';
 import "../../css/EmployeeLeave.css" // Make sure this CSS file exists
 import { Toaster, toast } from 'sonner'; // Import Sonner toast
-import Modal from 'react-bootstrap/Modal'; // Add Bootstrap Modal import
 
 const LeaveRequest = () => {
   const [selectedDate, setSelectedDate] = useState('');
@@ -22,6 +21,7 @@ const LeaveRequest = () => {
   const [filePreview, setFilePreview] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVL, setIsVL] = useState(false);
   const [employeeData, setEmployeeData] = useState(null); // Add employee data state
 
   // Add animation states for better UX
@@ -400,133 +400,8 @@ const LeaveRequest = () => {
     }
     return <span className="badge bg-secondary">{status}</span>;
   };
-  const [showMoodModal, setShowMoodModal] = useState(false);
-  const [selectedMood, setSelectedMood] = useState(null);
-  const [todayMood, setTodayMood] = useState(null);
 
-  // Array of available moods
-  const moods = [
-    { id: 1, name: 'Perfect', image: 'perfect.png', emoji: '/src/assets/img/perfect.png', color: '#4caf50' },
-    { id: 2, name: 'Good', image: 'good.png', emoji: '/src/assets/img/good.png', color: '#8bc34a' },
-    { id: 3, name: 'Neutral', image: 'neutral.png', emoji: '/src/assets/img/neutral.png', color: '#ffc107' },
-    { id: 4, name: 'Poor', image: 'poor.png', emoji: '/src/assets/img/poor.png', color: '#ff9800' },
-    { id: 5, name: 'Bad', image: 'bad.png', emoji: '/src/assets/img/bad.png', color: '#f44336' }
-  ];
-
-  // Function to handle mood selection
-  const handleMoodSelect = (mood) => {
-    setSelectedMood(mood);
-  };
-
-  // Save mood function
-  const saveMood = async () => {
-    if (!selectedMood) return;
-
-    try {
-      setShowMoodModal(false);
-
-      // Get user credentials
-      const empId = localStorage.getItem("X-EMP-ID");
-      const token = localStorage.getItem("X-JWT-TOKEN");
-
-      // Call the API to save the mood
-      const response = await axios.post(
-        `${config.API_BASE_URL}/mood_meters/add_mood_meter`,
-        {
-          emp_id: empId,
-          mood: selectedMood.name
-        },
-        {
-          headers: {
-            "X-JWT-TOKEN": token,
-            "X-EMP-ID": empId,
-          },
-        }
-      );
-
-      setTodayMood(selectedMood);
-      toast.success(`Mood updated to ${selectedMood.name}!`);
-    } catch (error) {
-      console.error('Error saving mood:', error);
-      const errorMsg = error.response?.data?.error || 'Failed to update mood';
-      toast.error(errorMsg);
-
-      // If error is not about already submitting today, show modal again
-      if (!error.response?.data?.error?.includes('already submitted')) {
-        setShowMoodModal(true);
-      }
-    }
-  };
-
-  // Add this useEffect for checking mood
-  useEffect(() => {
-    const checkMoodMeter = async () => {
-      try {
-        const empId = localStorage.getItem("X-EMP-ID");
-        const token = localStorage.getItem("X-JWT-TOKEN");
-
-        if (!empId || !token) return;
-
-        // First check if user has already submitted mood for today
-        try {
-          const checkResponse = await axios.get(
-            `${config.API_BASE_URL}/mood_meters/check_mood_meter/${empId}`,
-            {
-              headers: {
-                "X-JWT-TOKEN": token,
-                "X-EMP-ID": empId,
-              },
-            }
-          );
-
-          // If check is successful, user has not submitted mood yet, show the modal
-          if (checkResponse.status === 200 && checkResponse.data.data === true) {
-            setTimeout(() => {
-              setShowMoodModal(true);
-            }, 1000);
-          }
-        } catch (error) {
-          // If error status is 400, user has already submitted mood today
-          if (error.response && error.response.status === 400) {
-            // Get today's mood from the API
-            try {
-              const response = await axios.get(
-                `${config.API_BASE_URL}/mood_meters/get_all_user_mood_meter/${empId}`,
-                {
-                  headers: {
-                    "X-JWT-TOKEN": token,
-                    "X-EMP-ID": empId,
-                  },
-                }
-              );
-
-              if (response.data && response.data.data) {
-                const today = new Date().toISOString().split('T')[0];
-                const todayEntry = response.data.data.find(entry =>
-                  new Date(entry.date).toISOString().split('T')[0] === today
-                );
-
-                if (todayEntry) {
-                  // Find the matching mood from our moods array
-                  const matchedMood = moods.find(m => m.name === todayEntry.mood);
-                  if (matchedMood) {
-                    setTodayMood(matchedMood);
-                  }
-                }
-              }
-            } catch (fetchError) {
-              console.error('Error fetching mood data:', fetchError);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error in mood check process:', error);
-      }
-    };
-
-    checkMoodMeter();
-  }, []);
-const addWeekdays = (startDate, daysToAdd) => {
+    const addWeekdays = (startDate, daysToAdd) => {
       let count = 0;
       let date = moment(startDate);
   
@@ -540,6 +415,7 @@ const addWeekdays = (startDate, daysToAdd) => {
       return date;
     };
     const minDate = isVL ? '' : addWeekdays(moment(), 5).format('YYYY-MM-DD');
+
   return (
     <div>
       <EmployeeNavbar />
@@ -553,19 +429,6 @@ const addWeekdays = (startDate, daysToAdd) => {
             <h1 className="h3 mb-0 text-gray-800">
               <i className="bi bi-calendar-check me-2 text-primary"></i> Leave Request
             </h1>
-
-            {/* Add mood indicator if mood is selected */}
-            {todayMood && (
-              <div className="mood-indicator me-3 d-flex align-items-center">
-                <img
-                  src={todayMood.emoji}
-                  alt={todayMood.name}
-                  className="mood-icon"
-                  style={{ width: '30px', height: '30px', marginRight: '8px' }}
-                />
-                <span className="mood-text" style={{ color: todayMood.color }}>{todayMood.name}</span>
-              </div>
-            )}
           </div>
 
           <nav className="mb-4">
@@ -627,6 +490,14 @@ const addWeekdays = (startDate, daysToAdd) => {
                             setFilePreview(null);
                             const fileInput = document.getElementById('uploadFile');
                             if (fileInput) fileInput.value = '';
+                            
+                          }
+
+                          if (leaveTypes.find(type => type.id.toString() === leaveType)?.type === 'VL' &&
+                          leaveTypes.find(type => type.id.toString() === e.target.value)?.type !== 'VL') {
+                           setIsVL(true); 
+                          }else{
+                            setIsVL(false);
                           }
                         }}
                         required
@@ -658,12 +529,14 @@ const addWeekdays = (startDate, daysToAdd) => {
                         type="date"
                         className={`form-control ${!selectedDate && formFeedback ? 'is-invalid' : ''}`}
                         id="date"
+                        onKeyDown={(e) => e.preventDefault()}
                         value={selectedDate}
                         onChange={(e) => {
                           setSelectedDate(e.target.value);
                           setFormFeedback('');
                         }}
-                        min={moment().format('YYYY-MM-DD')}
+                        
+                        min= {minDate}
                         required
                       />
                       <small className="form-text text-muted mt-1">
@@ -993,76 +866,6 @@ const addWeekdays = (startDate, daysToAdd) => {
             </div>
           </div>
         </div>
-
-        {/* Add the Mood Modal */}
-        <Modal
-          show={showMoodModal}
-          onHide={() => setShowMoodModal(false)}
-          centered
-          backdrop="static"
-          className="mood-modal"
-        >
-          <Modal.Header closeButton>
-            <Modal.Title className='mx-auto'>How are you feeling today?</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <div className="mood-container d-flex justify-content-between align-items-center flex-nowrap">
-              {moods.map(mood => (
-                <div
-                  key={mood.id}
-                  className={`mood-option text-center rounded-4 ${selectedMood?.id === mood.id ? 'selected' : ''}`}
-                  onClick={() => handleMoodSelect(mood)}
-                  style={{
-                    cursor: 'pointer',
-                    borderWidth: '3px',
-                    borderStyle: 'solid',
-                    width: '19%', // This ensures equal width for all items
-                    flex: '0 0 auto',
-                    borderColor: selectedMood?.id === mood.id ? mood.color : 'transparent',
-                    background: selectedMood?.id === mood.id ? `${mood.color}20` : '#f8f9fa',
-                    transform: selectedMood?.id === mood.id ? 'scale(1.05)' : 'scale(1)',
-                    boxShadow: selectedMood?.id === mood.id ? `0 4px 12px rgba(0,0,0,0.1)` : '0 2px 5px rgba(0,0,0,0.05)'
-                  }}
-                >
-                  <div className="mood-image-container">
-                    <img
-                      src={mood.emoji}
-                      alt={mood.name}
-                      className="img-fluid"
-                      style={{
-                        width: '100px',
-                        height: '100px',
-                        filter: selectedMood?.id === mood.id ? 'none' : 'grayscale(30%)',
-                        transition: 'all 0.3s ease',
-                        transform: selectedMood?.id === mood.id ? 'translateY(-3px)' : 'none'
-                      }}
-                    />
-                  </div>
-                  <div
-                    className="mood-name"
-                    style={{
-                      color: selectedMood?.id === mood.id ? mood.color : '#555'
-                    }}
-                  >
-                    {mood.name}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Modal.Body>
-          <Modal.Footer className="justify-content-between">
-            <button className="btn btn-outline-secondary" onClick={() => setShowMoodModal(false)}>
-              Skip for now
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={saveMood}
-              disabled={!selectedMood}
-            >
-              Save Mood
-            </button>
-          </Modal.Footer>
-        </Modal>
       </main>
     </div>
   );
