@@ -104,7 +104,7 @@ const fetchCategories = async () => {
 
       // Only append file if it exists
       if (courseImage) {
-        formData.append("file", courseImage)
+        formData.append("file_uploaded", courseImage)
       }
 
       const response = await axios.post(

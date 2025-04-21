@@ -58,25 +58,35 @@ export default function AddCategory() {
   };
 
   const handleAddCategory = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (!categoryTitle) {
+    if (!categoryTitle.trim()) {
       Swal.fire({
         icon: "error",
         title: "Error",
         text: "Please enter a category title.",
-      })
-      return
+      });
+      return;
     }
+
+    // Show loading indicator
+    Swal.fire({
+      title: 'Creating category...',
+      text: 'Please wait',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
 
     try {
       // Create form data to handle file upload
       const formData = new FormData();
-      formData.append("category_title", categoryTitle);
+      formData.append("category_title", categoryTitle.trim());
 
       // Only append the file if one has been selected
       if (categoryImage) {
-        formData.append("file", categoryImage);
+        formData.append("file_uploaded", categoryImage);
       }
 
       const response = await axios.post(
@@ -86,202 +96,198 @@ export default function AddCategory() {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            "Content-Type": "multipart/form-data", // Important for file uploads
+            // Don't set Content-Type manually with FormData
           },
+          // Add timeout to prevent hanging requests
+          timeout: 30000
         }
-      )
+      );
+
+      // Close loading indicator
+      Swal.close();
 
       if (response.data.success) {
         Swal.fire({
           icon: "success",
           title: "Success",
           text: "Course category created successfully.",
-        })
+        });
         // Reset form
-        setCategoryTitle("")
-        setCategoryImage(null)
-        setImagePreview(null)
-        fetchCategories()
+        setCategoryTitle("");
+        setCategoryImage(null);
+        setImagePreview(null);
+        fetchCategories();
       }
     } catch (error) {
-      console.error("Error creating category:", error)
+      console.error("Error creating category:", error);
+
+      // Get detailed error message if available
+      let errorMessage = "Failed to create category.";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.status === 500) {
+        errorMessage = "Server error. The image may be too large or in an unsupported format.";
+      }
+
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: error.response?.data?.error || "Failed to create category.",
-      })
+        text: errorMessage,
+      });
     }
   }
 
   const handleEditCategory = (category) => {
-    // Create a modal with Bootstrap instead of SweetAlert for file upload support
-    const modalId = "editCategoryModal";
-    const modalHtml = `
-      <div class="modal fade" id="${modalId}" tabindex="-1" aria-labelledby="${modalId}Label" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="${modalId}Label">Edit Category</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <form id="editCategoryForm">
-                <div class="mb-3">
-                  <label class="form-label">
-                    <i class="bi bi-tag me-2"></i>Category Title
-                    <span class="text-danger">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="editCategoryTitle"
-                    class="form-control"
-                    value="${category.category_title || ''}"
-                    required
-                  >
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label">
-                    <i class="bi bi-image me-2"></i>Category Image
-                  </label>
-                  <input
-                    type="file"
-                    id="editCategoryImage"
-                    class="form-control"
-                    accept="image/*"
-                  >
-                  <small class="text-muted d-block mt-1">
-                    Leave empty to keep the current image.
-                  </small>
-
-                  ${category.filename ? `
-                  <div class="mt-3 text-center">
-                    <p class="mb-2">Current Image:</p>
-                    <img
-                      src="${config.API_BASE_URL}/uploads/${category.filename}"
-                      alt="${category.category_title}"
-                      class="img-thumbnail"
-                      style="max-height: 100px"
-                    />
-                  </div>
-                  ` : ''}
-
-                  <div id="imagePreviewContainer" class="mt-3 text-center" style="display: none;">
-                    <p class="mb-2">New Image Preview:</p>
-                    <img
-                      id="editImagePreview"
-                      src=""
-                      alt="Preview"
-                      class="img-thumbnail"
-                      style="max-height: 100px"
-                    />
-                  </div>
-                </div>
-              </form>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-              <button type="button" id="saveEditButton" class="btn btn-primary">Save Changes</button>
-            </div>
+    Swal.fire({
+      title: "Edit Category",
+      html: `
+        <form id="editCategoryForm">
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-tag me-2"></i>Category Title
+              <span class="text-danger">*</span>
+            </label>
+            <input
+              type="text"
+              id="categoryTitle"
+              class="form-control form-control-lg"
+              value="${category.category_title || ''}"
+            >
           </div>
-        </div>
-      </div>
-    `;
 
-    // Remove any existing modal with the same ID
-    const existingModal = document.getElementById(modalId);
-    if (existingModal) {
-      existingModal.remove();
-    }
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-image me-2"></i>Category Image
+            </label>
+            <input
+              type="file"
+              id="categoryImage"
+              class="form-control"
+              accept="image/*"
+            >
+            <small class="text-muted d-block mt-1">
+              Leave empty to keep the current image.
+            </small>
 
-    // Append the modal to the body
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+            ${category.filename ? `
+            <div class="mt-3 text-center">
+              <p class="mb-2">Current Image:</p>
+              <img
+                src="${config.API_BASE_URL}/uploads/${category.filename}"
+                alt="${category.category_title}"
+                class="img-thumbnail"
+                style="max-height: 100px"
+              />
+            </div>
+            ` : ''}
+          </div>
+        </form>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Save Changes",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#198754",
+      cancelButtonColor: "#6c757d",
+      didOpen: () => {
+        // Add event listener for file input
+        document.getElementById("categoryImage").addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              // Create or update image preview
+              let previewContainer = document.getElementById("imagePreviewContainer");
 
-    // Initialize the modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
-    modal.show();
+              if (!previewContainer) {
+                previewContainer = document.createElement("div");
+                previewContainer.id = "imagePreviewContainer";
+                previewContainer.className = "mt-3 text-center";
+                document.getElementById("categoryImage").parentNode.appendChild(previewContainer);
+              }
 
-    // Preview image when selected
-    const editCategoryImageInput = document.getElementById('editCategoryImage');
-    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-    const editImagePreview = document.getElementById('editImagePreview');
-
-    editCategoryImageInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          editImagePreview.src = reader.result;
-          imagePreviewContainer.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-      } else {
-        imagePreviewContainer.style.display = 'none';
-      }
-    });
-
-    // Handle form submission
-    const saveEditButton = document.getElementById('saveEditButton');
-    saveEditButton.addEventListener('click', async () => {
-      const titleInput = document.getElementById('editCategoryTitle');
-      const imageInput = document.getElementById('editCategoryImage');
-
-      if (!titleInput.value.trim()) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Category title is required',
-        });
-        return;
-      }
-
-      try {
-        // Create FormData for file upload
-        const formData = new FormData();
-        formData.append('category_title', titleInput.value.trim());
-
-        // Add file if selected
-        if (imageInput.files.length > 0) {
-          formData.append('file', imageInput.files[0]);
-        }
-
-        // Show loading state
-        saveEditButton.disabled = true;
-        saveEditButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
-
-        // Send API request
-        const response = await axios.put(
-          `${config.API_BASE_URL}/course_catergory/update_course_category/${category.id}`,
-          formData,
-          {
-            headers: {
-              'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
-              'X-EMP-ID': localStorage.getItem('X-EMP-ID'),
-              'Content-Type': 'multipart/form-data',
-            },
+              previewContainer.innerHTML = `
+                <p class="mb-2">New Image Preview:</p>
+                <img
+                  src="${e.target.result}"
+                  alt="Preview"
+                  class="img-thumbnail"
+                  style="max-height: 100px"
+                />
+              `;
+            };
+            reader.readAsDataURL(file);
           }
-        );
-
-        // Close the modal
-        modal.hide();
-
-        if (response.data.success) {
-          Swal.fire({
-            icon: 'success',
-            title: 'Success',
-            text: 'Category updated successfully',
-            timer: 1500,
-            showConfirmButton: false,
-          });
-          fetchCategories();
-        }
-      } catch (error) {
-        console.error('Update Category Error:', error);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: error.response?.data?.error || 'Failed to update category',
         });
+      },
+      preConfirm: () => {
+        const categoryTitle = document.getElementById("categoryTitle").value;
+        const categoryImageInput = document.getElementById("categoryImage");
+        const file = categoryImageInput.files[0];
+
+        if (!categoryTitle.trim()) {
+          Swal.showValidationMessage("Category title is required");
+          return false;
+        }
+
+        return {
+          category_title: categoryTitle,
+          file: file
+        };
+      },
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        // Show loading state
+        Swal.fire({
+          title: 'Saving...',
+          text: 'Please wait',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        try {
+          // Create FormData for file upload
+          const formData = new FormData();
+          formData.append('category_title', result.value.category_title.trim());
+
+          // Add file if selected
+          if (result.value.file) {
+            formData.append('file', result.value.file);
+          }
+
+          // Send API request
+          const response = await axios.put(
+            `${config.API_BASE_URL}/course_catergory/update_course_category/${category.id}`,
+            formData,
+            {
+              headers: {
+                'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
+                'X-EMP-ID': localStorage.getItem('X-EMP-ID'),
+                // Don't manually set Content-Type with FormData
+              },
+              timeout: 30000
+            }
+          );
+
+          if (response.data.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'Success',
+              text: 'Category updated successfully',
+              timer: 1500,
+              showConfirmButton: false,
+            });
+            fetchCategories();
+          }
+        } catch (error) {
+          console.error('Update Category Error:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.response?.data?.error || 'Failed to update category',
+          });
+        }
       }
     });
   }

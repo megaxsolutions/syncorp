@@ -42,14 +42,41 @@ export default function AttendanceIncentives() {
   // Initialize data on component mount
   useEffect(() => {
     const initializeData = async () => {
+      setIsLoading(true);
       await fetchSupervisorInfo();
-      await fetchEmployees();
-      await fetchCutOffPeriods();
+      await fetchCutOffPeriods(); // This now auto-selects the most recent cutoff
       await fetchIncentives();
+      setIsLoading(false);
     };
 
     initializeData();
   }, []);
+
+  // Add a new useEffect to fetch eligible employees when cutoff changes
+  useEffect(() => {
+    const loadEligibleEmployees = async () => {
+      if (cutOff?.value) {
+        const eligibleEmployees = await fetchEligibleEmployees(cutOff.value);
+        setEmployees(eligibleEmployees);
+        setFilteredEmployees(eligibleEmployees);
+        setSelectedEmployees([]); // Reset selected employees when cutoff changes
+      } else {
+        setEmployees([]);
+        setFilteredEmployees([]);
+        setSelectedEmployees([]);
+      }
+    };
+
+    loadEligibleEmployees();
+  }, [cutOff]);
+
+  // Add a useEffect to set the incentive amount when employees are selected
+  useEffect(() => {
+    if (selectedEmployees.length > 0) {
+      // Use the amount from the first selected employee (should be the same for all)
+      setIncentiveAmount(selectedEmployees[0].amount?.toString() || '2000');
+    }
+  }, [selectedEmployees]);
 
   // Filter employees when search term changes
   useEffect(() => {
@@ -116,6 +143,16 @@ export default function AttendanceIncentives() {
         }));
 
         setCutOffOptions(options);
+
+        // Auto-select the most recent cutoff period (typically the last one in the list)
+        if (options.length > 0) {
+          // Find the most recent cutoff (typically the last one in the sorted list)
+          const mostRecentCutoff = options.sort((a, b) =>
+            moment(b.endDate).diff(moment(a.endDate))
+          )[0];
+
+          setCutOff(mostRecentCutoff);
+        }
       } else {
         console.warn("Cut-off periods not found in response data");
         setCutOffOptions([]);
@@ -130,44 +167,18 @@ export default function AttendanceIncentives() {
   };
 
   const fetchEmployees = async () => {
-    try {
-      const supervisorEmpId = localStorage.getItem("X-EMP-ID");
-      setIsLoading(true);
-      const response = await axios.get(
-        `${config.API_BASE_URL}/employees/get_all_employee_supervisor/${supervisorEmpId}`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-          },
-        }
-      );
-
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        const filteredEmployees = response.data.data
-          .filter(emp => emp.emp_ID && emp.fName && emp.lName && emp.employee_status === 'Active')
-          .map(emp => ({
-            empId: emp.emp_ID,
-            name: `${emp.fName || ''} ${emp.mName ? emp.mName[0] + '. ' : ''}${emp.lName || ''}`.trim(),
-            position: emp.position || 'N/A',
-            department: emp.department || 'N/A',
-            checked: false
-          }));
-
-        setEmployees(filteredEmployees);
-        setFilteredEmployees(filteredEmployees);
-      } else {
-        console.warn("No employee data found or invalid format");
-        setEmployees([]);
-        setFilteredEmployees([]);
-      }
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-      setError("Failed to load employees");
-      setEmployees([]);
-      setFilteredEmployees([]);
-    } finally {
-      setIsLoading(false);
+    if (cutOff?.value) {
+      const eligibleEmployees = await fetchEligibleEmployees(cutOff.value);
+      setEmployees(eligibleEmployees);
+      setFilteredEmployees(eligibleEmployees);
+    } else {
+      // If no cutoff is selected, show a message
+      Swal.fire({
+        icon: 'info',
+        title: 'Select a Cut-Off Period',
+        text: 'Please select a cut-off period first to view eligible employees.',
+        confirmButtonColor: '#3085d6'
+      });
     }
   };
 
@@ -192,6 +203,51 @@ export default function AttendanceIncentives() {
       }
     } catch (error) {
       console.error("Error fetching incentives:", error);
+    }
+  };
+
+  const fetchEligibleEmployees = async (cutOffId) => {
+    try {
+      // First check if there's a cutoff selected
+      if (!cutOffId) {
+        return [];
+      }
+
+      const supervisorEmpId = localStorage.getItem("X-EMP-ID");
+      setIsLoading(true);
+
+      const response = await axios.get(
+        `${config.API_BASE_URL}/eligible_att_incentives/get_all_eligible_att_incentive_supervisor/${cutOffId}/${supervisorEmpId}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": supervisorEmpId,
+          },
+        }
+      );
+
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        const eligibleEmployees = response.data.data.map(emp => ({
+          empId: emp.emp_ID,
+          name: emp.employee_fullname,
+          position: emp.position || 'N/A',
+          department: emp.department || 'N/A',
+          amount: emp.amount,
+          cutoffPeriod: emp.cutoff_period,
+          checked: false
+        }));
+
+        return eligibleEmployees;
+      } else {
+        console.warn("No eligible employee data found or invalid format");
+        return [];
+      }
+    } catch (error) {
+      console.error("Error fetching eligible employees:", error);
+      setError("Failed to load eligible employees");
+      return [];
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -344,7 +400,7 @@ export default function AttendanceIncentives() {
             `${config.API_BASE_URL}/attendance_incentives/add_att_incentive`,
             {
               emp_id: employee.empId,
-              amount: incentiveAmount,
+              amount: incentiveAmount || employee.amount || 2000, // Use the employee's amount if available
               cutoff_id: cutOff.value,
               status: "Approved",
               supervisor_emp_id: supervisor_emp_id
@@ -468,6 +524,20 @@ export default function AttendanceIncentives() {
                     </button>
                   </h5>
 
+                  {cutOff && (
+                    <div className="alert alert-info d-flex align-items-center mb-4" role="alert">
+                      <i className="bi bi-info-circle-fill me-2"></i>
+                      <div>
+                        <strong>Currently showing:</strong> Eligible employees for incentives during the cut-off period: {cutOff.label}
+                        {employees.length === 0 && !isLoading && (
+                          <span className="d-block mt-1">
+                            No eligible employees found. All employees may have attendance issues for this period.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {error && (
                     <div className="alert alert-danger d-flex align-items-center" role="alert">
                       <i className="bi bi-exclamation-triangle-fill me-2"></i>
@@ -571,7 +641,13 @@ export default function AttendanceIncentives() {
                             <tr>
                               <td colSpan="5" className="text-center py-4 text-muted">
                                 <i className="bi bi-people fs-2 d-block mb-2"></i>
-                                No employees found
+                                {isLoading ? (
+                                  <>Loading eligible employees...</>
+                                ) : !cutOff ? (
+                                  <>No cut-off period available. Please contact an administrator.</>
+                                ) : (
+                                  <>No eligible employees found for this cut-off period. All employees may have attendance issues.</>
+                                )}
                               </td>
                             </tr>
                           ) : (
@@ -749,9 +825,20 @@ export default function AttendanceIncentives() {
                                 placeholder="0.00"
                                 step="0.01"
                                 min="0"
+                                readOnly={selectedEmployees.length > 0}
                               />
+                              {selectedEmployees.length > 0 && (
+                                <span className="input-group-text bg-light text-muted">
+                                  <i className="bi bi-lock-fill"></i>
+                                </span>
+                              )}
                             </div>
                             {amountError && <small className="text-danger">{amountError}</small>}
+                            {selectedEmployees.length > 0 && (
+                              <small className="text-muted">
+                                Standard incentive amount for eligible employees
+                              </small>
+                            )}
                           </div>
                           <div className="col-md-3 d-flex align-items-end">
                             <div className="d-grid gap-2 w-100">

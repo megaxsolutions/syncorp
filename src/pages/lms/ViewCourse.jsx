@@ -25,7 +25,8 @@ const MOCK_VIDEOS = [
     video_description: "Learn the basics of HTML structure, tags, and elements. This introductory lesson covers everything you need to know to start building your first web page.",
     video_url: "https://www.youtube.com/embed/qz0aGYrrlhU",
     duration: "15:30",
-    sequence: 1
+    sequence: 1,
+    type: "video"
   },
   {
     id: 2,
@@ -34,7 +35,18 @@ const MOCK_VIDEOS = [
     video_description: "Discover how to style your HTML pages with CSS. This lesson covers selectors, properties, values, and how to create beautiful layouts.",
     video_url: "https://www.youtube.com/embed/1PnVor36_40",
     duration: "20:45",
-    sequence: 2
+    sequence: 2,
+    type: "video"
+  },
+  {
+    id: 5, // Added PDF material
+    course_id: 1,
+    video_title: "HTML Cheat Sheet",
+    video_description: "A comprehensive reference guide for HTML elements, attributes, and best practices. Keep this handy while coding your web pages.",
+    pdf_url: "https://websitesetup.org/wp-content/uploads/2019/08/HTML-CHEAT-SHEET.pdf",
+    duration: "5 pages",
+    sequence: 3,
+    type: "pdf"
   },
   {
     id: 3,
@@ -43,7 +55,18 @@ const MOCK_VIDEOS = [
     video_description: "Learn the fundamentals of JavaScript programming. This lesson covers variables, data types, functions, and basic DOM manipulation.",
     video_url: "https://www.youtube.com/embed/W6NZfCO5SIk",
     duration: "25:10",
-    sequence: 3
+    sequence: 4,
+    type: "video"
+  },
+  {
+    id: 6, // Added PDF material
+    course_id: 1,
+    video_title: "CSS Reference Guide",
+    video_description: "Complete reference for CSS properties and values. This document includes examples and common use cases for styling elements.",
+    pdf_url: "https://websitesetup.org/wp-content/uploads/2019/08/CSS-CHEAT-SHEET.pdf",
+    duration: "6 pages",
+    sequence: 5,
+    type: "pdf"
   },
   {
     id: 4,
@@ -52,7 +75,8 @@ const MOCK_VIDEOS = [
     video_description: "Put everything together by building a complete small web project. Apply your HTML, CSS, and JavaScript knowledge in a practical example.",
     video_url: "https://www.youtube.com/embed/PkZNo7MFNFg",
     duration: "30:00",
-    sequence: 4
+    sequence: 6,
+    type: "video"
   }
 ];
 
@@ -93,7 +117,7 @@ const ViewCourse = () => {
   const [course, setCourse] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [videos, setVideos] = useState([]);
-  const [currentVideo, setCurrentVideo] = useState(null);
+  const [currentItem, setCurrentItem] = useState(null);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quiz, setQuiz] = useState(null);
   const [userAnswers, setUserAnswers] = useState({});
@@ -106,7 +130,7 @@ const ViewCourse = () => {
     const timer = setTimeout(() => {
       setCourse(MOCK_COURSE);
       setVideos(MOCK_VIDEOS);
-      setCurrentVideo(MOCK_VIDEOS[0]);
+      setCurrentItem(MOCK_VIDEOS[0]);
       setQuiz(MOCK_QUIZ);
       setIsLoading(false);
     }, 1000);
@@ -114,15 +138,15 @@ const ViewCourse = () => {
     return () => clearTimeout(timer);
   }, [courseId]);
 
-  const handleVideoSelect = (video) => {
-    setCurrentVideo(video);
+  const handleContentSelect = (item) => {
+    setCurrentItem(item);
     // Track progress in localStorage for demo purposes
     const progress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
     if (!progress[courseId]) {
       progress[courseId] = { watched: [] };
     }
-    if (!progress[courseId].watched.includes(video.id)) {
-      progress[courseId].watched.push(video.id);
+    if (!progress[courseId].watched.includes(item.id)) {
+      progress[courseId].watched.push(item.id);
       localStorage.setItem('courseProgress', JSON.stringify(progress));
     }
   };
@@ -198,8 +222,6 @@ const ViewCourse = () => {
     <>
       <LmsNavbar />
 
-
-
       {/* Course Content Start */}
       <div className="container-xxl py-5">
         <div className="container">
@@ -212,29 +234,75 @@ const ViewCourse = () => {
           ) : course ? (
             <div className="row g-4">
               <div className="col-lg-8">
-                {/* Video Player */}
+                {/* Content Player - Displays Video or PDF based on current item */}
                 <div className="mb-4 rounded overflow-hidden shadow">
-                  {currentVideo ? (
-                    <div className="ratio ratio-16x9">
-                      <iframe
-                        src={currentVideo.video_url}
-                        title={currentVideo.video_title}
-                        allowFullScreen
-                        className="border-0"
-                      ></iframe>
-                    </div>
+                  {currentItem ? (
+                    currentItem.type === "video" ? (
+                      <div className="ratio ratio-16x9">
+                        <iframe
+                          src={currentItem.video_url}
+                          title={currentItem.video_title}
+                          allowFullScreen
+                          className="border-0"
+                        ></iframe>
+                      </div>
+                    ) : (
+                      <div className="ratio ratio-16x9">
+                        <object
+                          data={`${currentItem.pdf_url}#zoom=100&view=FitH`}
+                          type="application/pdf"
+                          className="w-100 h-100"
+                        >
+                          <p className="text-center p-5">
+                            Your browser does not support PDF viewing.
+                            <a
+                              href={currentItem.pdf_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-sm btn-primary ms-2"
+                            >
+                              <i className="fa fa-download me-1"></i> Download PDF
+                            </a>
+                          </p>
+                        </object>
+                      </div>
+                    )
                   ) : (
                     <div className="bg-light text-center p-5">
-                      <h5>No videos available for this course</h5>
+                      <h5>No content available for this course</h5>
                       <p>Please check back later or contact the administrator.</p>
                     </div>
                   )}
                 </div>
 
-                {/* Video Title and Description */}
+                {/* Content Title and Description */}
                 <div className="bg-light p-4 mb-4 rounded shadow">
-                  <h3 className="mb-3">{currentVideo ? currentVideo.video_title : 'Video Not Available'}</h3>
-                  <p>{currentVideo ? currentVideo.video_description || 'No description available.' : ''}</p>
+                  <div className="d-flex align-items-center mb-3">
+                    {currentItem && (
+                      <span className={`badge me-2 ${currentItem.type === "video" ? "bg-primary" : "bg-success"}`}>
+                        {currentItem.type === "video" ? (
+                          <i className="fa fa-video me-1"></i>
+                        ) : (
+                          <i className="fa fa-file-pdf me-1"></i>
+                        )}
+                        {currentItem.type === "video" ? "Video" : "PDF"}
+                      </span>
+                    )}
+                    <h3 className="mb-0">{currentItem ? currentItem.video_title : 'Content Not Available'}</h3>
+                  </div>
+                  <p>{currentItem ? currentItem.video_description || 'No description available.' : ''}</p>
+                  {currentItem && currentItem.type === "pdf" && (
+                    <div className="mt-3">
+                      <a
+                        href={currentItem.pdf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-sm btn-outline-primary"
+                      >
+                        <i className="fa fa-download me-1"></i> Download PDF
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 {/* Course Details */}
@@ -257,7 +325,7 @@ const ViewCourse = () => {
                       </div>
                     </div>
                     <small className="text-muted mt-2 d-block">
-                      You have completed {progress.count} of {videos.length} lessons
+                      You have completed {progress.count} of {videos.length} items
                       {quiz && (
                         <>
                           {progress.quizCompleted ?
@@ -514,31 +582,46 @@ const ViewCourse = () => {
                     <img src={courseImg} alt={course.course_title} className="img-fluid rounded" />
                   </div>
                   <p className="mb-2"><i className="fa fa-calendar-alt me-2"></i>Added: {new Date(course.date_added).toLocaleDateString()}</p>
-                  <p className="mb-0"><i className="fa fa-video me-2"></i>{videos.length} Video Lessons</p>
+                  <p className="mb-0">
+                    <i className="fa fa-list-ul me-2"></i>
+                    {videos.filter(item => item.type === "video").length} Videos,
+                    {" "}{videos.filter(item => item.type === "pdf").length} PDFs
+                  </p>
                 </div>
 
-                {/* Video List */}
+                {/* Course Content List - Updated to show icons for content type */}
                 <div className="bg-light p-4 rounded shadow">
                   <h4 className="mb-3">Course Content</h4>
                   <div className="list-group">
                     {videos.length > 0 ? (
-                      videos.map((video, index) => (
+                      videos.map((item, index) => (
                         <button
-                          key={video.id}
+                          key={item.id}
                           type="button"
-                          className={`list-group-item list-group-item-action ${currentVideo && currentVideo.id === video.id ? 'active' : ''}`}
-                          onClick={() => handleVideoSelect(video)}
+                          className={`list-group-item list-group-item-action ${currentItem && currentItem.id === item.id ? 'active' : ''}`}
+                          onClick={() => handleContentSelect(item)}
                         >
                           <div className="d-flex w-100 justify-content-between">
-                            <h5 className="mb-1">{index + 1}. {video.video_title}</h5>
-                            <small>{video.duration}</small>
+                            <h5 className="mb-1">
+                              {index + 1}.{" "}
+                              {item.type === "video" ? (
+                                <i className="fa fa-video me-2"></i>
+                              ) : (
+                                <i className="fa fa-file-pdf me-2"></i>
+                              )}
+                              {item.video_title}
+                            </h5>
+                            <small>{item.duration}</small>
                           </div>
-                          <small>{video.video_description?.substring(0, 60)}...</small>
+                          <small>{item.video_description?.substring(0, 60)}...</small>
+                          {item.type === "pdf" && (
+                            <span className="badge bg-success ms-2">PDF</span>
+                          )}
                         </button>
                       ))
                     ) : (
                       <div className="text-center py-3">
-                        <p>No videos available for this course.</p>
+                        <p>No content available for this course.</p>
                       </div>
                     )}
                   </div>
