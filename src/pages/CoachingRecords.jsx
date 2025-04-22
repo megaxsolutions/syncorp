@@ -5,6 +5,8 @@ import Navbar from "../components/Navbar"
 import Sidebar from "../components/Sidebar"
 import config from "../config";
 import axios from "axios";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // Mock config for the example
 
@@ -45,7 +47,6 @@ const CoachingRecords = () => {
 const fetchCoachingRecords = async () => {
   setIsLoading(true);
   try {
-    // Use the real API endpoint instead of mock data
     const token = localStorage.getItem("X-JWT-TOKEN");
     const emp_id = localStorage.getItem("X-EMP-ID");
 
@@ -68,28 +69,41 @@ const fetchCoachingRecords = async () => {
         // Log the raw record to see what fields are available
         console.log("Raw record from API:", record);
 
-        // Extract the employee ID from the record with the correct case
-        // In your database it's emp_ID, so check for this first
-        const employeeID = record.emp_ID || record.emp_id || record.employeeID || record.employee_id || "unknown";
-
         return {
           id: record.id,
-          employeeID: employeeID, // Make sure this matches the format in your employees object
-          coachingDate: record.coaching_date,
-          coachingType: String(record.coaching_type), // Convert to string
-          coachingNotes: record.coaching_notes || "",
-          actionItems: record.action_items || "",
+          emp_ID: record.emp_ID,
+          coached_by: record.coached_by,
+          date_coached: record.date_coached,
+          coaching_type: String(record.coaching_type), // Convert to string
+          coaching_goal: record.coaching_goal || "",
+          behavior: record.behavior || "",
+          root_cause: record.root_cause || "",
+          coachees_action_plan: record.coachees_action_plan || "",
+          coachs_action_plan: record.coachs_action_plan || "",
+          glidepath: record.glidepath || "",
+          stop: record.stop || "",
+          start: record.start || "",
+          continue_: record.continue_ || "",
+          follow_up_date: record.follow_up_date,
+          employee_fullname: record.employee_fullname || "",
+          coach_fullname: record.coach_fullname || "",
+          employee_signature: record.employee_signature || null,
+          coach_signature: record.coach_signature || null,
+          acknowledge_datetime: record.acknowledge_datetime || null,
+          // For backward compatibility with current code
+          employeeID: record.emp_ID,
+          coachingDate: record.date_coached,
+          coachingType: String(record.coaching_type),
           followUpDate: record.follow_up_date,
-          status: record.status || "pending", // Default to pending if status is null
+          status: record.acknowledge_datetime ? "completed" : "pending",
         };
       });
 
       console.log("Formatted coaching records:", formattedData); // Debug all records
-      console.log("First few employee IDs:", formattedData.slice(0, 5).map(r => r.employeeID)); // Debug first few IDs
 
       // Sort by coaching date in descending order
       const sortedData = formattedData.sort((a, b) => {
-        return moment(b.coachingDate).valueOf() - moment(a.coachingDate).valueOf();
+        return moment(b.date_coached).valueOf() - moment(a.date_coached).valueOf();
       });
 
       setCoachingRecords(sortedData);
@@ -393,44 +407,191 @@ const fetchCoachingTypes = async () => {
   }
 
   const downloadCoachingRecord = (record) => {
-    // In a real app, this would generate a PDF or other document format
-    // For this example, we'll just create a text representation
-    const content = `
-Coaching Record
---------------
-Employee: ${employees[record.employeeID]?.fullName || "Unknown"} (${record.employeeID})
-Date: ${moment(record.coachingDate).format("MMMM D, YYYY")}
-Type: ${getCoachingTypeLabel(record.coachingType)}
-Status: ${record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+  try {
+    // Create a new PDF document
+    const doc = new jsPDF();
 
-Notes:
-${record.coachingNotes}
+    // Add company logo (if available) - you can customize this path
+    // doc.addImage('/src/assets/img/logo.png', 'PNG', 15, 10, 30, 15);
 
-Action Items:
-${record.actionItems}
+    // Set document title
+    doc.setFontSize(18);
+    doc.setTextColor(41, 84, 163); // Use a corporate blue color
+    doc.text('COACHING RECORD', 105, 20, { align: 'center' });
 
-Follow-up Date: ${moment(record.followUpDate).format("MMMM D, YYYY")}
-    `
+    // Set subtitle with coaching type
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Coaching Type: ${getCoachingTypeLabel(record.coaching_type || record.coachingType)}`, 105, 30, { align: 'center' });
 
-    // Create a blob and download it
-    const blob = new Blob([content], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `coaching-record-${record.employeeID}-${record.id}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    // Initial Y position for content
+    let currentY = 40;
+
+    // Add coaching information table
+    doc.setFontSize(12);
+    doc.text('COACHING INFORMATION', 15, currentY);
+    currentY += 5;
+
+    // Use the autoTable plugin
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Field', 'Value']],
+      body: [
+        ['Employee', `${record.employee_fullname || employees[record.emp_ID]?.fullName || "Unknown"} (${record.emp_ID || record.employeeID})`],
+        ['Coach', `${record.coach_fullname || "Unknown"} (${record.coached_by || "N/A"})`],
+        ['Date Coached', moment(record.date_coached || record.coachingDate).format("MMMM D, YYYY")],
+        ['Follow-up Date', moment(record.follow_up_date || record.followUpDate).format("MMMM D, YYYY")],
+        ['Acknowledgement Date', record.acknowledge_datetime ? moment(record.acknowledge_datetime).format("MMMM D, YYYY h:mm A") : 'Pending']
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 10;
+
+    // Add SYNC method sections
+
+    // S - Setting Objectives
+    doc.text('SETTING OBJECTIVES', 15, currentY);
+    currentY += 5;
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Coaching Goal']],
+      body: [[record.coaching_goal || "No coaching goal specified"]],
+      theme: 'striped',
+      headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 10;
+
+    // Y - Yield Insights
+    doc.text('YIELD INSIGHTS', 15, currentY);
+    currentY += 5;
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Behavior', 'Root Cause']],
+      body: [[
+        record.behavior || 'Not specified',
+        record.root_cause || 'Not specified'
+      ]],
+      theme: 'striped',
+      headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 10;
+
+    // N - Navigate Action
+    doc.text('NAVIGATE ACTION', 15, currentY);
+    currentY += 5;
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Coachee Action Plan', 'Coach Action Plan']],
+      body: [[
+        record.coachees_action_plan || 'Not provided',
+        record.coachs_action_plan || 'Not provided'
+      ]],
+      theme: 'striped',
+      headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 10;
+
+    // C - Course Correct
+    doc.text('COURSE CORRECT', 15, currentY);
+    currentY += 5;
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Glidepath']],
+      body: [[record.glidepath || 'Not provided']],
+      theme: 'striped',
+      headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 10;
+
+    // Add Stop, Start, Continue table
+    autoTable(doc, {
+      startY: currentY,
+      head: [['STOP', 'START', 'CONTINUE']],
+      body: [[
+        record.stop || 'Not specified',
+        record.start || 'Not specified',
+        record.continue_ || 'Not specified'
+      ]],
+      theme: 'striped',
+      headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 15;
+
+    // Add signatures section
+    if (record.employee_signature || record.coach_signature) {
+      doc.text('SIGNATURES', 15, currentY);
+      currentY += 5;
+
+      // Signature information
+      doc.setFontSize(10);
+
+      // Employee signature
+      doc.text('Employee Signature:', 30, currentY + 25);
+      if (record.employee_signature) {
+        // You'd need to implement a function to properly format the image path
+        // doc.addImage(`${config.API_BASE_URL}/uploads/${record.employee_signature}`, 'PNG', 30, currentY, 60, 20);
+        doc.text('(Digitally signed)', 30, currentY + 35);
+      } else {
+        doc.text('Not signed', 30, currentY + 35);
+      }
+
+      // Coach signature
+      doc.text('Coach Signature:', 120, currentY + 25);
+      if (record.coach_signature) {
+        // You'd need to implement a function to properly format the image path
+        // doc.addImage(`${config.API_BASE_URL}/uploads/${record.coach_signature}`, 'PNG', 120, currentY, 60, 20);
+        doc.text('(Digitally signed)', 120, currentY + 35);
+      } else {
+        doc.text('Not signed', 120, currentY + 35);
+      }
+
+      currentY += 40;
+    }
+
+    // Add footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        `Generated on ${new Date().toLocaleString()} - Page ${i} of ${pageCount}`,
+        doc.internal.pageSize.width / 2,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Save the PDF
+    doc.save(`Coaching_Record_${record.emp_ID || record.employeeID}_${record.id}.pdf`);
 
     Swal.fire({
       icon: "success",
       title: "Success",
-      text: "Coaching record downloaded successfully",
+      text: "Coaching record PDF downloaded successfully",
       timer: 1500,
       showConfirmButton: false,
-    })
+    });
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Failed to generate PDF",
+    });
   }
+};
 
   // Update the getCoachingTypeLabel function to handle potential issues
 const getCoachingTypeLabel = (type) => {
@@ -843,17 +1004,20 @@ const getCoachingTypeLabel = (type) => {
                           <div className="card-body">
                             <h6 className="card-subtitle mb-2 text-muted">Employee</h6>
                             <h5 className="card-title">
-                              {employees[viewRecord.employeeID]?.fullName || viewRecord.fullName}
+                              {viewRecord.employee_fullname || employees[viewRecord.emp_ID]?.fullName || "Unknown"}
                             </h5>
-                            <p className="card-text text-muted">ID: {viewRecord.employeeID}</p>
+                            <p className="card-text text-muted">ID: {viewRecord.emp_ID || viewRecord.employeeID}</p>
                           </div>
                         </div>
                       </div>
                       <div className="col-md-6">
                         <div className="card border-0 bg-light">
                           <div className="card-body">
-                            <h6 className="card-subtitle mb-2 text-muted">Status</h6>
-                            <div className="mt-1">{getStatusBadge(viewRecord.status)}</div>
+                            <h6 className="card-subtitle mb-2 text-muted">Coach</h6>
+                            <h5 className="card-title">
+                              {viewRecord.coach_fullname || "Unknown"}
+                            </h5>
+                            <p className="card-text text-muted">ID: {viewRecord.coached_by || "N/A"}</p>
                           </div>
                         </div>
                       </div>
@@ -862,7 +1026,7 @@ const getCoachingTypeLabel = (type) => {
                         <div className="card border-0 bg-light">
                           <div className="card-body">
                             <h6 className="card-subtitle mb-2 text-muted">Coaching Date</h6>
-                            <p className="card-text">{moment(viewRecord.coachingDate).format("MMMM D, YYYY")}</p>
+                            <p className="card-text">{moment(viewRecord.date_coached || viewRecord.coachingDate).format("MMMM D, YYYY")}</p>
                           </div>
                         </div>
                       </div>
@@ -870,7 +1034,7 @@ const getCoachingTypeLabel = (type) => {
                         <div className="card border-0 bg-light">
                           <div className="card-body">
                             <h6 className="card-subtitle mb-2 text-muted">Coaching Type</h6>
-                            <p className="card-text">{getCoachingTypeLabel(viewRecord.coachingType)}</p>
+                            <p className="card-text">{getCoachingTypeLabel(viewRecord.coaching_type || viewRecord.coachingType)}</p>
                           </div>
                         </div>
                       </div>
@@ -878,11 +1042,132 @@ const getCoachingTypeLabel = (type) => {
                         <div className="card border-0 bg-light">
                           <div className="card-body">
                             <h6 className="card-subtitle mb-2 text-muted">Follow-up Date</h6>
-                            <p className="card-text">{moment(viewRecord.followUpDate).format("MMMM D, YYYY")}</p>
+                            <p className="card-text">{moment(viewRecord.follow_up_date || viewRecord.followUpDate).format("MMMM D, YYYY")}</p>
                           </div>
                         </div>
                       </div>
 
+                      <div className="col-12">
+                        <div className="card border-0 bg-light">
+                          <div className="card-body">
+                            <h6 className="card-subtitle mb-2 text-muted">Coaching Goal</h6>
+                            <p className="card-text">{viewRecord.coaching_goal || "No coaching goal specified"}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-6">
+                        <div className="card border-0 bg-light">
+                          <div className="card-body">
+                            <h6 className="card-subtitle mb-2 text-muted">Behavior</h6>
+                            <p className="card-text">{viewRecord.behavior || "Not specified"}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-md-6">
+                        <div className="card border-0 bg-light">
+                          <div className="card-body">
+                            <h6 className="card-subtitle mb-2 text-muted">Root Cause</h6>
+                            <p className="card-text">{viewRecord.root_cause || "Not specified"}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-6">
+                        <div className="card border-0 bg-light">
+                          <div className="card-body">
+                            <h6 className="card-subtitle mb-2 text-muted">Coachee's Action Plan</h6>
+                            <p className="card-text">{viewRecord.coachees_action_plan || "No action plan specified"}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-md-6">
+                        <div className="card border-0 bg-light">
+                          <div className="card-body">
+                            <h6 className="card-subtitle mb-2 text-muted">Coach's Action Plan</h6>
+                            <p className="card-text">{viewRecord.coachs_action_plan || "No action plan specified"}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-12">
+                        <div className="card border-0 bg-light">
+                          <div className="card-body">
+                            <h6 className="card-subtitle mb-2 text-muted">Glidepath</h6>
+                            <p className="card-text">{viewRecord.glidepath || "Not specified"}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-4">
+                        <div className="card border-0 bg-light">
+                          <div className="card-body">
+                            <h6 className="card-subtitle mb-2 text-muted">Stop</h6>
+                            <p className="card-text">{viewRecord.stop || "Not specified"}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <div className="card border-0 bg-light">
+                          <div className="card-body">
+                            <h6 className="card-subtitle mb-2 text-muted">Start</h6>
+                            <p className="card-text">{viewRecord.start || "Not specified"}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <div className="card border-0 bg-light">
+                          <div className="card-body">
+                            <h6 className="card-subtitle mb-2 text-muted">Continue</h6>
+                            <p className="card-text">{viewRecord.continue_ || "Not specified"}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {viewRecord.acknowledge_datetime && (
+                        <div className="col-12">
+                          <div className="card border-0 bg-light">
+                            <div className="card-body">
+                              <h6 className="card-subtitle mb-2 text-muted">Acknowledged On</h6>
+                              <p className="card-text">{moment(viewRecord.acknowledge_datetime).format("MMMM D, YYYY h:mm A")}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {(viewRecord.employee_signature || viewRecord.coach_signature) && (
+                        <div className="col-12">
+                          <div className="card border-0 bg-light">
+                            <div className="card-body">
+                              <h6 className="card-subtitle mb-2 text-muted">Signatures</h6>
+                              <div className="row g-3 mt-1">
+                                {viewRecord.employee_signature && (
+                                  <div className="col-md-6">
+                                    <small className="d-block text-muted mb-1">Employee Signature</small>
+                                    <img
+                                      src={viewRecord.employee_signature}
+                                      alt="Employee Signature"
+                                      className="img-fluid border p-2"
+                                      style={{ maxHeight: "60px" }}
+                                    />
+                                  </div>
+                                )}
+                                {viewRecord.coach_signature && (
+                                  <div className="col-md-6">
+                                    <small className="d-block text-muted mb-1">Coach Signature</small>
+                                    <img
+                                      src={viewRecord.coach_signature}
+                                      alt="Coach Signature"
+                                      className="img-fluid border p-2"
+                                      style={{ maxHeight: "60px" }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

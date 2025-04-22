@@ -94,16 +94,11 @@ export const LmsNavbar = () => {
                        opacity: isDropdownOpen ? 1 : 0,
                        transform: isDropdownOpen ? "translateY(0)" : "translateY(-10px)"
                      }}>
-                  <Link to="/team" className="dropdown-item py-2">Our Team</Link>
-                  <Link to="/testimonials" className="dropdown-item py-2">Testimonials</Link>
-                  <Link to="/faqs" className="dropdown-item py-2">FAQs</Link>
+                  <Link to="/lms/resources/team" className="dropdown-item py-2">Our Team</Link>
+                  <Link to="/lms/resources/testimonial" className="dropdown-item py-2">Testimonials</Link>
                 </div>
               </div>
-              <Link to="/contact"
-                    className={`nav-item nav-link mx-2 ${activeLink === "contact" ? "active fw-bold" : ""}`}
-                    onClick={() => setActiveLink("contact")}>
-                Contact
-              </Link>
+
             </div>
 
           </div>

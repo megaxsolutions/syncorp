@@ -7,6 +7,8 @@ import config from '../../config';
 import { Toaster, toast } from 'sonner';
 import Swal from 'sweetalert2';
 import Modal from 'react-bootstrap/Modal';
+import { jsPDF } from 'jspdf'; // Keep as named import
+import autoTable from 'jspdf-autotable';
 
 const MyPerformance = () => {
   const [coachingRecords, setCoachingRecords] = useState([]);
@@ -385,16 +387,25 @@ const MyPerformance = () => {
         }
       );
 
+      // Find the record that was acknowledged
+      const acknowledgedRecord = coachingRecords.find(record => record.id === coachingId);
+
       Swal.fire({
         icon: 'success',
         title: 'Success',
         text: 'Coaching record acknowledged!',
-        timer: 2000,
-        showConfirmButton: false
+        showConfirmButton: true,
+        confirmButtonText: 'Download PDF',
+        showCancelButton: true,
+        cancelButtonText: 'Close',
+      }).then((result) => {
+        if (result.isConfirmed && acknowledgedRecord) {
+          // Generate PDF for the acknowledged record
+          generatePDF(acknowledgedRecord);
+        }
+        // Refresh the data
+        fetchCoachingRecords();
       });
-
-      // Refresh the data
-      fetchCoachingRecords();
     } catch (error) {
       console.error("Error acknowledging coaching record:", error);
       toast.error("Failed to acknowledge coaching record");
@@ -427,6 +438,184 @@ const MyPerformance = () => {
         return 'bg-danger';
       default:
         return 'bg-info';
+    }
+  };
+
+  // Function to generate PDF for acknowledged records
+  const generatePDF = (record) => {
+    try {
+      // Create a new PDF document
+      const doc = new jsPDF();
+
+      // Add company logo (if available) - you can customize this path
+      // doc.addImage('/src/assets/img/logo.png', 'PNG', 15, 10, 30, 15);
+
+      // Set document title
+      doc.setFontSize(18);
+      doc.setTextColor(41, 84, 163); // Use a corporate blue color
+      doc.text('COACHING RECORD', 105, 20, { align: 'center' });
+
+      // Set subtitle with coaching type
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Coaching Type: ${getCoachingTypeName(record.coachingType)}`, 105, 30, { align: 'center' });
+
+      // Initial Y position for content
+      let currentY = 40;
+
+      // Add coaching information table
+      doc.setFontSize(12);
+      doc.text('COACHING INFORMATION', 15, currentY);
+      currentY += 5;
+
+      // Use the autoTable plugin - call autoTable directly passing doc as first argument
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Field', 'Value']],
+        body: [
+          ['Employee', `${record.emp_ID}`],
+          ['Coach', record.reviewerName],
+          ['Date Coached', record.date],
+          ['Follow-up Date', record.followUpDate ? new Date(record.followUpDate).toLocaleDateString() : 'Not set'],
+          ['Acknowledgement Date', record.acknowledgedDate ? new Date(record.acknowledgedDate).toLocaleDateString() : 'Pending']
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 10;
+
+      // Add SYNC method sections
+
+      // S - Setting Objectives
+      doc.text('SETTING OBJECTIVES', 15, currentY);
+      currentY += 5;
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Coaching Goal']],
+        body: [[record.goal || 'No goal provided']],
+        theme: 'striped',
+        headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 10;
+
+      // Y - Yield Insights
+      doc.text('YIELD INSIGHTS', 15, currentY);
+      currentY += 5;
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Behavior', 'Root Cause']],
+        body: [[
+          record.behavior || 'Not provided',
+          record.rootCause || 'Not provided'
+        ]],
+        theme: 'striped',
+        headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 10;
+
+      // N - Navigate Action
+      doc.text('NAVIGATE ACTION', 15, currentY);
+      currentY += 5;
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Coachee Action Plan', 'Coach Action Plan']],
+        body: [[
+          record.coacheeActionPlan || 'Not provided',
+          record.coachActionPlan || 'Not provided'
+        ]],
+        theme: 'striped',
+        headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 10;
+
+      // C - Course Correct
+      doc.text('COURSE CORRECT', 15, currentY);
+      currentY += 5;
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Glidepath']],
+        body: [[record.glidepath || 'Not provided']],
+        theme: 'striped',
+        headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 10;
+
+      // Add Stop, Start, Continue table
+      autoTable(doc, {
+        startY: currentY,
+        head: [['STOP', 'START', 'CONTINUE']],
+        body: [[
+          record.stopDoing || 'Not specified',
+          record.startDoing || 'Not specified',
+          record.continueDoing || 'Not specified'
+        ]],
+        theme: 'striped',
+        headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 15;
+
+      // Add signatures section
+      if (record.employeeSignature || record.coachSignature) {
+        doc.text('SIGNATURES', 15, currentY);
+        currentY += 5;
+
+        // Signature information
+        doc.setFontSize(10);
+
+        // Employee signature
+        doc.text('Employee Signature:', 30, currentY + 25);
+        if (record.employeeSignature) {
+          // You'd need to implement a function to properly format the image path
+          // doc.addImage(`${config.API_BASE_URL}/uploads/${record.employeeSignature}`, 'PNG', 30, currentY, 60, 20);
+          doc.text('(Digitally signed)', 30, currentY + 35);
+        } else {
+          doc.text('Not signed', 30, currentY + 35);
+        }
+
+        // Coach signature
+        doc.text('Coach Signature:', 120, currentY + 25);
+        if (record.coachSignature) {
+          // You'd need to implement a function to properly format the image path
+          // doc.addImage(`${config.API_BASE_URL}/uploads/${record.coachSignature}`, 'PNG', 120, currentY, 60, 20);
+          doc.text('(Digitally signed)', 120, currentY + 35);
+        } else {
+          doc.text('Not signed', 120, currentY + 35);
+        }
+
+        currentY += 40;
+      }
+
+      // Add footer
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(
+          `Generated on ${new Date().toLocaleString()} - Page ${i} of ${pageCount}`,
+          doc.internal.pageSize.width / 2,
+          doc.internal.pageSize.height - 10,
+          { align: 'center' }
+        );
+      }
+
+      // Save the PDF
+      doc.save(`Coaching_Record_${record.id}_${record.date.replace(/\//g, '-')}.pdf`);
+
+      toast.success('PDF downloaded successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
     }
   };
 
@@ -847,6 +1036,15 @@ const MyPerformance = () => {
                   }}
                 >
                   <i className="bi bi-check-circle me-1"></i> Acknowledge
+                </button>
+              )}
+              {selectedRecord && selectedRecord.acknowledged && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => generatePDF(selectedRecord)}
+                >
+                  <i className="bi bi-file-earmark-pdf me-1"></i> Download PDF
                 </button>
               )}
               <button type="button" className="btn btn-secondary" onClick={() => setShowDetailsModal(false)}>Close</button>

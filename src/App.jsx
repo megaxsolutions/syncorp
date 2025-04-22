@@ -69,6 +69,8 @@ import IncidentReport from "./pages/Supervisor/IncidentReport";
 import ViewIncident from "./pages/ViewIncident";
 import Course from "./pages/lms/Course";
 import ViewCourse from "./pages/lms/ViewCourse";
+import Team from "./pages/lms/Team";
+import Testimonial from "./pages/lms/Testimonial";
 
 function App() {
   return (
@@ -117,6 +119,7 @@ function App() {
         <Route path="/lms/add-users" element={<AddUser />} />
         <Route path="/view-incident" element={<ViewIncident />} />
 
+
       </Route>
 
       {/* Employee Routes */}
@@ -135,6 +138,9 @@ function App() {
         <Route path="/lms/about" element={<About />} />
         <Route path="/lms/courses" element={<Course />} />
         <Route path="/lms/view-course/:courseId"element={<ViewCourse />} />
+        <Route path="/lms/resources/team" element={<Team />} />
+        <Route path="/lms/resources/testimonial" element={<Testimonial />} />
+
       </Route>
 
       <Route element={<SupervisorProtectedLayout />}>

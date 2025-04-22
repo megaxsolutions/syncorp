@@ -7,6 +7,8 @@ import SupervisorNavbar from '../../components/SupervisorNavbar';
 import Select from 'react-select';
 import moment from 'moment';
 import 'bootstrap'; // Import all Bootstrap JS modules
+import { jsPDF } from 'jspdf'; // Change to named import
+import autoTable from 'jspdf-autotable';
 
 function Coaching() {
   const tooltipElementsRef = useRef([]);
@@ -726,6 +728,191 @@ function Coaching() {
     return `/uploads/signatures/${cleanPath}`;
   };
 
+  // Add this function to your component
+  const generatePDF = (record) => {
+    try {
+      // Create a new PDF document
+      const doc = new jsPDF();
+
+      // Set document properties
+      doc.setProperties({
+        title: `Coaching Record - ${record.employee_fullname}`,
+        subject: `Coaching Type: ${coachingTypes.find(ct => ct.id === Number(record.coaching_type))?.coaching_type || 'Unknown'}`,
+        author: record.coach_fullname || 'Supervisor',
+        creator: 'SynCorp Coaching System'
+      });
+
+      // Add company logo/header
+      doc.setFontSize(20);
+      doc.setTextColor(41, 84, 163); // Blue color
+      doc.text('SynCorp Coaching Record', 105, 20, { align: 'center' });
+
+      // Add coaching metadata
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Coaching ID: ${record.id}`, 20, 35);
+      doc.text(`Date Coached: ${moment(record.date_coached).format('MMMM D, YYYY')}`, 20, 42);
+      doc.text(`Acknowledged: ${moment(record.acknowledge_datetime).format('MMMM D, YYYY')}`, 20, 49);
+
+      // Employee & Coach information
+      doc.setFontSize(14);
+      doc.setTextColor(41, 84, 163);
+      doc.text('Session Participants', 20, 60);
+
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Employee: ${record.employee_fullname} (ID: ${record.emp_id})`, 30, 70);
+      doc.text(`Coach: ${record.coach_fullname} (ID: ${record.coached_by})`, 30, 77);
+      doc.text(`Coaching Type: ${coachingTypes.find(ct => ct.id === Number(record.coaching_type))?.coaching_type || 'Unknown'}`, 30, 84);
+
+      // SINC Coaching Matrix section headers
+      const yStart = 100;
+      doc.setFontSize(14);
+      doc.setTextColor(41, 84, 163);
+      doc.text('SINC Coaching Matrix', 20, yStart);
+
+      // Matrix content sections
+      doc.setFontSize(12);
+
+      // S - Setting Objectives
+      doc.setTextColor(41, 84, 163);
+      doc.text('SETTING OBJECTIVES', 20, yStart + 15);
+      doc.setTextColor(0, 0, 0);
+      const goalLines = doc.splitTextToSize(`Coaching Goal: ${record.coaching_goal || 'N/A'}`, 170);
+      doc.text(goalLines, 20, yStart + 22);
+
+      // Y - Yield Insights
+      let currentY = yStart + 22 + (goalLines.length * 7);
+      doc.setTextColor(41, 84, 163);
+      doc.text('YIELD INSIGHTS', 20, currentY);
+      doc.setTextColor(0, 0, 0);
+
+      const behaviorLines = doc.splitTextToSize(`Behavior: ${record.behavior || 'N/A'}`, 170);
+      doc.text(behaviorLines, 20, currentY + 7);
+
+      currentY += (behaviorLines.length * 7) + 7;
+      const rootCauseLines = doc.splitTextToSize(`Root Cause: ${record.root_cause || 'N/A'}`, 170);
+      doc.text(rootCauseLines, 20, currentY);
+
+      // Check if we need a new page
+      if (currentY + (rootCauseLines.length * 7) + 20 > 280) {
+        doc.addPage();
+        currentY = 20;
+      } else {
+        currentY += (rootCauseLines.length * 7) + 10;
+      }
+
+      // N - Navigate Action
+      doc.setTextColor(41, 84, 163);
+      doc.text('NAVIGATE ACTION', 20, currentY);
+      doc.setTextColor(0, 0, 0);
+
+      const coacheeActionLines = doc.splitTextToSize(`Coachee's Action Plan: ${record.coachees_action_plan || 'N/A'}`, 170);
+      doc.text(coacheeActionLines, 20, currentY + 7);
+
+      currentY += (coacheeActionLines.length * 7) + 7;
+      const coachActionLines = doc.splitTextToSize(`Coach's Action Plan: ${record.coachs_action_plan || 'N/A'}`, 170);
+      doc.text(coachActionLines, 20, currentY);
+
+      // Check if we need a new page
+      if (currentY + (coachActionLines.length * 7) + 20 > 280) {
+        doc.addPage();
+        currentY = 20;
+      } else {
+        currentY += (coachActionLines.length * 7) + 10;
+      }
+
+      // C - Course Correct
+      doc.setTextColor(41, 84, 163);
+      doc.text('COURSE CORRECT', 20, currentY);
+      doc.setTextColor(0, 0, 0);
+
+      const glidepathLines = doc.splitTextToSize(`Glidepath: ${record.glidepath || 'N/A'}`, 170);
+      doc.text(glidepathLines, 20, currentY + 7);
+
+      // Check if we need a new page for SSC items
+      if (currentY + (glidepathLines.length * 7) + 40 > 280) {
+        doc.addPage();
+        currentY = 20;
+      } else {
+        currentY += (glidepathLines.length * 7) + 10;
+      }
+
+      // Stop, Start, Continue Table
+      autoTable(doc, {
+        startY: currentY,
+        head: [['STOP', 'START', 'CONTINUE']],
+        body: [[
+          record.stop || 'N/A',
+          record.start || 'N/A',
+          record.continue_ || 'N/A'
+        ]],
+        theme: 'striped',
+        headStyles: { fillColor: [41, 84, 163], textColor: [255, 255, 255] }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 10;
+
+      // Follow-up and Acknowledgment
+      const followUpText = `Follow-up Date: ${record.follow_up_date ? moment(record.follow_up_date).format('MMMM D, YYYY') : 'N/A'}`;
+      doc.text(followUpText, 20, currentY);
+
+      // Check if we need a new page for signatures
+      if (currentY + 60 > 280) {
+        doc.addPage();
+        currentY = 20;
+      } else {
+        currentY += 20;
+      }
+
+      // Signatures section
+      doc.setFontSize(14);
+      doc.setTextColor(41, 84, 163);
+      doc.text('Acknowledgments', 20, currentY);
+      doc.setFontSize(12);
+
+      currentY += 10;
+      doc.setTextColor(0, 0, 0);
+
+      // Signature lines
+      const signatureY = currentY + 25;
+
+      // Employee signature
+      doc.line(20, signatureY, 100, signatureY);
+      doc.text(`${record.employee_fullname}`, 20, signatureY + 7);
+      doc.text('Employee', 20, signatureY + 14);
+      doc.text(`Acknowledged: ${record.acknowledge_datetime ? moment(record.acknowledge_datetime).format('MMM D, YYYY') : 'Pending'}`, 20, signatureY + 21);
+
+      // Coach signature
+      doc.line(110, signatureY, 190, signatureY);
+      doc.text(`${record.coach_fullname}`, 110, signatureY + 7);
+      doc.text('Coach/Supervisor', 110, signatureY + 14);
+      doc.text(`Created: ${moment(record.date_coached).format('MMM D, YYYY')}`, 110, signatureY + 21);
+
+      // Footer with page number
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
+        doc.text(`Generated: ${moment().format('MMMM D, YYYY h:mm A')}`, 105, 295, { align: 'center' });
+      }
+
+      // Save PDF
+      doc.save(`Coaching_Record_${record.id}_${record.employee_fullname.replace(/\s+/g, '_')}.pdf`);
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'PDF Generation Failed',
+        text: 'There was an error generating the PDF. Please try again.',
+        confirmButtonColor: '#dc3545'
+      });
+    }
+  };
+
   return (
     <>
       <SupervisorNavbar />
@@ -870,13 +1057,38 @@ function Coaching() {
                                   >
                                     <i className="bi bi-eye"></i>
                                   </button>
-                                  <button
-                                    className="btn btn-sm btn-outline-primary"
-                                    onClick={() => handleViewDetails(record)}
-                                    title="Edit"
-                                  >
-                                    <i className="bi bi-pencil-square"></i>
-                                  </button>
+
+                                  {record.acknowledge_datetime ? (
+                                    <>
+                                      <button
+                                        className="btn btn-sm btn-outline-secondary"
+                                        disabled
+                                        data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                        title="Cannot edit acknowledged coaching records"
+                                      >
+                                        <i className="bi bi-pencil-square"></i>
+                                      </button>
+                                      <button
+                                        className="btn btn-sm btn-outline-success"
+                                        onClick={() => generatePDF(record)}
+                                        title="Download as PDF"
+                                        data-bs-toggle="tooltip"
+                                        data-bs-placement="top"
+                                      >
+                                        <i className="bi bi-file-earmark-pdf"></i>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      className="btn btn-sm btn-outline-primary"
+                                      onClick={() => handleViewDetails(record)}
+                                      title="Edit"
+                                    >
+                                      <i className="bi bi-pencil-square"></i>
+                                    </button>
+                                  )}
+
                                   <button
                                     className="btn btn-sm btn-outline-danger"
                                     onClick={() => handleDeleteCoaching(record)}
@@ -2084,6 +2296,16 @@ function Coaching() {
                   </div>
 
                   <div className="d-flex justify-content-end gap-2 mt-4">
+                    {viewData.acknowledge_datetime && (
+                      <button
+                        type="button"
+                        className="btn btn-success"
+                        onClick={() => generatePDF(viewData)}
+                      >
+                        <i className="bi bi-file-earmark-pdf me-1"></i>
+                        Download PDF
+                      </button>
+                    )}
                     <button type="button" className="btn btn-secondary" onClick={() => setShowViewModal(false)}>
                       <i className="bi bi-x-circle me-1"></i>
                       Close
