@@ -479,7 +479,7 @@ export default function AddCategory() {
                                     style={{ width: "40px", height: "40px", objectFit: "cover" }}
                                     onError={(e) => {
                                       e.target.onerror = null;
-                                      e.target.src = "https://via.placeholder.com/40";
+                                      e.target.src = "";
                                     }}
                                   />
                                 ) : (
