@@ -253,7 +253,7 @@ export default function AddCategory() {
 
           // Add file if selected
           if (result.value.file) {
-            formData.append('file', result.value.file);
+            formData.append('file_uploaded', result.value.file);
           }
 
           // Send API request
