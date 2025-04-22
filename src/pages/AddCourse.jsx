@@ -269,7 +269,7 @@ const fetchCategories = async () => {
           formData.append("course_details", result.value.course_details);
 
           if (result.value.file) {
-            formData.append("file", result.value.file);
+            formData.append("file_uploaded", result.value.file);
           }
 
           const response = await axios.put(
