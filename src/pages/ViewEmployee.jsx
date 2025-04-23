@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import axios from "axios"
 import Navbar from "../components/Navbar"
@@ -125,13 +123,22 @@ const getSiteName = (id) => {
   return site ? site.siteName : 'N/A';
 }
 
-// Fix the getEmployeeLevelName function
+// Update the getEmployeeLevelName function to properly match employee level IDs
 const getEmployeeLevelName = (id) => {
   if (!id) return 'N/A';
-  const level = dropdownData.employee_levels.find((level) =>
-    level.id === id || level.levelID === id
+
+  // Debug the issue - add this temporarily to see what's coming from backend
+  console.log('Employee Level ID:', id);
+  console.log('Available Levels:', dropdownData.employee_levels);
+
+  // Use more flexible matching to find the employee level
+  const level = dropdownData.employee_levels.find(level =>
+    String(level.id) === String(id) ||
+    String(level.levelID) === String(id) ||
+    String(level.e_level_id) === String(id)
   );
-  return level ? (level.e_level || level.level_name) : 'N/A';
+
+  return level ? (level.e_level || level.level_name || level.employee_level || level.name) : 'N/A';
 }
 
   // Fetch employee data and dropdown data on component mount
@@ -306,6 +313,11 @@ setDropdownData({
         med_cert: selectedEmployee.med_cert ? 1 : 0,
         xray: selectedEmployee.xray ? 1 : 0,
         drug_test: selectedEmployee.drug_test ? 1 : 0,
+        // Add the missing fields here
+        tranpo_allowance: selectedEmployee.tranpo_allowance,
+        food_allowance: selectedEmployee.food_allowance,
+        account_id: selectedEmployee.account_id,
+        employment_status: selectedEmployee.employment_status,
       }
 
       // Append all mapped data to formData
@@ -768,6 +780,36 @@ setDropdownData({
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
+                      <Form.Label>Account ID</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="account_id"
+                        value={selectedEmployee.account_id || ""}
+                        onChange={handleChange}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Employment Status</Form.Label>
+                      <Form.Select
+                        name="employment_status"
+                        value={selectedEmployee.employment_status || ""}
+                        onChange={handleChange}
+                      >
+                        <option value="">Choose...</option>
+                        <option value="Probationary">Probationary</option>
+                        <option value="Regular">Regular</option>
+                        <option value="Contractual">Training</option>
+
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
                       <Form.Label>Account Status</Form.Label>
                       <Form.Select
                         name="employee_status"
@@ -781,9 +823,6 @@ setDropdownData({
                       </Form.Select>
                     </Form.Group>
                   </Col>
-                </Row>
-
-                <Row>
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Basic Pay</Form.Label>
@@ -795,24 +834,27 @@ setDropdownData({
                       />
                     </Form.Group>
                   </Col>
+                </Row>
+
+                <Row>
                   <Col md={4}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Email</Form.Label>
+                      <Form.Label>Transportation Allowance</Form.Label>
                       <Form.Control
-                        type="email"
-                        name="email"
-                        value={selectedEmployee.email || ""}
+                        type="number"
+                        name="tranpo_allowance"
+                        value={selectedEmployee.tranpo_allowance || ""}
                         onChange={handleChange}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Phone</Form.Label>
+                      <Form.Label>Food Allowance</Form.Label>
                       <Form.Control
-                        type="tel"
-                        name="phone"
-                        value={selectedEmployee.phone || ""}
+                        type="number"
+                        name="food_allowance"
+                        value={selectedEmployee.food_allowance || ""}
                         onChange={handleChange}
                       />
                     </Form.Group>
@@ -1091,6 +1133,12 @@ setDropdownData({
                           </Col>
                           <Col xs={7}>{getEmployeeLevelName(selectedEmployee.employee_level)}</Col>
                         </Row>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Employment Status:
+                          </Col>
+                          <Col xs={7}>{selectedEmployee.employment_status || "N/A"}</Col>
+                        </Row>
                       </Card.Body>
                     </Card>
                   </Col>
@@ -1137,6 +1185,31 @@ setDropdownData({
                         </Row>
                       </Col>
                     </Row>
+                    <Card className="mt-3">
+                      <Card.Header className="bg-light">
+                        <h6 className="mb-0">Allowances</h6>
+                      </Card.Header>
+                      <Card.Body>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Basic Pay:
+                          </Col>
+                          <Col xs={7}>{selectedEmployee.basic_pay ? `₱${selectedEmployee.basic_pay.toLocaleString()}` : "N/A"}</Col>
+                        </Row>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Transport Allowance:
+                          </Col>
+                          <Col xs={7}>{selectedEmployee.tranpo_allowance ? `₱${selectedEmployee.tranpo_allowance.toLocaleString()}` : "N/A"}</Col>
+                        </Row>
+                        <Row className="mb-2">
+                          <Col xs={5} className="text-muted">
+                            Food Allowance:
+                          </Col>
+                          <Col xs={7}>{selectedEmployee.food_allowance ? `₱${selectedEmployee.food_allowance.toLocaleString()}` : "N/A"}</Col>
+                        </Row>
+                      </Card.Body>
+                    </Card>
                   </Card.Body>
                 </Card>
               </div>

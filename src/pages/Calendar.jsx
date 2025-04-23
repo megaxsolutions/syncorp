@@ -63,11 +63,11 @@ const calendarStyles = `
   }
 
   .special-holiday {
-    background-color: rgba(106, 90, 205, 0.2);
+    background-color: rgba(106, 90, 205, 0.3);
   }
 
   .regular-holiday {
-    background-color: rgba(139, 0, 0, 0.2);
+    background-color: rgba(139, 0, 0, 0.3);
   }
 
   .holiday-name {
@@ -584,12 +584,12 @@ const Calendar = () => {
       if (dayHolidays.length > 0) {
         const firstHoliday = dayHolidays[0];
         cellStyle = firstHoliday.holiday_type === "SH"
-          ? { backgroundColor: "rgba(106, 90, 205, 0.15)" }
-          : { backgroundColor: "rgba(139, 0, 0, 0.15)" };
+          ? { backgroundColor: "rgba(106, 90, 205, 0.3)" }
+          : { backgroundColor: "rgba(139, 0, 0, 0.3)" };
 
         // If there's a Special Holiday, it takes design precedence
         if (dayHolidays.some(h => h.holiday_type === "SH")) {
-          cellStyle = { backgroundColor: "rgba(106, 90, 205, 0.15)" };
+          cellStyle = { backgroundColor: "rgba(106, 90, 205, 0.3)" };
         }
       }
 
@@ -678,21 +678,21 @@ const Calendar = () => {
               <div className="d-flex align-items-center">
                 <div
                   className="me-2"
-                  style={{ width: "20px", height: "20px", backgroundColor: "#8b0000", borderRadius: "4px" }}
+                  style={{ width: "20px", height: "20px", backgroundColor: "rgba(139, 0, 0, 0.3)", borderRadius: "4px" }}
                 ></div>
                 <span>Regular Holiday</span>
               </div>
               <div className="d-flex align-items-center">
                 <div
                   className="me-2"
-                  style={{ width: "20px", height: "20px", backgroundColor: "#6a5acd", borderRadius: "4px" }}
+                  style={{ width: "20px", height: "20px", backgroundColor: "rgba(106, 90, 205, 0.3)", borderRadius: "4px" }}
                 ></div>
                 <span>Special Holiday</span>
               </div>
               <div className="d-flex align-items-center">
                 <div
                   className="me-2"
-                  style={{ width: "20px", height: "20px", border: "2px solid #000", borderRadius: "4px" }}
+                  style={{ width: "20px", height: "20px", border: "2px solid #0d6efd", borderRadius: "4px" }}
                 ></div>
                 <span>Today</span>
               </div>

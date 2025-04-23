@@ -138,82 +138,22 @@ const Course = () => {
             </div>
           ) : (
             <div className="row g-3">
-              {categories.length === 1 ? (
-                // If only one category, display it in full width
-                <div className="col-12 wow zoomIn" data-wow-delay="0.1s">
-                  <Link className="position-relative d-block overflow-hidden" to={`/courses/category/${categories[0].id}`}>
-                    <img className="img-fluid w-100" src={categoryImages[0]} alt={categories[0].category_title} />
-                    <div className="bg-white text-center position-absolute bottom-0 end-0 py-2 px-3" style={{ margin: '1px' }}>
-                      <h5 className="m-0">{categories[0].category_title}</h5>
-                      <small className="text-primary">View Courses</small>
-                    </div>
-                  </Link>
-                </div>
-              ) : categories.length === 2 ? (
-                // If two categories, display them side by side
-                <>
-                  <div className="col-md-6 wow zoomIn" data-wow-delay="0.1s">
-                    <Link className="position-relative d-block overflow-hidden" to={`/courses/category/${categories[0].id}`}>
-                      <img className="img-fluid" src={categoryImages[0]} alt={categories[0].category_title} />
-                      <div className="bg-white text-center position-absolute bottom-0 end-0 py-2 px-3" style={{ margin: '1px' }}>
-                        <h5 className="m-0">{categories[0].category_title}</h5>
-                        <small className="text-primary">View Courses</small>
-                      </div>
-                    </Link>
-                  </div>
-                  <div className="col-md-6 wow zoomIn" data-wow-delay="0.3s">
-                    <Link className="position-relative d-block overflow-hidden" to={`/courses/category/${categories[1].id}`}>
-                      <img className="img-fluid" src={categoryImages[1]} alt={categories[1].category_title} />
-                      <div className="bg-white text-center position-absolute bottom-0 end-0 py-2 px-3" style={{ margin: '1px' }}>
-                        <h5 className="m-0">{categories[1].category_title}</h5>
-                        <small className="text-primary">View Courses</small>
-                      </div>
-                    </Link>
-                  </div>
-                </>
-              ) : (
-                // Original layout for 3+ categories
-                <>
-                  <div className="col-lg-7 col-md-6">
-                    <div className="row g-3">
-                      {categories.slice(0, Math.min(3, categories.length)).map((category, index) => (
-                        index === 0 ? (
-                          <div key={category.id} className="col-lg-12 col-md-12 wow zoomIn" data-wow-delay="0.1s">
-                            <Link className="position-relative d-block overflow-hidden" to={`/courses/category/${category.id}`}>
-                              <img className="img-fluid" src={categoryImages[0]} alt={category.category_title} />
-                              <div className="bg-white text-center position-absolute bottom-0 end-0 py-2 px-3" style={{ margin: '1px' }}>
-                                <h5 className="m-0">{category.category_title}</h5>
-                                <small className="text-primary">View Courses</small>
-                              </div>
-                            </Link>
-                          </div>
-                        ) : (
-                          <div key={category.id} className="col-lg-6 col-md-12 wow zoomIn" data-wow-delay={`0.${index + 1}s`}>
-                            <Link className="position-relative d-block overflow-hidden" to={`/courses/category/${category.id}`}>
-                              <img className="img-fluid" src={categoryImages[index]} alt={category.category_title} />
-                              <div className="bg-white text-center position-absolute bottom-0 end-0 py-2 px-3" style={{ margin: '1px' }}>
-                                <h5 className="m-0">{category.category_title}</h5>
-                                <small className="text-primary">View Courses</small>
-                              </div>
-                            </Link>
-                          </div>
-                        )
-                      ))}
-                    </div>
-                  </div>
-                  {categories.length > 3 && (
-                    <div className="col-lg-5 col-md-6 wow zoomIn" data-wow-delay="0.7s" style={{ minHeight: '350px' }}>
-                      <Link className="position-relative d-block h-100 overflow-hidden" to={`/courses/category/${categories[3].id}`}>
-                        <img className="img-fluid position-absolute w-100 h-100" src={categoryImages[3]} alt={categories[3].category_title} style={{ objectFit: 'cover' }} />
+              {categories.length >= 1 ? (
+                <div className="row g-3">
+                  {categories.map((category, index) => (
+                    <div className="col-md-6 wow zoomIn" data-wow-delay={`${0.1 + index * 0.2}s`} key={category.id}>
+                      <Link className="position-relative d-block overflow-hidden" to={`/courses/category/${category.id}`}>
+
+                        <img className="img-fluid" src={`${config.API_BASE_URL}/uploads/${category.filename}`} alt={category.filename} />
                         <div className="bg-white text-center position-absolute bottom-0 end-0 py-2 px-3" style={{ margin: '1px' }}>
-                          <h5 className="m-0">{categories[3].category_title}</h5>
+                          <h5 className="m-0">{category.category_title}</h5>
                           <small className="text-primary">View Courses</small>
                         </div>
                       </Link>
                     </div>
-                  )}
-                </>
-              )}
+                  ))}
+                </div>
+              ) : null}
             </div>
           )}
         </div>
@@ -240,11 +180,13 @@ const Course = () => {
             </div>
           ) : (
             <div className="row g-4 justify-content-center">
+
               {courses.map((course, index) => (
                 <div key={course.id} className="col-lg-4 col-md-6 wow fadeInUp" data-wow-delay={`0.${index % 3 + 1}s`}>
                   <div className="course-item bg-light h-100">
                     <div className="position-relative overflow-hidden">
-                      <img className="img-fluid" src={index % 3 === 0 ? course1 : index % 3 === 1 ? course2 : course3} alt={course.course_title} />
+
+                      <img className="img-fluid" src={`${config.API_BASE_URL}/uploads/${course.filename}`} alt={course.course_title} />
                       <div className="w-100 d-flex justify-content-center position-absolute bottom-0 start-0 mb-4">
                         <Link to={`/lms/course/${course.id}`} className="flex-shrink-0 btn btn-sm btn-primary px-3 border-end" style={{ borderRadius: '30px 0 0 30px' }}>Read More</Link>
                         <Link to={`/lms/view-course/${course.id}`} className="flex-shrink-0 btn btn-sm btn-primary px-3" style={{ borderRadius: '0 30px 30px 0' }}>Enroll Now</Link>

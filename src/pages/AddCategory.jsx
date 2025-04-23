@@ -7,6 +7,8 @@ import Swal from "sweetalert2"
 
 export default function AddCategory() {
   const [categoryTitle, setCategoryTitle] = useState("")
+  const [categoryImage, setCategoryImage] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
   const [categories, setCategories] = useState([])
 
   // Fetch categories on component mount
@@ -38,49 +40,100 @@ export default function AddCategory() {
     }
   }
 
-  const handleAddCategory = async (e) => {
-    e.preventDefault()
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setCategoryImage(file);
 
-    if (!categoryTitle) {
+      // Generate preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setCategoryImage(null);
+      setImagePreview(null);
+    }
+  };
+
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+
+    if (!categoryTitle.trim()) {
       Swal.fire({
         icon: "error",
         title: "Error",
         text: "Please enter a category title.",
-      })
-      return
+      });
+      return;
     }
 
+    // Show loading indicator
+    Swal.fire({
+      title: 'Creating category...',
+      text: 'Please wait',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
     try {
+      // Create form data to handle file upload
+      const formData = new FormData();
+      formData.append("category_title", categoryTitle.trim());
+
+      // Only append the file if one has been selected
+      if (categoryImage) {
+        formData.append("file_uploaded", categoryImage);
+      }
+
       const response = await axios.post(
         `${config.API_BASE_URL}/course_catergory/add_course_category`,
-        {
-          category_title: categoryTitle
-        },
+        formData,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            // Don't set Content-Type manually with FormData
           },
+          // Add timeout to prevent hanging requests
+          timeout: 30000
         }
-      )
+      );
+
+      // Close loading indicator
+      Swal.close();
 
       if (response.data.success) {
         Swal.fire({
           icon: "success",
           title: "Success",
           text: "Course category created successfully.",
-        })
+        });
         // Reset form
-        setCategoryTitle("")
-        fetchCategories()
+        setCategoryTitle("");
+        setCategoryImage(null);
+        setImagePreview(null);
+        fetchCategories();
       }
     } catch (error) {
-      console.error("Error creating category:", error)
+      console.error("Error creating category:", error);
+
+      // Get detailed error message if available
+      let errorMessage = "Failed to create category.";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.status === 500) {
+        errorMessage = "Server error. The image may be too large or in an unsupported format.";
+      }
+
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: error.response?.data?.error || "Failed to create category.",
-      })
+        text: errorMessage,
+      });
     }
   }
 
@@ -88,7 +141,7 @@ export default function AddCategory() {
     Swal.fire({
       title: "Edit Category",
       html: `
-        <form>
+        <form id="editCategoryForm">
           <div class="mb-3">
             <label class="form-label">
               <i class="bi bi-tag me-2"></i>Category Title
@@ -101,59 +154,142 @@ export default function AddCategory() {
               value="${category.category_title || ''}"
             >
           </div>
+
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-image me-2"></i>Category Image
+            </label>
+            <input
+              type="file"
+              id="categoryImage"
+              class="form-control"
+              accept="image/*"
+            >
+            <small class="text-muted d-block mt-1">
+              Leave empty to keep the current image.
+            </small>
+
+            ${category.filename ? `
+            <div class="mt-3 text-center">
+              <p class="mb-2">Current Image:</p>
+              <img
+                src="${config.API_BASE_URL}/uploads/${category.filename}"
+                alt="${category.category_title}"
+                class="img-thumbnail"
+                style="max-height: 100px"
+              />
+            </div>
+            ` : ''}
+          </div>
         </form>
       `,
       showCancelButton: true,
       confirmButtonText: "Save Changes",
       cancelButtonText: "Cancel",
       confirmButtonColor: "#198754",
-      cancelButtonColor: "#dc3545",
+      cancelButtonColor: "#6c757d",
+      didOpen: () => {
+        // Add event listener for file input
+        document.getElementById("categoryImage").addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              // Create or update image preview
+              let previewContainer = document.getElementById("imagePreviewContainer");
+
+              if (!previewContainer) {
+                previewContainer = document.createElement("div");
+                previewContainer.id = "imagePreviewContainer";
+                previewContainer.className = "mt-3 text-center";
+                document.getElementById("categoryImage").parentNode.appendChild(previewContainer);
+              }
+
+              previewContainer.innerHTML = `
+                <p class="mb-2">New Image Preview:</p>
+                <img
+                  src="${e.target.result}"
+                  alt="Preview"
+                  class="img-thumbnail"
+                  style="max-height: 100px"
+                />
+              `;
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+      },
       preConfirm: () => {
-        const categoryTitle = document.getElementById("categoryTitle").value
+        const categoryTitle = document.getElementById("categoryTitle").value;
+        const categoryImageInput = document.getElementById("categoryImage");
+        const file = categoryImageInput.files[0];
 
         if (!categoryTitle.trim()) {
-          Swal.showValidationMessage("Category title is required")
-          return false
+          Swal.showValidationMessage("Category title is required");
+          return false;
         }
 
         return {
-          category_title: categoryTitle
-        }
+          category_title: categoryTitle,
+          file: file
+        };
       },
     }).then(async (result) => {
       if (result.isConfirmed) {
+        // Show loading state
+        Swal.fire({
+          title: 'Saving...',
+          text: 'Please wait',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
         try {
+          // Create FormData for file upload
+          const formData = new FormData();
+          formData.append('category_title', result.value.category_title.trim());
+
+          // Add file if selected
+          if (result.value.file) {
+            formData.append('file_uploaded', result.value.file);
+          }
+
+          // Send API request
           const response = await axios.put(
             `${config.API_BASE_URL}/course_catergory/update_course_category/${category.id}`,
-            result.value,
+            formData,
             {
               headers: {
-                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+                'X-JWT-TOKEN': localStorage.getItem('X-JWT-TOKEN'),
+                'X-EMP-ID': localStorage.getItem('X-EMP-ID'),
+                // Don't manually set Content-Type with FormData
               },
+              timeout: 30000
             }
-          )
+          );
 
           if (response.data.success) {
-            await Swal.fire({
-              icon: "success",
-              title: "Success",
-              text: "Category updated successfully",
+            Swal.fire({
+              icon: 'success',
+              title: 'Success',
+              text: 'Category updated successfully',
               timer: 1500,
               showConfirmButton: false,
-            })
-            fetchCategories()
+            });
+            fetchCategories();
           }
         } catch (error) {
-          console.error("Update Category Error:", error)
+          console.error('Update Category Error:', error);
           Swal.fire({
-            icon: "error",
-            title: "Error",
-            text: error.response?.data?.error || "Failed to update category",
-          })
+            icon: 'error',
+            title: 'Error',
+            text: error.response?.data?.error || 'Failed to update category',
+          });
         }
       }
-    })
+    });
   }
 
   const handleDeleteCategory = (category) => {
@@ -248,6 +384,46 @@ export default function AddCategory() {
                     />
                   </div>
 
+                  <div className="form-group mb-4">
+                    <label htmlFor="category_image" className="form-label">
+                      <i className="bi bi-image me-2"></i>Category Image
+                    </label>
+                    <input
+                      type="file"
+                      className="form-control"
+                      id="category_image"
+                      name="category_image"
+                      onChange={handleImageChange}
+                      accept="image/*"
+                    />
+                    <small className="text-muted d-block mt-1">
+                      Optional. Upload an image for the category.
+                    </small>
+
+                    {/* Image preview */}
+                    {imagePreview && (
+                      <div className="mt-3 text-center">
+                        <img
+                          src={imagePreview}
+                          alt="Category Preview"
+                          className="img-thumbnail"
+                          style={{ maxHeight: "150px" }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger d-block mx-auto mt-2"
+                          onClick={() => {
+                            setCategoryImage(null);
+                            setImagePreview(null);
+                          }}
+                        >
+                          <i className="bi bi-x-circle me-1"></i>
+                          Remove Image
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
@@ -277,7 +453,7 @@ export default function AddCategory() {
                   <table className="table table-hover align-middle">
                     <thead className="table-light">
                       <tr>
-                        <th>Category Title</th>
+                        <th>Category</th>
                         <th>Date Added</th>
                         <th>Actions</th>
                       </tr>
@@ -295,7 +471,20 @@ export default function AddCategory() {
                           <tr key={category.id}>
                             <td>
                               <div className="d-flex align-items-center">
-                                <i className="bi bi-tag-fill me-2 text-primary"></i>
+                                {category.filename ? (
+                                  <img
+                                    src={`${config.API_BASE_URL}/uploads/${category.filename}`}
+                                    alt={category.category_title}
+                                    className="me-2 rounded"
+                                    style={{ width: "40px", height: "40px", objectFit: "cover" }}
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = "";
+                                    }}
+                                  />
+                                ) : (
+                                  <i className="bi bi-tag-fill me-2 text-primary fs-5"></i>
+                                )}
                                 <div className="fw-medium">{category.category_title}</div>
                               </div>
                             </td>
