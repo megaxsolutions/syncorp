@@ -5,6 +5,289 @@ import axios from "axios";
 import config from "../config";
 import Swal from "sweetalert2";
 import Select from 'react-select';
+import Modal from 'react-bootstrap/Modal';
+import Button from 'react-bootstrap/Button';
+
+// Update the EditTrainerModal component to properly preview existing photos
+
+const EditTrainerModal = ({
+  show,
+  onHide,
+  trainer,
+  employees,
+  categories,
+  courses,
+  onSubmit,
+  config
+}) => {
+  const [formData, setFormData] = useState({
+    employeeId: trainer?.emp_ID || '',
+    categoryId: trainer?.categoryID || '',
+    courseId: trainer?.courseID || '',
+    facebook: trainer?.facebook || '',
+    twitter: trainer?.twitter || '',
+    linkedin: trainer?.linkedin || ''
+  });
+
+  const [trainerPhoto, setTrainerPhoto] = useState(null);
+  // Initialize with the existing trainer photo if available
+  const [photoPreview, setPhotoPreview] = useState(
+    trainer?.filename_photo ? `${config.API_BASE_URL}/uploads/${trainer.filename_photo}` : null
+  );
+
+  // Update form data and photo preview when trainer changes
+  useEffect(() => {
+    if (trainer) {
+      setFormData({
+        employeeId: trainer.emp_ID || '',
+        categoryId: trainer.categoryID || '',
+        courseId: trainer.courseID || '',
+        facebook: trainer.facebook || '',
+        twitter: trainer.twitter || '',
+        linkedin: trainer.linkedin || ''
+      });
+
+      setPhotoPreview(trainer.filename_photo ?
+        `${config.API_BASE_URL}/uploads/${trainer.filename_photo}` : null);
+    }
+  }, [trainer]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setTrainerPhoto(file);
+
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const submitData = new FormData();
+    submitData.append('emp_id', formData.employeeId);
+    submitData.append('category_id', formData.categoryId);
+    submitData.append('course_id', formData.courseId);
+
+    // Always include all social media fields with their current values
+    // Use empty string instead of undefined or null
+    submitData.append('facebook', formData.facebook || '');
+    submitData.append('twitter', formData.twitter || '');
+    submitData.append('linkedin', formData.linkedin || '');
+
+    if (trainerPhoto) {
+      submitData.append('file_uploaded', trainerPhoto);
+    }
+
+    onSubmit(submitData);
+  };
+
+  return (
+    <Modal show={show} onHide={onHide} size="lg">
+      <Modal.Header closeButton>
+        <Modal.Title>Edit Trainer</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <form onSubmit={handleSubmit}>
+          {/* Employee select */}
+          <div className="mb-3">
+            <label className="form-label">
+              <i className="bi bi-person me-2"></i>Employee
+              <span className="text-danger">*</span>
+            </label>
+            <select
+              name="employeeId"
+              className="form-select form-select-lg"
+              value={formData.employeeId}
+              onChange={handleInputChange}
+              required
+            >
+              <option value="">Select Employee</option>
+              {employees.map(employee => (
+                <option
+                  key={employee.emp_ID}
+                  value={employee.emp_ID}
+                >
+                  {employee.fName} {employee.lName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Category select */}
+          <div className="mb-3">
+            <label className="form-label">
+              <i className="bi bi-tag me-2"></i>Category
+              <span className="text-danger">*</span>
+            </label>
+            <select
+              name="categoryId"
+              className="form-select form-select-lg"
+              value={formData.categoryId}
+              onChange={handleInputChange}
+              required
+            >
+              <option value="">Select Category</option>
+              {categories.map(category => (
+                <option
+                  key={category.id}
+                  value={category.id}
+                >
+                  {category.category_title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Course select */}
+          <div className="mb-3">
+            <label className="form-label">
+              <i className="bi bi-book me-2"></i>Course
+              <span className="text-danger">*</span>
+            </label>
+            <select
+              name="courseId"
+              className="form-select form-select-lg"
+              value={formData.courseId}
+              onChange={handleInputChange}
+              required
+            >
+              <option value="">Select Course</option>
+              {courses.map(course => (
+                <option
+                  key={course.id}
+                  value={course.id}
+                >
+                  {course.course_title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Photo upload with improved preview */}
+          <div className="mb-4">
+            <label className="form-label">
+              <i className="bi bi-image me-2"></i>Trainer Photo
+            </label>
+
+            {/* Current photo preview */}
+            {photoPreview && (
+              <div className="text-center mb-3 position-relative">
+                <img
+                  src={photoPreview}
+                  alt="Trainer"
+                  className="img-thumbnail"
+                  style={{ maxHeight: "200px", maxWidth: "100%" }}
+                />
+                {photoPreview.includes("data:image") && (
+                  <div className="mt-1">
+                    <span className="badge bg-info">New photo selected</span>
+                  </div>
+                )}
+                {!photoPreview.includes("data:image") && (
+                  <div className="mt-1">
+                    <span className="badge bg-secondary">Current photo</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="input-group">
+              <input
+                type="file"
+                className="form-control"
+                accept="image/*"
+                onChange={handlePhotoChange}
+              />
+              {trainerPhoto && (
+                <button
+                  type="button"
+                  className="btn btn-outline-danger"
+                  onClick={() => {
+                    setTrainerPhoto(null);
+                    setPhotoPreview(trainer?.filename_photo
+                      ? `${config.API_BASE_URL}/uploads/${trainer.filename_photo}`
+                      : null);
+                  }}
+                >
+                  <i className="bi bi-x-circle me-1"></i>
+                  Cancel
+                </button>
+              )}
+            </div>
+            <small className="text-muted">
+              Upload a new image only if you want to change the current photo.
+            </small>
+          </div>
+
+          {/* Social media inputs */}
+          <div className="mb-3">
+            <label className="form-label">
+              <i className="bi bi-facebook me-2"></i>Facebook
+            </label>
+            <input
+              type="url"
+              name="facebook"
+              className="form-control"
+              value={formData.facebook}
+              onChange={handleInputChange}
+              placeholder="Facebook profile URL"
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">
+              <i className="bi bi-twitter me-2"></i>Twitter
+            </label>
+            <input
+              type="url"
+              name="twitter"
+              className="form-control"
+              value={formData.twitter}
+              onChange={handleInputChange}
+              placeholder="Twitter profile URL"
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">
+              <i className="bi bi-linkedin me-2"></i>LinkedIn
+            </label>
+            <input
+              type="url"
+              name="linkedin"
+              className="form-control"
+              value={formData.linkedin}
+              onChange={handleInputChange}
+              placeholder="LinkedIn profile URL"
+            />
+          </div>
+        </form>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide}>
+          Cancel
+        </Button>
+        <Button variant="success" onClick={handleSubmit}>
+          Save Changes
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
 
 export default function AddTrainer() {
   const [employeeId, setEmployeeId] = useState("");
@@ -14,8 +297,14 @@ export default function AddTrainer() {
   const [employees, setEmployees] = useState([]);
   const [categories, setCategories] = useState([]);
   const [courses, setCourses] = useState([]);
-  const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [facebook, setFacebook] = useState("");
+  const [twitter, setTwitter] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [trainerPhoto, setTrainerPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [currentTrainer, setCurrentTrainer] = useState(null);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -138,28 +427,41 @@ export default function AddTrainer() {
   const handleAddTrainer = async (e) => {
     e.preventDefault();
 
-    if (selectedEmployees.length === 0 || !categoryId || !courseId) {
+    if (!employeeId || !categoryId || !courseId) {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Please select employees, category, and course.",
+        text: "Please select employee, category, and course.",
       });
       return;
     }
 
     try {
+      // Create FormData object for file upload
+      const formData = new FormData();
+      formData.append("emp_id", employeeId);
+      formData.append("category_id", categoryId);
+      formData.append("course_id", courseId);
+      formData.append("admin_emp_id", localStorage.getItem("X-EMP-ID"));
+
+      // Add social media links
+      formData.append("facebook", facebook);
+      formData.append("twitter", twitter);
+      formData.append("linkedin", linkedin);
+
+      // Add photo if selected - use the expected field name
+      if (trainerPhoto) {
+        formData.append("file_uploaded", trainerPhoto); // Changed to match backend expectation
+      }
+
       const response = await axios.post(
         `${config.API_BASE_URL}/trainers/add_trainer`,
-        {
-          array_employee_emp_id: selectedEmployees,
-          category_id: categoryId,
-          course_id: courseId,
-          admin_emp_id: localStorage.getItem("X-EMP-ID")
-        },
+        formData,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "Content-Type": "multipart/form-data", // Important for file uploads
           },
         }
       );
@@ -171,9 +473,14 @@ export default function AddTrainer() {
           text: response.data.success,
         });
         // Reset form
-        setSelectedEmployees([]);
+        setEmployeeId("");
         setCategoryId("");
         setCourseId("");
+        setFacebook("");
+        setTwitter("");
+        setLinkedin("");
+        setTrainerPhoto(null);
+        setPhotoPreview(null);
         fetchTrainers();
       }
     } catch (error) {
@@ -187,110 +494,65 @@ export default function AddTrainer() {
   };
 
   const handleEditTrainer = (trainer) => {
-    Swal.fire({
-      title: "Edit Trainer Assignment",
-      html: `
-        <form>
-          <div class="mb-3">
-            <label class="form-label">
-              <i class="bi bi-person me-2"></i>Employee
-              <span class="text-danger">*</span>
-            </label>
-            <select id="employeeId" class="form-select form-select-lg">
-              <option value="">Select Employee</option>
-              ${employees.map(employee => `
-                <option value="${employee.emp_ID}" ${trainer.emp_ID === employee.emp_ID ? 'selected' : ''}>
-                  ${employee.fName} ${employee.lName}
-                </option>
-              `).join('')}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">
-              <i class="bi bi-tag me-2"></i>Category
-              <span class="text-danger">*</span>
-            </label>
-            <select id="categoryId" class="form-select form-select-lg">
-              <option value="">Select Category</option>
-              ${categories.map(category => `
-                <option value="${category.id}" ${trainer.categoryID == category.id ? 'selected' : ''}>
-                  ${category.category_title}
-                </option>
-              `).join('')}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">
-              <i class="bi bi-book me-2"></i>Course
-              <span class="text-danger">*</span>
-            </label>
-            <select id="courseId" class="form-select form-select-lg">
-              <option value="">Select Course</option>
-              ${courses.map(course => `
-                <option value="${course.id}" ${trainer.courseID == course.id ? 'selected' : ''}>
-                  ${course.course_title}
-                </option>
-              `).join('')}
-            </select>
-          </div>
-        </form>
-      `,
-      showCancelButton: true,
-      confirmButtonText: "Save Changes",
-      cancelButtonText: "Cancel",
-      confirmButtonColor: "#198754",
-      cancelButtonColor: "#dc3545",
-      preConfirm: () => {
-        const employeeId = document.getElementById("employeeId").value;
-        const categoryId = document.getElementById("categoryId").value;
-        const courseId = document.getElementById("courseId").value;
-
-        if (!employeeId || !categoryId || !courseId) {
-          Swal.showValidationMessage("Employee, category, and course are required");
-          return false;
-        }
-
-        return {
-          emp_id: employeeId,
-          category_id: categoryId,
-          course_id: courseId
-        };
-      },
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const response = await axios.put(
-            `${config.API_BASE_URL}/trainers/update_trainer/${trainer.id}`,
-            result.value,
-            {
-              headers: {
-                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-              },
-            }
-          );
-
-          if (response.data.success) {
-            await Swal.fire({
-              icon: "success",
-              title: "Success",
-              text: "Trainer updated successfully",
-              timer: 1500,
-              showConfirmButton: false,
-            });
-            fetchTrainers();
-          }
-        } catch (error) {
-          console.error("Update Trainer Error:", error);
-          Swal.fire({
-            icon: "error",
-            title: "Error",
-            text: error.response?.data?.error || "Failed to update trainer",
-          });
-        }
-      }
-    });
+    setCurrentTrainer(trainer);
+    setShowEditModal(true);
   };
+
+  const handleEditSubmit = async (formData) => {
+    try {
+      // Create a new FormData object for sending to backend
+      const dataToSend = new FormData();
+
+      // Mandatory fields
+      dataToSend.append("emp_id", formData.get("emp_id"));
+      dataToSend.append("category_id", formData.get("category_id"));
+      dataToSend.append("course_id", formData.get("course_id"));
+
+      // Social media fields - explicitly set them to prevent null values
+      // Use empty string if value is null or undefined
+      dataToSend.append("facebook", formData.get("facebook") || '');
+      dataToSend.append("twitter", formData.get("twitter") || '');
+      dataToSend.append("linkedin", formData.get("linkedin") || '');
+
+      // File upload if provided
+      if (formData.get("file_uploaded")) {
+        dataToSend.append("file_uploaded", formData.get("file_uploaded"));
+      }
+
+      const response = await axios.put(
+        `${config.API_BASE_URL}/trainers/update_trainer/${currentTrainer.id}`,
+        dataToSend,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        Swal.fire({
+          icon: "success",
+          title: "Updated!",
+          text: response.data.success,
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        fetchTrainers();
+        setShowEditModal(false);
+      }
+    } catch (error) {
+      console.error("Update Trainer Error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.error || "Failed to update trainer",
+        confirmButtonColor: "#dc3545",
+      });
+    }
+  };
+
 
   const handleDeleteTrainer = (trainer) => {
     Swal.fire({
@@ -358,6 +620,20 @@ export default function AddTrainer() {
     return course ? course.course_title : "N/A";
   };
 
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setTrainerPhoto(file);
+
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -388,20 +664,19 @@ export default function AddTrainer() {
                 <form onSubmit={handleAddTrainer}>
                   <div className="form-group mb-4">
                     <label htmlFor="employee_id" className="form-label">
-                      <i className="bi bi-person me-2"></i>Select Employees
+                      <i className="bi bi-person me-2"></i>Select Employee
                       <span className="text-danger">*</span>
                     </label>
                     <Select
-                      className="basic-multi-select"
+                      className="basic-select"
                       classNamePrefix="select"
-                      isMulti
+                      isMulti={false} // Change to false for single select
                       name="employee_id"
                       options={employeeOptions}
-                      onChange={(selectedOptions) => {
-                        const values = selectedOptions ? selectedOptions.map(option => option.value) : [];
-                        setSelectedEmployees(values);
+                      onChange={(selectedOption) => {
+                        setEmployeeId(selectedOption ? selectedOption.value : "");
                       }}
-                      placeholder="Select employees..."
+                      placeholder="Select an employee..."
                       noOptionsMessage={() => "No employees available"}
                       styles={{
                         control: (baseStyles, state) => ({
@@ -411,16 +686,12 @@ export default function AddTrainer() {
                           borderColor: state.isFocused ? '#86b7fe' : '#ced4da',
                           boxShadow: state.isFocused ? '0 0 0 0.25rem rgba(13, 110, 253, 0.25)' : 'none',
                         }),
-                        multiValue: (styles) => ({
-                          ...styles,
-                          backgroundColor: '#e9ecef',
-                        }),
                       }}
                     />
-                    {selectedEmployees.length > 0 && (
+                    {employeeId && (
                       <div className="form-text text-success mt-2">
                         <i className="bi bi-check-circle me-1"></i>
-                        {selectedEmployees.length} employee{selectedEmployees.length > 1 ? 's' : ''} selected
+                        Employee selected
                       </div>
                     )}
                   </div>
@@ -481,13 +752,89 @@ export default function AddTrainer() {
                     )}
                   </div>
 
+                  <div className="form-group mb-4">
+                    <label htmlFor="trainer_photo" className="form-label">
+                      <i className="bi bi-image me-2"></i>Trainer Photo
+                    </label>
+                    <input
+                      type="file"
+                      className="form-control form-control-lg"
+                      id="trainer_photo"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                    />
+                    {photoPreview && (
+                      <div className="mt-3 text-center">
+                        <img
+                          src={photoPreview}
+                          alt="Trainer preview"
+                          className="img-thumbnail"
+                          style={{ maxHeight: "150px" }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger mt-2"
+                          onClick={() => {
+                            setTrainerPhoto(null);
+                            setPhotoPreview(null);
+                          }}
+                        >
+                          <i className="bi bi-x-circle me-1"></i>
+                          Remove Photo
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-group mb-4">
+                    <label className="form-label">
+                      <i className="bi bi-link-45deg me-2"></i>Social Media Profiles
+                    </label>
+                    <div className="input-group mb-3">
+                      <span className="input-group-text bg-primary text-white">
+                        <i className="bi bi-facebook"></i>
+                      </span>
+                      <input
+                        type="url"
+                        className="form-control form-control-lg"
+                        placeholder="Facebook profile URL"
+                        value={facebook}
+                        onChange={(e) => setFacebook(e.target.value)}
+                      />
+                    </div>
+                    <div className="input-group mb-3">
+                      <span className="input-group-text bg-info text-white">
+                        <i className="bi bi-twitter"></i>
+                      </span>
+                      <input
+                        type="url"
+                        className="form-control form-control-lg"
+                        placeholder="Twitter profile URL"
+                        value={twitter}
+                        onChange={(e) => setTwitter(e.target.value)}
+                      />
+                    </div>
+                    <div className="input-group mb-3">
+                      <span className="input-group-text bg-primary text-white">
+                        <i className="bi bi-linkedin"></i>
+                      </span>
+                      <input
+                        type="url"
+                        className="form-control form-control-lg"
+                        placeholder="LinkedIn profile URL"
+                        value={linkedin}
+                        onChange={(e) => setLinkedin(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
-                    disabled={selectedEmployees.length === 0 || !categoryId || !courseId}
+                    disabled={!employeeId || !categoryId || !courseId}
                   >
                     <i className="bi bi-plus-circle-fill"></i>
-                    Assign Trainer{selectedEmployees.length > 1 ? 's' : ''}
+                    Assign Trainer
                   </button>
                 </form>
               </div>
@@ -529,7 +876,18 @@ export default function AddTrainer() {
                           <tr key={trainer.id}>
                             <td>
                               <div className="d-flex align-items-center">
-                                <i className="bi bi-person-badge me-2 text-primary"></i>
+                                {trainer.filename_photo ? (
+                                  <img
+                                    src={`${config.API_BASE_URL}/uploads/${trainer.filename_photo}`}
+                                    alt={getEmployeeName(trainer.emp_ID)}
+                                    className="rounded-circle me-2"
+                                    width="40"
+                                    height="40"
+                                    style={{ objectFit: "cover" }}
+                                  />
+                                ) : (
+                                  <i className="bi bi-person-badge me-2 text-primary fs-4"></i>
+                                )}
                                 <div className="fw-medium">{getEmployeeName(trainer.emp_ID)}</div>
                               </div>
                             </td>
@@ -574,6 +932,18 @@ export default function AddTrainer() {
           </div>
         </div>
       </div>
+      {showEditModal && currentTrainer && (
+        <EditTrainerModal
+          show={showEditModal}
+          onHide={() => setShowEditModal(false)}
+          trainer={currentTrainer}
+          employees={employees}
+          categories={categories}
+          courses={courses}
+          onSubmit={handleEditSubmit}
+          config={config}
+        />
+      )}
     </>
   );
 }

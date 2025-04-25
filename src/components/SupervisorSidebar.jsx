@@ -99,10 +99,11 @@ const SupervisorSidebar = () => {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Preserve scroll position when navigating
+  // Modify this useEffect to implement scroll restoration properly
   useEffect(() => {
+    // Save the current scroll position before navigation
     const handleScroll = () => {
-      sessionStorage.setItem("scrollPosition", window.scrollY);
+      sessionStorage.setItem("scrollPosition", window.scrollY.toString());
     };
 
     window.addEventListener("scroll", handleScroll);
@@ -112,11 +113,22 @@ const SupervisorSidebar = () => {
     };
   }, []);
 
+  // This useEffect runs after navigation - separate from the scroll event listener
   useEffect(() => {
-    const savedScrollPosition = sessionStorage.getItem("scrollPosition");
-    if (savedScrollPosition) {
-      window.scrollTo(0, parseInt(savedScrollPosition, 10));
-    }
+    // Restore scroll position after the component and page have fully rendered
+    const restoreScrollPosition = () => {
+      const savedScrollPosition = sessionStorage.getItem("scrollPosition");
+      if (savedScrollPosition) {
+        setTimeout(() => {
+          window.scrollTo({
+            top: parseInt(savedScrollPosition, 10),
+            behavior: "instant" // Use "instant" instead of smooth for immediate scroll
+          });
+        }, 0);
+      }
+    };
+
+    restoreScrollPosition();
   }, [location.pathname]);
 
   return (
@@ -166,7 +178,7 @@ const SupervisorSidebar = () => {
                     title={collapsed ? item.label : ""}
                     onClick={(e) => {
                       if (isActive(item.path)) {
-                        e.preventDefault(); // Prevent scrolling to top when clicking active links
+                        e.preventDefault(); // Just prevent navigation when clicking active link
                       }
                     }}
                   >
