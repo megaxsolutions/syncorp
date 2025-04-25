@@ -383,15 +383,28 @@ const navItems = [
         <ul className="sidebar-nav" id="sidebar-nav">
           {navItems.map((item, index) => (
             <li className="nav-item" key={index}>
-              <Link
-                to={item.path}
-                className={`nav-link ${isActive(item.path) ? "active" : ""}`}
-                title={collapsed ? item.label : ""}
-              >
-                <i className={`bi ${item.icon}`}></i>
-                <span className="navs">{item.label}</span>
-                {isActive(item.path) && <span className="active-indicator"></span>}
-              </Link>
+              {item.label === "LMS" ? (
+                <a
+                  href="/lms"
+                  className={`nav-link ${isActive(item.path) ? "active" : ""}`}
+                  title={collapsed ? item.label : ""}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <i className={`bi ${item.icon}`}></i>
+                  <span className="navs">{item.label}</span>
+                </a>
+              ) : (
+                <Link
+                  to={item.path}
+                  className={`nav-link ${isActive(item.path) ? "active" : ""}`}
+                  title={collapsed ? item.label : ""}
+                >
+                  <i className={`bi ${item.icon}`}></i>
+                  <span className="navs">{item.label}</span>
+                  {isActive(item.path) && <span className="active-indicator"></span>}
+                </Link>
+              )}
             </li>
           ))}
         </ul>

@@ -135,6 +135,9 @@ const Calendar = () => {
   const [filteredDepartments, setFilteredDepartments] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [yearlyHolidays, setYearlyHolidays] = useState([]);
+  const [currentYearHolidays, setCurrentYearHolidays] = useState([]);
+  const [isLoadingYearlyHolidays, setIsLoadingYearlyHolidays] = useState(false);
 
   // Fetch sites, departments and clusters
   useEffect(() => {
@@ -223,6 +226,7 @@ const Calendar = () => {
 
   useEffect(() => {
     fetchHolidays();
+    fetchCurrentYearHolidays();
   }, []);
 
   // Add
@@ -649,6 +653,47 @@ const Calendar = () => {
 
     setSiteIDs(selectedOptions ? selectedOptions.map(option => option.value) : []);
   };
+
+  // Add this new function to fetch current year holidays
+  const fetchCurrentYearHolidays = async () => {
+    setIsLoadingYearlyHolidays(true);
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/holidays/get_all_holiday_current_year`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      const data = response.data.data || [];
+      setYearlyHolidays(data);
+
+      // Group holidays by month for easier display
+      const holidaysByMonth = data.reduce((acc, holiday) => {
+        const month = moment(holiday.date).format("MMMM");
+        if (!acc[month]) {
+          acc[month] = [];
+        }
+        acc[month].push(holiday);
+        return acc;
+      }, {});
+
+      setCurrentYearHolidays(holidaysByMonth);
+    } catch (error) {
+      console.error("Error fetching current year holidays:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to fetch current year holidays.",
+      });
+    } finally {
+      setIsLoadingYearlyHolidays(false);
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -756,6 +801,90 @@ const Calendar = () => {
                 <tbody>{renderCalendarCells()}</tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        {/* New Section: Yearly Holiday List */}
+        <div className="card mt-4" style={{ maxWidth: "900px", margin: "0 auto" }}>
+          <div className="card-body">
+            <h5 className="card-title">
+              Holidays in {currentYear}
+              <button
+                onClick={fetchCurrentYearHolidays}
+                className="btn btn-sm btn-outline-primary float-end"
+                disabled={isLoadingYearlyHolidays}
+              >
+                {isLoadingYearlyHolidays ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-arrow-clockwise me-1"></i> Refresh
+                  </>
+                )}
+              </button>
+            </h5>
+
+            {isLoadingYearlyHolidays ? (
+              <div className="text-center my-4">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="mt-2">Loading holidays...</p>
+              </div>
+            ) : yearlyHolidays.length === 0 ? (
+              <div className="alert alert-info">
+                <i className="bi bi-info-circle me-2"></i>
+                No holidays defined for {currentYear} yet.
+              </div>
+            ) : (
+              <>
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Holiday</th>
+                        <th>Type</th>
+
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {yearlyHolidays.map((holiday) => (
+                        <tr key={holiday.id}>
+                          <td>{moment(holiday.date).format("MMM D, YYYY")}</td>
+                          <td>{holiday.holiday_name}</td>
+                          <td>
+                            <span className={`badge ${holiday.holiday_type === 'RH' ? 'bg-danger' : 'bg-purple'}`}>
+                              {holiday.holiday_type === 'RH' ? 'Regular' : 'Special'} Holiday
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Add a count of total holidays */}
+                <div className="d-flex justify-content-between align-items-center mt-3">
+                  <div>
+                    <small className="text-muted">
+                      Showing {yearlyHolidays.length} holidays in {currentYear}
+                    </small>
+                  </div>
+                  <div>
+                    <small className="text-muted me-3">
+                      Regular Holidays: {yearlyHolidays.filter(h => h.holiday_type === 'RH').length}
+                    </small>
+                    <small className="text-muted">
+                      Special Holidays: {yearlyHolidays.filter(h => h.holiday_type === 'SH').length}
+                    </small>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -891,6 +1020,13 @@ const Calendar = () => {
           </div>
         </div>
       )}
+
+      {/* Add custom styles for the purple badge */}
+      <style jsx>{`
+        .bg-purple {
+          background-color: #6a5acd;
+        }
+      `}</style>
     </>
   );
 };

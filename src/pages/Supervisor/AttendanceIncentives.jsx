@@ -44,31 +44,19 @@ export default function AttendanceIncentives() {
     const initializeData = async () => {
       setIsLoading(true);
       await fetchSupervisorInfo();
-      await fetchCutOffPeriods(); // This now auto-selects the most recent cutoff
+      await fetchCutOffPeriods(); // Still needed for submission form
+
+      // Directly fetch all eligible employees
+      const eligibleEmployees = await fetchEligibleEmployees();
+      setEmployees(eligibleEmployees);
+      setFilteredEmployees(eligibleEmployees);
+
       await fetchIncentives();
       setIsLoading(false);
     };
 
     initializeData();
   }, []);
-
-  // Add a new useEffect to fetch eligible employees when cutoff changes
-  useEffect(() => {
-    const loadEligibleEmployees = async () => {
-      if (cutOff?.value) {
-        const eligibleEmployees = await fetchEligibleEmployees(cutOff.value);
-        setEmployees(eligibleEmployees);
-        setFilteredEmployees(eligibleEmployees);
-        setSelectedEmployees([]); // Reset selected employees when cutoff changes
-      } else {
-        setEmployees([]);
-        setFilteredEmployees([]);
-        setSelectedEmployees([]);
-      }
-    };
-
-    loadEligibleEmployees();
-  }, [cutOff]);
 
   // Add a useEffect to set the incentive amount when employees are selected
   useEffect(() => {
@@ -166,21 +154,13 @@ export default function AttendanceIncentives() {
     }
   };
 
-  const fetchEmployees = async () => {
-    if (cutOff?.value) {
-      const eligibleEmployees = await fetchEligibleEmployees(cutOff.value);
-      setEmployees(eligibleEmployees);
-      setFilteredEmployees(eligibleEmployees);
-    } else {
-      // If no cutoff is selected, show a message
-      Swal.fire({
-        icon: 'info',
-        title: 'Select a Cut-Off Period',
-        text: 'Please select a cut-off period first to view eligible employees.',
-        confirmButtonColor: '#3085d6'
-      });
-    }
-  };
+  // Update the fetchEmployees function
+
+const fetchEmployees = async () => {
+  const eligibleEmployees = await fetchEligibleEmployees();
+  setEmployees(eligibleEmployees);
+  setFilteredEmployees(eligibleEmployees);
+};
 
   const fetchIncentives = async () => {
     // This function can be minimized or removed if not needed for the new design
@@ -206,50 +186,50 @@ export default function AttendanceIncentives() {
     }
   };
 
-  const fetchEligibleEmployees = async (cutOffId) => {
-    try {
-      // First check if there's a cutoff selected
-      if (!cutOffId) {
-        return [];
+  // Update fetchEligibleEmployees to get all eligible employees across all cutoffs
+
+const fetchEligibleEmployees = async () => {
+  try {
+    const supervisorEmpId = localStorage.getItem("X-EMP-ID");
+    setIsLoading(true);
+
+    // Updated endpoint to use the new API
+    const response = await axios.get(
+      `${config.API_BASE_URL}/eligible_att_incentives/get_all_eligible_att_incentive_employees_supervisor/${supervisorEmpId}`,
+      {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": supervisorEmpId,
+        },
       }
+    );
 
-      const supervisorEmpId = localStorage.getItem("X-EMP-ID");
-      setIsLoading(true);
+    if (response.data?.data && Array.isArray(response.data.data)) {
+      const eligibleEmployees = response.data.data.map(emp => ({
+        empId: emp.emp_ID,
+        name: emp.employee_fullname,
+        position: emp.position || 'N/A',
+        department: emp.department || 'N/A',
+        amount: emp.amount || 2000,
+        cutoffPeriod: emp.cutoff_period || 'Current Period',
+        cutoffId: emp.cutoffID || '', // Note: using cutoffID from API response
+        status: 'Eligible',
+        checked: false
+      }));
 
-      const response = await axios.get(
-        `${config.API_BASE_URL}/eligible_att_incentives/get_all_eligible_att_incentive_supervisor/${cutOffId}/${supervisorEmpId}`,
-        {
-          headers: {
-            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": supervisorEmpId,
-          },
-        }
-      );
-
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        const eligibleEmployees = response.data.data.map(emp => ({
-          empId: emp.emp_ID,
-          name: emp.employee_fullname,
-          position: emp.position || 'N/A',
-          department: emp.department || 'N/A',
-          amount: emp.amount,
-          cutoffPeriod: emp.cutoff_period,
-          checked: false
-        }));
-
-        return eligibleEmployees;
-      } else {
-        console.warn("No eligible employee data found or invalid format");
-        return [];
-      }
-    } catch (error) {
-      console.error("Error fetching eligible employees:", error);
-      setError("Failed to load eligible employees");
+      return eligibleEmployees;
+    } else {
+      console.warn("No eligible employee data found or invalid format");
       return [];
-    } finally {
-      setIsLoading(false);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching eligible employees:", error);
+    setError("Failed to load eligible employees");
+    return [];
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleCheckboxChange = (empId) => {
     const updatedEmployees = filteredEmployees.map(employee => {
@@ -331,156 +311,151 @@ export default function AttendanceIncentives() {
     setFilteredEmployees(sorted);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Update the handleSubmit function
 
-    // Reset errors
-    setCutOffError('');
-    setAmountError('');
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    // Validate form
-    let hasError = false;
+  // Reset errors
+  setAmountError('');
 
-    if (!cutOff) {
-      setCutOffError('Please select a cut-off period');
-      hasError = true;
-    }
+  // Validate form
+  let hasError = false;
 
-    if (selectedEmployees.length === 0) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'No Employees Selected',
-        text: 'Please select at least one employee.',
-        confirmButtonColor: '#3085d6'
+  if (selectedEmployees.length === 0) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'No Employees Selected',
+      text: 'Please select at least one employee.',
+      confirmButtonColor: '#3085d6'
+    });
+    hasError = true;
+  }
+
+  if (!incentiveAmount) {
+    setAmountError('Please enter an incentive amount');
+    hasError = true;
+  }
+
+  if (hasError) return;
+
+  setIsSubmitting(true);
+
+  try {
+    // Add confirmation before submitting when multiple employees are selected
+    if (selectedEmployees.length > 1) {
+      const confirmResult = await Swal.fire({
+        title: 'Confirm Submission',
+        html: `You are about to submit attendance incentives for <strong>${selectedEmployees.length} employees</strong>. Do you want to continue?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, submit all',
+        cancelButtonText: 'Cancel'
       });
-      hasError = true;
-    }
 
-    if (!incentiveAmount) {
-      setAmountError('Please enter an incentive amount');
-      hasError = true;
-    }
-
-    if (hasError) return;
-
-    setIsSubmitting(true);
-
-    try {
-      // Add confirmation before submitting when multiple employees are selected
-      if (selectedEmployees.length > 1) {
-        const confirmResult = await Swal.fire({
-          title: 'Confirm Submission',
-          html: `You are about to submit attendance incentives for <strong>${selectedEmployees.length} employees</strong>. Do you want to continue?`,
-          icon: 'question',
-          showCancelButton: true,
-          confirmButtonText: 'Yes, submit all',
-          cancelButtonText: 'Cancel'
-        });
-
-        if (!confirmResult.isConfirmed) {
-          setIsSubmitting(false);
-          return;
-        }
+      if (!confirmResult.isConfirmed) {
+        setIsSubmitting(false);
+        return;
       }
+    }
 
-      // Get supervisor information
-      const supervisor_emp_id = localStorage.getItem("X-EMP-ID");
+    // Get supervisor information
+    const supervisor_emp_id = localStorage.getItem("X-EMP-ID");
 
-      // Track successful and failed submissions
-      const results = {
-        successful: 0,
-        failed: 0,
-        errors: []
-      };
+    // Track successful and failed submissions
+    const results = {
+      successful: 0,
+      failed: 0,
+      errors: []
+    };
 
-      // Process each selected employee
-      for (const employee of selectedEmployees) {
-        try {
-          await axios.post(
-            `${config.API_BASE_URL}/attendance_incentives/add_att_incentive`,
-            {
-              emp_id: employee.empId,
-              amount: incentiveAmount || employee.amount || 2000, // Use the employee's amount if available
-              cutoff_id: cutOff.value,
-              status: "Approved",
-              supervisor_emp_id: supervisor_emp_id
+    // Process each selected employee
+    for (const employee of selectedEmployees) {
+      try {
+        await axios.post(
+          `${config.API_BASE_URL}/attendance_incentives/add_att_incentive`,
+          {
+            emp_id: employee.empId,
+            amount: incentiveAmount || employee.amount || 2000,
+            cutoff_id: employee.cutoffId, // Use the employee's specific cutoff ID
+            status: "Approved",
+            supervisor_emp_id: supervisor_emp_id
+          },
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": supervisor_emp_id,
             },
-            {
-              headers: {
-                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-                "X-EMP-ID": supervisor_emp_id,
-              },
-            }
-          );
-          results.successful++;
-        } catch (err) {
-          console.error(`Error submitting attendance incentive for employee ${employee.empId}:`, err);
-          results.failed++;
-          results.errors.push({
-            employee: employee.name,
-            error: err.response?.data?.error || err.message
-          });
-        }
-      }
-
-      // Show results based on success/failure
-      if (results.failed === 0) {
-        // All submissions were successful
-        Swal.fire({
-          icon: 'success',
-          title: 'Success!',
-          text: `Attendance incentives for ${results.successful} employee(s) submitted successfully.`,
-          confirmButtonColor: '#28a745'
-        }).then(() => {
-          resetForm();
-          fetchIncentives(); // Refresh the list
-        });
-      } else if (results.successful === 0) {
-        // All submissions failed
-        Swal.fire({
-          icon: 'error',
-          title: 'Submission Failed',
-          text: 'All incentive submissions failed. Please try again.',
-          confirmButtonColor: '#dc3545'
-        });
-      } else {
-        // Mixed results
-        Swal.fire({
-          icon: 'warning',
-          title: 'Partial Success',
-          html: `
-            <div>
-              <p>${results.successful} submission(s) successful.</p>
-              <p>${results.failed} submission(s) failed.</p>
-              ${results.errors.length > 0 ?
-                `<div class="alert alert-danger mt-3">
-                  <ul class="mb-0 text-start">
-                    ${results.errors.map(err => `<li>${err.employee}: ${err.error}</li>`).join('')}
-                  </ul>
-                </div>` : ''
-              }
-            </div>
-          `,
-          confirmButtonColor: '#ffc107'
-        }).then(() => {
-          if (results.successful > 0) {
-            resetForm();
-            fetchIncentives(); // Refresh the list
           }
+        );
+        results.successful++;
+      } catch (err) {
+        console.error(`Error submitting attendance incentive for employee ${employee.empId}:`, err);
+        results.failed++;
+        results.errors.push({
+          employee: employee.name,
+          error: err.response?.data?.error || err.message
         });
       }
-    } catch (error) {
-      console.error("Error submitting incentives:", error);
+    }
+
+    // Show results based on success/failure
+    if (results.failed === 0) {
+      // All submissions were successful
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: `Attendance incentives for ${results.successful} employee(s) submitted successfully.`,
+        confirmButtonColor: '#28a745'
+      }).then(() => {
+        resetForm();
+        fetchIncentives(); // Refresh the list
+      });
+    } else if (results.successful === 0) {
       Swal.fire({
         icon: 'error',
         title: 'Submission Failed',
-        text: error.response?.data?.error || 'Failed to submit attendance incentives. Please try again.',
+        text: 'All incentive submissions failed. Please try again.',
         confirmButtonColor: '#dc3545'
       });
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      // Mixed results
+      Swal.fire({
+        icon: 'warning',
+        title: 'Partial Success',
+        html: `
+          <div>
+            <p>${results.successful} submission(s) successful.</p>
+            <p>${results.failed} submission(s) failed.</p>
+            ${results.errors.length > 0 ?
+              `<div class="alert alert-danger mt-3">
+                <ul class="mb-0 text-start">
+                  ${results.errors.map(err => `<li>${err.employee}: ${err.error}</li>`).join('')}
+                </ul>
+              </div>` : ''
+            }
+          </div>
+        `,
+        confirmButtonColor: '#ffc107'
+      }).then(() => {
+        if (results.successful > 0) {
+          resetForm();
+          fetchIncentives(); // Refresh the list
+        }
+      });
     }
-  };
+  } catch (error) {
+    console.error("Error submitting incentives:", error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Submission Failed',
+      text: error.response?.data?.error || 'Failed to submit attendance incentives. Please try again.',
+      confirmButtonColor: '#dc3545'
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -524,16 +499,18 @@ export default function AttendanceIncentives() {
                     </button>
                   </h5>
 
-                  {cutOff && (
+                  {employees.length > 0 ? (
                     <div className="alert alert-info d-flex align-items-center mb-4" role="alert">
                       <i className="bi bi-info-circle-fill me-2"></i>
                       <div>
-                        <strong>Currently showing:</strong> Eligible employees for incentives during the cut-off period: {cutOff.label}
-                        {employees.length === 0 && !isLoading && (
-                          <span className="d-block mt-1">
-                            No eligible employees found. All employees may have attendance issues for this period.
-                          </span>
-                        )}
+                        <strong>Currently showing:</strong> All eligible employees for incentives across all cut-off periods.
+                      </div>
+                    </div>
+                  ) : !isLoading && (
+                    <div className="alert alert-warning d-flex align-items-center mb-4" role="alert">
+                      <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                      <div>
+                        No eligible employees found. All employees may have attendance issues.
                       </div>
                     </div>
                   )}
@@ -632,14 +609,15 @@ export default function AttendanceIncentives() {
                             <th onClick={() => handleSort('name')}>
                               Name {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
                             </th>
-                            <th>Position</th>
-                            <th>Department</th>
+                            <th>Amount (₱)</th>
+                            <th>Cut-off Period</th>
+                            <th>Status</th>
                           </tr>
                         </thead>
                         <tbody>
                           {currentItems.length === 0 ? (
                             <tr>
-                              <td colSpan="5" className="text-center py-4 text-muted">
+                              <td colSpan="6" className="text-center py-4 text-muted">
                                 <i className="bi bi-people fs-2 d-block mb-2"></i>
                                 {isLoading ? (
                                   <>Loading eligible employees...</>
@@ -677,8 +655,13 @@ export default function AttendanceIncentives() {
                                     <div>{employee.name}</div>
                                   </div>
                                 </td>
-                                <td>{employee.position}</td>
-                                <td>{employee.department}</td>
+                                <td>
+                                  <span className="fw-semibold">{Number(employee.amount).toLocaleString()}</span>
+                                </td>
+                                <td>{employee.cutoffPeriod || '-'}</td>
+                                <td>
+                                  <span className="badge bg-success">Eligible</span>
+                                </td>
                               </tr>
                             ))
                           )}
@@ -761,52 +744,7 @@ export default function AttendanceIncentives() {
                       </h5>
                       <form onSubmit={handleSubmit}>
                         <div className="row g-3">
-                          <div className="col-md-5">
-                            <label className="form-label fw-semibold">
-                              <i className="bi bi-calendar-range me-1 text-muted"></i> Cut-Off Period
-                            </label>
-                            <Select
-                              className="basic-single"
-                              classNamePrefix="select"
-                              isSearchable={true}
-                              name="cutOff"
-                              options={cutOffOptions}
-                              value={cutOff}
-                              onChange={selected => {
-                                setCutOff(selected);
-                                setCutOffError('');
-                              }}
-                              placeholder="Select Cut-Off Period"
-                              isLoading={isLoadingCutoffs}
-                              styles={{
-                                control: (base, state) => ({
-                                  ...base,
-                                  borderColor: cutOffError ? '#dc3545' : (state.isFocused ? '#80bdff' : '#ced4da'),
-                                  boxShadow: state.isFocused ? '0 0 0 0.2rem rgba(0,123,255,.25)' : null,
-                                  '&:hover': {
-                                    borderColor: cutOffError ? '#dc3545' : (state.isFocused ? '#80bdff' : '#ced4da'),
-                                  },
-                                }),
-                                menu: (provided) => ({
-                                  ...provided,
-                                  zIndex: 9999,  // Ensure dropdown appears above other elements
-                                }),
-                                menuPortal: (provided) => ({
-                                  ...provided,
-                                  zIndex: 9999,
-                                }),
-                                menuList: (provided) => ({
-                                  ...provided,
-                                  maxHeight: '200px', // Set a reasonable max height
-                                })
-                              }}
-                              menuPosition="fixed"
-                              menuPlacement="auto"
-                              menuPortalTarget={document.body}
-                            />
-                            {cutOffError && <small className="text-danger">{cutOffError}</small>}
-                          </div>
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <label className="form-label fw-semibold">
                               <i className="bi bi-currency-exchange me-1 text-success"></i> Incentive Amount
                             </label>
@@ -825,22 +763,16 @@ export default function AttendanceIncentives() {
                                 placeholder="0.00"
                                 step="0.01"
                                 min="0"
-                                readOnly={selectedEmployees.length > 0}
                               />
-                              {selectedEmployees.length > 0 && (
-                                <span className="input-group-text bg-light text-muted">
-                                  <i className="bi bi-lock-fill"></i>
-                                </span>
-                              )}
                             </div>
                             {amountError && <small className="text-danger">{amountError}</small>}
                             {selectedEmployees.length > 0 && (
                               <small className="text-muted">
-                                Standard incentive amount for eligible employees
+                                You can adjust the incentive amount as needed
                               </small>
                             )}
                           </div>
-                          <div className="col-md-3 d-flex align-items-end">
+                          <div className="col-md-6 d-flex align-items-end">
                             <div className="d-grid gap-2 w-100">
                               <button
                                 type="submit"

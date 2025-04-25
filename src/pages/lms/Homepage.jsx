@@ -147,9 +147,6 @@ export default function Homepage() {
                     <a href="about.html" className="btn btn-primary py-md-3 px-md-5 me-3 animated slideInLeft">
                       Read More
                     </a>
-                    <a href="join.html" className="btn btn-light py-md-3 px-md-5 animated slideInRight">
-                      Join Now
-                    </a>
                   </div>
                 </div>
               </div>
@@ -423,7 +420,7 @@ export default function Homepage() {
                       </div>
                     </div>
                     <div className="text-center p-4 pb-0">
-                      <h3 className="mb-0">{course.course_price ? `$${course.course_price}` : "Free"}</h3>
+                      <h3 className="mb-0">{course.course_title}</h3>
                       <div className="mb-3">
                         <small className="fa fa-star text-primary"></small>
                         <small className="fa fa-star text-primary"></small>
@@ -432,17 +429,14 @@ export default function Homepage() {
                         <small className="fa fa-star text-primary"></small>
                         <small className="ms-1">(123)</small>
                       </div>
-                      <h5 className="mb-4">{course.course_title}</h5>
+
                     </div>
                     <div className="d-flex border-top">
                       <small className="flex-fill text-center border-end py-2">
                         <i className="fa fa-calendar text-primary me-2"></i>
                         {new Date(course.date_added).toLocaleDateString()}
                       </small>
-                      <small className="flex-fill text-center py-2">
-                        <i className="fa fa-user text-primary me-2"></i>
-                        Enroll Today
-                      </small>
+
                     </div>
                   </div>
                 </div>
