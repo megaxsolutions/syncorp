@@ -379,7 +379,7 @@ const handleSubmit = async (e) => {
       failed: 0,
       errors: []
     };
-
+console.log(cutOff.value);
     // Process each selected employee
     for (const employee of selectedEmployees) {
       try {
@@ -390,7 +390,8 @@ const handleSubmit = async (e) => {
             client_funded: clientFundedAmount || 0,
             supervisor_emp_id: supervisor_emp_id,
             emp_id: employee.value,
-            status: 'Approved'
+            status: 'Approved',
+            cutoff_id: cutOff.value
           },
           {
             headers: {
