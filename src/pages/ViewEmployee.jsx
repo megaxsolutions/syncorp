@@ -803,7 +803,7 @@ setDropdownData({
                         <option value="">Choose...</option>
                         <option value="Probationary">Probationary</option>
                         <option value="Regular">Regular</option>
-                        <option value="Contractual">Training</option>
+                        <option value="Training">Training</option>
 
                       </Form.Select>
                     </Form.Group>
