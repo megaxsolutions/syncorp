@@ -224,7 +224,7 @@ const Sidebar = () => {
               <Link
                 to="/approvals/incentives"
                 className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
-                  isActive("/approvals/attendance-incentives") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                  isActive("/approvals/incentives") ? "bg-primary text-white" : "text-dark hover-bg-light"
                 }`}
               >
                 <i

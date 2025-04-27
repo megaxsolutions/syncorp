@@ -645,7 +645,7 @@ export default function ApproveComplexity() {
                 </div>
               </div>
             </div>
-            <div className="card-body">
+            <div className="card-body" style={{minHeight:'500px'}}>
               {error && (
                 <div className="alert alert-danger d-flex align-items-center" role="alert">
                   <i className="bi bi-exclamation-triangle-fill fs-5 me-2"></i>

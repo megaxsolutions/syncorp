@@ -489,7 +489,7 @@ export default function ApproveBonus() {
                         )}
                       </button>
                       <div className={`dropdown-menu shadow p-3 ${showFilters ? 'show' : ''}`}
-                        style={{ width: "320px", right: 0, left: "auto", position: "absolute" }}>
+                        style={{ width: "320px", right: 0, left: "auto", position: "absolute", zIndex: '10' }}>
                         <h6 className="dropdown-header d-flex align-items-center">
                           <FaFilter className="me-2" /> Filter Options
                         </h6>
@@ -570,7 +570,7 @@ export default function ApproveBonus() {
                 </div>
               </div>
             </div>
-            <div className="card-body">
+            <div className="card-body" style={{minHeight:'500px'}}>
               {error && (
                 <div className="alert alert-danger d-flex align-items-center" role="alert">
                   <i className="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
@@ -637,7 +637,7 @@ export default function ApproveBonus() {
               )}
 
               {/* Rest of your existing table code remains the same */}
-              <div className="table-responsive">
+              <div className="table-responsive" style={{overflowX:'scroll'}}>
                 <table className="table table-hover table-bordered">
                   <thead className="table-light">
                     <tr>
