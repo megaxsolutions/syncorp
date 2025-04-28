@@ -71,6 +71,12 @@ import Course from "./pages/lms/Course";
 import ViewCourse from "./pages/lms/ViewCourse";
 import Team from "./pages/lms/Team";
 import Testimonial from "./pages/lms/Testimonial";
+import Sss_Loan from "./pages/contributions/Sss_Loan";
+import PagibigLoan from "./pages/contributions/PagibigLoan";
+import PayrollAdjustment from "./pages/contributions/PayrollAdjustment";
+import SssEeShare from "./pages/contributions/SssEeShare";
+import PhilHealthEeShare from "./pages/contributions/PhilHealthEeShare";
+import PagibigEeShare from "./pages/contributions/PagibigEeShare";
 
 function App() {
   return (
@@ -97,7 +103,7 @@ function App() {
         <Route path="/profile" element={<AdminProfile />} />
         <Route path="/attendance" element={<Attendance />} />
         <Route path="/dtr" element={<DTR />} />
-        <Route path="/payroll" element={<Payroll />} />
+        <Route path="/payroll/records" element={<Payroll />} />
         <Route path="/settings/bulletin" element={<Bulletin />} />
         <Route path="/settings/admin-level" element={<AdminLevel />} />
         <Route path="/settings/coaching" element={<AdminCoaching />} />
@@ -118,6 +124,12 @@ function App() {
         <Route path="/lms/create-quiz" element={<CreateQuiz />} />
         <Route path="/lms/add-users" element={<AddUser />} />
         <Route path="/view-incident" element={<ViewIncident />} />
+        <Route path="/sss-loan" element={<Sss_Loan />} />
+        <Route path="/pagibig-loan" element={<PagibigLoan />} />
+        <Route path="/payroll-adjustment" element={<PayrollAdjustment />} />
+        <Route path="/sss-ee-share" element={<SssEeShare />} />
+        <Route path="/philhealth-ee-share" element={<PhilHealthEeShare />} />
+        <Route path="/pagibig-ee-share" element={<PagibigEeShare />} />
 
 
       </Route>

@@ -479,22 +479,44 @@ export default function EnrollEmployee() {
       confirmButtonColor: "#dc3545",
       cancelButtonColor: "#6c757d",
       reverseButtons: true,
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        // Remove enrollment from list
-        const updatedEnrollments = enrollments.filter(item => item.id !== enrollment.id)
-        setEnrollments(updatedEnrollments)
+        try {
+          // Call the API to delete the enrollment
+          const response = await axios.delete(
+            `${config.API_BASE_URL}/enrolls/delete_enroll/${enrollment.id}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
+            }
+          );
 
-        Swal.fire({
-          icon: "success",
-          title: "Deleted!",
-          text: "Enrollment has been deleted.",
-          timer: 1500,
-          showConfirmButton: false,
-        })
+          if (response.data?.success) {
+            // Show success message
+            Swal.fire({
+              icon: "success",
+              title: "Deleted!",
+              text: "Enrollment has been successfully deleted.",
+              timer: 1500,
+              showConfirmButton: false,
+            });
+
+            // Refresh enrollments list
+            fetchEnrollments();
+          }
+        } catch (error) {
+          console.error("Error deleting enrollment:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error.response?.data?.error || "Failed to delete enrollment.",
+          });
+        }
       }
-    })
-  }
+    });
+  };
 
   // Get status badge class based on status
   const getStatusBadgeClass = (status) => {

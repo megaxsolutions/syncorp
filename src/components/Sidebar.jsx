@@ -12,7 +12,13 @@ const Sidebar = () => {
     approvals: location.pathname.startsWith("/approvals"),
     lms: location.pathname.startsWith("/lms"),
     incidents: location.pathname.startsWith("/incidents"),
-    payroll: location.pathname.startsWith("/payroll"), // Add payroll to expanded menus state
+    payroll: location.pathname.startsWith("/payroll") ||
+             location.pathname === "/sss-loan" ||
+             location.pathname === "/pagibig-loan" ||
+             location.pathname === "/payroll-adjustment" ||
+             location.pathname === "/sss-ee-share" ||
+             location.pathname === "/philhealth-ee-share" ||
+             location.pathname === "/pagibig-ee-share",
   })
 
   const toggleMenu = (menu) => {
@@ -22,8 +28,24 @@ const Sidebar = () => {
     }))
   }
 
+  // Update this function to correctly identify all payroll-related paths
+  const isActiveStartsWith = (path) => {
+    // For payroll, check all payroll-related paths to keep dropdown open
+    if (path === '/payroll') {
+      return location.pathname.startsWith('/payroll') ||
+             location.pathname === '/sss-loan' ||
+             location.pathname === '/pagibig-loan' ||
+             location.pathname === '/payroll-adjustment' ||
+             location.pathname === '/sss-ee-share' ||
+             location.pathname === '/philhealth-ee-share' ||
+             location.pathname === '/pagibig-ee-share';
+    }
+
+    // For other paths, keep original behavior
+    return location.pathname.startsWith(path);
+  }
+
   const isActive = (path) => location.pathname === path
-  const isActiveStartsWith = (path) => location.pathname.startsWith(path)
 
   return (
     <aside
@@ -278,20 +300,7 @@ const Sidebar = () => {
             </div>
           </li>
 
-          {/* Incident Reports - Single Link */}
-          <li className="nav-item mb-1">
-            <Link
-              to="/view-incident"
-              className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
-                isActive("/view-incident") ? "bg-primary text-white" : "text-dark hover-bg-light"
-              }`}
-            >
-              <i
-                className={`bi bi-exclamation-triangle me-3 ${isActive("/view-incident") ? "text-white" : "text-primary"}`}
-              ></i>
-              <span>Incident Reports</span>
-            </Link>
-          </li>
+
 
           {/* Payroll dropdown - Updated with individual contribution links */}
           <li className="nav-item mb-1">
@@ -324,73 +333,88 @@ const Sidebar = () => {
                 <span>Payroll Records</span>
               </Link>
               <Link
-                to="/payroll/sss-loan"
+                to="/sss-loan"
                 className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
-                  isActive("/payroll/sss-loan") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                  isActive("/sss-loan") ? "bg-primary text-white" : "text-dark hover-bg-light"
                 }`}
               >
                 <i
-                  className={`bi bi-bank me-2 ${isActive("/payroll/sss-loan") ? "text-white" : "text-primary"}`}
+                  className={`bi bi-bank me-2 ${isActive("/sss-loan") ? "text-white" : "text-primary"}`}
                 ></i>
                 <span>SSS Loan</span>
               </Link>
               <Link
-                to="/payroll/pagibig-loan"
+                to="/pagibig-loan"
                 className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
-                  isActive("/payroll/pagibig-loan") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                  isActive("/pagibig-loan") ? "bg-primary text-white" : "text-dark hover-bg-light"
                 }`}
               >
                 <i
-                  className={`bi bi-house-fill me-2 ${isActive("/payroll/pagibig-loan") ? "text-white" : "text-primary"}`}
+                  className={`bi bi-house-fill me-2 ${isActive("/pagibig-loan") ? "text-white" : "text-primary"}`}
                 ></i>
                 <span>Pag-IBIG Loan</span>
               </Link>
               <Link
-                to="/payroll/adjustment"
+                to="/payroll-adjustment"
                 className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
-                  isActive("/payroll/adjustment") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                  isActive("/payroll-adjustment") ? "bg-primary text-white" : "text-dark hover-bg-light"
                 }`}
               >
                 <i
-                  className={`bi bi-sliders me-2 ${isActive("/payroll/adjustment") ? "text-white" : "text-primary"}`}
+                  className={`bi bi-sliders me-2 ${isActive("/payroll-adjustment") ? "text-white" : "text-primary"}`}
                 ></i>
                 <span>Payroll Adjustment</span>
               </Link>
               {/* Individual contribution items instead of a single Government Contributions link */}
               <Link
-                to="/payroll/sss-share"
+                to="/sss-ee-share"
                 className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
-                  isActive("/payroll/sss-share") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                  isActive("/sss-ee-share") ? "bg-primary text-white" : "text-dark hover-bg-light"
                 }`}
               >
                 <i
-                  className={`bi bi-shield me-2 ${isActive("/payroll/sss-share") ? "text-white" : "text-primary"}`}
+                  className={`bi bi-shield me-2 ${isActive("/sss-ee-share") ? "text-white" : "text-primary"}`}
                 ></i>
                 <span>SSS EE Share</span>
               </Link>
               <Link
-                to="/payroll/philhealth-share"
+                to="/philhealth-ee-share"
                 className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
-                  isActive("/payroll/philhealth-share") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                  isActive("/philhealth-ee-share") ? "bg-primary text-white" : "text-dark hover-bg-light"
                 }`}
               >
                 <i
-                  className={`bi bi-hospital me-2 ${isActive("/payroll/philhealth-share") ? "text-white" : "text-primary"}`}
+                  className={`bi bi-hospital me-2 ${isActive("/philhealth-ee-share") ? "text-white" : "text-primary"}`}
                 ></i>
                 <span>PhilHealth EE Share</span>
               </Link>
               <Link
-                to="/payroll/pagibig-share"
+                to="/pagibig-ee-share"
                 className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
-                  isActive("/payroll/pagibig-share") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                  isActive("/pagibig-ee-share") ? "bg-primary text-white" : "text-dark hover-bg-light"
                 }`}
               >
                 <i
-                  className={`bi bi-house-heart me-2 ${isActive("/payroll/pagibig-share") ? "text-white" : "text-primary"}`}
+                  className={`bi bi-house-heart me-2 ${isActive("/pagibig-ee-share") ? "text-white" : "text-primary"}`}
                 ></i>
                 <span>Pag-IBIG EE Share</span>
               </Link>
             </div>
+          </li>
+
+          {/* Incident Reports - Single Link */}
+          <li className="nav-item mb-1">
+            <Link
+              to="/view-incident"
+              className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                isActive("/view-incident") ? "bg-primary text-white" : "text-dark hover-bg-light"
+              }`}
+            >
+              <i
+                className={`bi bi-exclamation-triangle me-3 ${isActive("/view-incident") ? "text-white" : "text-primary"}`}
+              ></i>
+              <span>Incident Reports</span>
+            </Link>
           </li>
 
           {/* Other menu items */}

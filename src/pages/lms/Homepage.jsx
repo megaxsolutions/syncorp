@@ -512,7 +512,8 @@ export default function Homepage() {
                         src={trainer.filename_photo
                           ? `${config.API_BASE_URL}/uploads/${trainer.filename_photo}`
                           : profileImg}
-                        alt={`Trainer ${trainer.emp_ID}`}
+                        alt={trainer.fullname || `Trainer ${trainer.emp_ID}`}
+                        style={{ height: "250px", width: "100%", objectFit: "cover" }}
                       />
                     </div>
                     <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
@@ -535,16 +536,25 @@ export default function Homepage() {
                       </div>
                     </div>
                     <div className="text-center p-4">
-                      <h5 className="mb-0">Trainer ID: {trainer.emp_ID}</h5>
-                      <small>
-                        {trainer.categoryID && `Category ID: ${trainer.categoryID}`}
-                        {trainer.courseID && trainer.categoryID && " | "}
-                        {trainer.courseID && `Course ID: ${trainer.courseID}`}
-                      </small>
+                      <h5 className="mb-0">{trainer.fullname || `Trainer ${trainer.emp_ID}`}</h5>
+                      {trainer.course_title && (
+                        <small className="text-muted d-block">{trainer.course_title}</small>
+                      )}
+                      {trainer.category_title && (
+                        <small className="text-primary">{trainer.category_title}</small>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {trainers.length > 4 && (
+            <div className="text-center mt-4">
+              <Link to="/lms/trainers" className="btn btn-primary">
+                View All Instructors
+              </Link>
             </div>
           )}
         </div>
