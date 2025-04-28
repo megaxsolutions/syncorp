@@ -144,8 +144,14 @@ export default function PayrollAdjustment() {
         }
       );
 
-      const adjustmentsData = response.data.data || [];
-      setAdjustments(adjustmentsData);
+     const adjustmentsData = response.data.data || [];
+
+    // Sort adjustments by id in descending order (latest first)
+    const sortedAdjustments = [...adjustmentsData].sort((a, b) => {
+      // Simple numeric sort by ID (descending order)
+      return b.id - a.id;
+    });
+      setAdjustments(sortedAdjustments);
     } catch (error) {
       console.error("Fetch payroll adjustments error:", error);
       Swal.fire({
