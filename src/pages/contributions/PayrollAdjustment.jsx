@@ -144,14 +144,8 @@ export default function PayrollAdjustment() {
         }
       );
 
-     const adjustmentsData = response.data.data || [];
-
-    // Sort adjustments by id in descending order (latest first)
-    const sortedAdjustments = [...adjustmentsData].sort((a, b) => {
-      // Simple numeric sort by ID (descending order)
-      return b.id - a.id;
-    });
-      setAdjustments(sortedAdjustments);
+      const adjustmentsData = response.data.data || [];
+      setAdjustments(adjustmentsData);
     } catch (error) {
       console.error("Fetch payroll adjustments error:", error);
       Swal.fire({
@@ -399,35 +393,34 @@ export default function PayrollAdjustment() {
 
   // Get status badge color based on status value
   const getStatusBadgeColor = (status) => {
-    // Convert to string and handle null/undefined
-    const statusStr = String(status || '').toLowerCase();
+    // Convert status to number if it's a string
+    const statusNum = typeof status === 'string' ? parseInt(status, 10) : status;
 
-    switch(statusStr) {
-      case 'approved':
-        return 'bg-success';
-      case 'rejected':
-        return 'bg-danger';
-      case 'pending':
-        return 'bg-warning';
+    switch(statusNum) {
+      case 1:
+        return 'bg-success'; // Approved
+      case 2:
+        return 'bg-danger';  // Rejected
+      case 0:
+        return 'bg-warning'; // Pending
       default:
         return 'bg-secondary'; // Default fallback
     }
   };
 
-
-
+  // Keep your existing getStatus function for displaying the text
   const getStatus = (number) => {
-    switch (number) {
-        case 0:
-            return 'Pending';
-        case 1:
-            return 'Approved';
-        case 2:
-            return 'Rejected';
-        default:
-            return 'Unknown'; // Fallback for any unrecognized number
+    switch (parseInt(number, 10)) {
+      case 0:
+        return 'Pending';
+      case 1:
+        return 'Approved';
+      case 2:
+        return 'Rejected';
+      default:
+        return 'Unknown'; // Fallback for any unrecognized number
     }
-};
+  };
 
   return (
     <>
@@ -595,7 +588,7 @@ export default function PayrollAdjustment() {
                             <tr key={adjustment.id}>
                               <td>{adjustment.fullname}</td>
                               <td>{formatAmount(adjustment.amount)}</td>
-                              <td>{adjustment.payroll_id}</td>
+                              <td>{formatCutOff(adjustment)}</td>
                               <td>
                                 <span className={`badge ${getStatusBadgeColor(adjustment.status)}`}>
                                   {getStatus(adjustment.status)}
