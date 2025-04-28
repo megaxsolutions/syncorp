@@ -11,10 +11,11 @@ export default function PayrollAdjustment() {
     emp_id: "",
     amount: "",
     payroll_id: "",
-    status: "pending" // Default status
+    status: 0 // Default status
   });
 
   // State for employees dropdown
+  const [cutoff, setCutoff] = useState([]);
   const [employees, setEmployees] = useState([]);
   // State for payroll records dropdown
   const [payrollRecords, setPayrollRecords] = useState([]);
@@ -31,14 +32,53 @@ export default function PayrollAdjustment() {
   const totalPages = Math.ceil(adjustments.length / adjustmentsPerPage);
 
   // Status options for the dropdown
-  const statusOptions = ["pending", "approved", "rejected"];
+  const statusOptions = [
+    { id: 0, status: "pending" },
+    { id: 1, status: "approved" },
+    { id: 2, status: "rejected" }
+  ];
 
   // Fetch employees, payroll records, and adjustments on component mount
   useEffect(() => {
     fetchEmployees();
     fetchPayrollRecords();
     fetchAdjustments();
+    fetchCutoff();
   }, []);
+
+  const fetchCutoff = async () => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/main/get_all_dropdown_data`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      const cutoffData = response.data.data.cutoff || [];
+      setCutoff(cutoffData);
+    } catch (error) {
+      console.error("Fetch employees error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load employees data.",
+      });
+    }
+  };
+
+  function formatCutOff(cut_off) {
+    const startDate = new Date(cut_off.startDate);
+    const endDate = cut_off.endDate ? new Date(cut_off.endDate) : null;
+
+    const startDateFormatted = `${startDate.toLocaleString('default', { month: 'long' })} ${startDate.getDate()}`;
+    const endDateFormatted = endDate ? `${endDate.toLocaleString('default', { month: 'long' })} ${endDate.getDate()} ${endDate.getFullYear()}` : "Current Period";
+
+    return `${startDateFormatted} - ${endDateFormatted}`;
+  }
 
   // Fetch all employees for dropdown
   const fetchEmployees = async () => {
@@ -130,7 +170,7 @@ export default function PayrollAdjustment() {
 
     try {
       // Validate form data
-      if (!formData.emp_id || !formData.amount || !formData.payroll_id || !formData.status) {
+      if (!formData.emp_id || !formData.amount || !formData.payroll_id) {
         Swal.fire({
           icon: "error",
           title: "Error",
@@ -205,14 +245,25 @@ export default function PayrollAdjustment() {
           </div>
           <div class="mb-3">
             <label class="form-label">Payroll ID</label>
-            <input type="text" id="edit-payroll-id" class="form-control" value="${adjustment.payroll_id}" required>
+            <select
+                id="edit-payroll-id"
+                class="form-control"
+                value="${adjustment.payroll_id}"
+                required
+            >
+                ${cutoff.map(cut_off => `
+                    <option key="${cut_off.id}" value="${cut_off.id}" ${cut_off.id === adjustment.payroll_id ? 'selected' : ''}>
+                        ${formatCutOff(cut_off) || "Current Period"}
+                    </option>
+                `).join('')}
+            </select>
           </div>
           <div class="mb-3">
             <label class="form-label">Status</label>
             <select id="edit-status" class="form-select" required>
-              <option value="pending" ${adjustment.status === 'pending' ? 'selected' : ''}>Pending</option>
-              <option value="approved" ${adjustment.status === 'approved' ? 'selected' : ''}>Approved</option>
-              <option value="rejected" ${adjustment.status === 'rejected' ? 'selected' : ''}>Rejected</option>
+              <option value="0" ${adjustment.status === 0 ? 'selected' : ''}>Pending</option>
+              <option value="1" ${adjustment.status === 1 ? 'selected' : ''}>Approved</option>
+              <option value="2" ${adjustment.status === 2 ? 'selected' : ''}>Rejected</option>
             </select>
           </div>
         </form>
@@ -357,13 +408,20 @@ export default function PayrollAdjustment() {
     }
   };
 
-  // Helper function to safely format status for display
-  const formatStatus = (status) => {
-    if (!status || typeof status !== 'string') {
-      return 'Pending'; // Default fallback
+
+
+  const getStatus = (number) => {
+    switch (number) {
+        case 0:
+            return 'Pending';
+        case 1:
+            return 'Approved';
+        case 2:
+            return 'Rejected';
+        default:
+            return 'Unknown'; // Fallback for any unrecognized number
     }
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  };
+};
 
   return (
     <>
@@ -453,13 +511,15 @@ export default function PayrollAdjustment() {
                       required
                     >
                       <option value="">Select Payroll Record</option>
-                      {payrollRecords.map((record) => (
-                        <option key={record.payroll_id} value={record.payroll_id}>
-                          {record.payroll_id} - {record.payroll_period || "Current Period"}
+                      {cutoff.map((cut_off) => (
+                        <option key={cut_off.id} value={cut_off.id}>
+                          {formatCutOff(cut_off) || "Current Period"}
                         </option>
                       ))}
                     </select>
                   </div>
+
+
 
                   <div className="mb-3">
                     <label htmlFor="status" className="form-label">
@@ -474,9 +534,9 @@ export default function PayrollAdjustment() {
                       onChange={handleChange}
                       required
                     >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                      {statusOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                             {option.status.charAt(0).toUpperCase() + option.status.slice(1)}
                         </option>
                       ))}
                     </select>
@@ -532,7 +592,7 @@ export default function PayrollAdjustment() {
                               <td>{adjustment.payroll_id}</td>
                               <td>
                                 <span className={`badge ${getStatusBadgeColor(adjustment.status)}`}>
-                                  {formatStatus(adjustment.status)}
+                                  {getStatus(adjustment.status)}
                                 </span>
                               </td>
                               <td>
