@@ -31,6 +31,8 @@ export default function Homepage() {
   const [isLoading, setIsLoading] = useState(true);
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [trainers, setTrainers] = useState([]);
+  const [loadingTrainers, setLoadingTrainers] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -46,6 +48,7 @@ export default function Homepage() {
     // Fetch data when component mounts
     fetchCategories();
     fetchCourses();
+    fetchTrainers();
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -116,6 +119,38 @@ export default function Homepage() {
     }
   };
 
+  // Add the new function to fetch trainers
+  const fetchTrainers = async () => {
+    try {
+      setLoadingTrainers(true);
+      const response = await axios.get(
+        `${config.API_BASE_URL}/trainers/get_all_trainer`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (response.data?.data) {
+        setTrainers(response.data.data);
+      } else {
+        setTrainers([]);
+      }
+    } catch (error) {
+      console.error("Error fetching trainers:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load trainers.",
+      });
+      setTrainers([]);
+    } finally {
+      setLoadingTrainers(false);
+    }
+  };
+
   return (
     <>
       {/* Enhanced Navigation Bar */}
@@ -175,9 +210,7 @@ export default function Homepage() {
                     <a href="about.html" className="btn btn-primary py-md-3 px-md-5 me-3 animated slideInLeft">
                       Read More
                     </a>
-                    <a href="join.html" className="btn btn-light py-md-3 px-md-5 animated slideInRight">
-                      Join Now
-                    </a>
+
                   </div>
                 </div>
               </div>
@@ -446,111 +479,74 @@ export default function Homepage() {
         </div>
       </div>
 
-      {/* Instructors Section */}
+      {/* Updated Instructors Section */}
       <div className="container-xxl py-5">
         <div className="container">
           <div className="text-center wow fadeInUp" data-wow-delay="0.1s">
             <h6 className="section-title bg-white text-center text-primary px-3">Instructors</h6>
             <h1 className="mb-5">Expert Instructors</h1>
           </div>
-          <div className="row g-4">
-            <div className="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.1s">
-              <div className="team-item bg-light">
-                <div className="overflow-hidden">
-                  <img className="img-fluid" src={profileImg} alt="Instructor 1" />
-                </div>
-                <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
-                  <div className="bg-light d-flex justify-content-center pt-2 px-1">
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Facebook">
-                      <i className="fab fa-facebook-f"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Twitter">
-                      <i className="fab fa-twitter"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="LinkedIn">
-                      <i className="fab fa-linkedin-in"></i>
-                    </a>
-                  </div>
-                </div>
-                <div className="text-center p-4">
-                  <h5 className="mb-0">Dr. John Smith</h5>
-                  <small>Web Development Expert</small>
-                </div>
+
+          {loadingTrainers ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
               </div>
             </div>
-            <div className="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.3s">
-              <div className="team-item bg-light">
-                <div className="overflow-hidden">
-                  <img className="img-fluid" src={profileImg} alt="Instructor 2" />
-                </div>
-                <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
-                  <div className="bg-light d-flex justify-content-center pt-2 px-1">
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Facebook">
-                      <i className="fab fa-facebook-f"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Twitter">
-                      <i className="fab fa-twitter"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="LinkedIn">
-                      <i className="fab fa-linkedin-in"></i>
-                    </a>
+          ) : trainers.length === 0 ? (
+            <div className="alert alert-info text-center" role="alert">
+              No instructors available at the moment.
+            </div>
+          ) : (
+            <div className="row g-4">
+              {trainers.slice(0, 4).map((trainer, index) => (
+                <div
+                  className="col-lg-3 col-md-6 wow fadeInUp"
+                  data-wow-delay={`0.${index + 1}s`}
+                  key={trainer.id}
+                >
+                  <div className="team-item bg-light">
+                    <div className="overflow-hidden">
+                      <img
+                        className="img-fluid"
+                        src={trainer.filename_photo
+                          ? `${config.API_BASE_URL}/uploads/${trainer.filename_photo}`
+                          : profileImg}
+                        alt={`Trainer ${trainer.emp_ID}`}
+                      />
+                    </div>
+                    <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
+                      <div className="bg-light d-flex justify-content-center pt-2 px-1">
+                        {trainer.facebook && (
+                          <a className="btn btn-sm-square btn-primary mx-1" href={trainer.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                            <i className="fab fa-facebook-f"></i>
+                          </a>
+                        )}
+                        {trainer.twitter && (
+                          <a className="btn btn-sm-square btn-primary mx-1" href={trainer.twitter} target="_blank" rel="noopener noreferrer" aria-label="Twitter">
+                            <i className="fab fa-twitter"></i>
+                          </a>
+                        )}
+                        {trainer.linkedin && (
+                          <a className="btn btn-sm-square btn-primary mx-1" href={trainer.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                            <i className="fab fa-linkedin-in"></i>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-center p-4">
+                      <h5 className="mb-0">Trainer ID: {trainer.emp_ID}</h5>
+                      <small>
+                        {trainer.categoryID && `Category ID: ${trainer.categoryID}`}
+                        {trainer.courseID && trainer.categoryID && " | "}
+                        {trainer.courseID && `Course ID: ${trainer.courseID}`}
+                      </small>
+                    </div>
                   </div>
                 </div>
-                <div className="text-center p-4">
-                  <h5 className="mb-0">Sarah Johnson</h5>
-                  <small>Graphic Design Specialist</small>
-                </div>
-              </div>
+              ))}
             </div>
-            <div className="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.5s">
-              <div className="team-item bg-light">
-                <div className="overflow-hidden">
-                  <img className="img-fluid" src={profileImg} alt="Instructor 3" />
-                </div>
-                <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
-                  <div className="bg-light d-flex justify-content-center pt-2 px-1">
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Facebook">
-                      <i className="fab fa-facebook-f"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Twitter">
-                      <i className="fab fa-twitter"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="LinkedIn">
-                      <i className="fab fa-linkedin-in"></i>
-                    </a>
-                  </div>
-                </div>
-                <div className="text-center p-4">
-                  <h5 className="mb-0">Michael Brown</h5>
-                  <small>Digital Marketing Guru</small>
-                </div>
-              </div>
-            </div>
-            <div className="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.7s">
-              <div className="team-item bg-light">
-                <div className="overflow-hidden">
-                  <img className="img-fluid" src={profileImg} alt="Instructor 4" />
-                </div>
-                <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
-                  <div className="bg-light d-flex justify-content-center pt-2 px-1">
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Facebook">
-                      <i className="fab fa-facebook-f"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Twitter">
-                      <i className="fab fa-twitter"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="LinkedIn">
-                      <i className="fab fa-linkedin-in"></i>
-                    </a>
-                  </div>
-                </div>
-                <div className="text-center p-4">
-                  <h5 className="mb-0">Emily Davis</h5>
-                  <small>Video Production Expert</small>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

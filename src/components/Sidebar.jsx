@@ -10,8 +10,9 @@ const Sidebar = () => {
     employees: location.pathname.startsWith("/add-employee") || location.pathname.startsWith("/view-employee"),
     settings: location.pathname.startsWith("/settings"),
     approvals: location.pathname.startsWith("/approvals"),
-    lms: location.pathname.startsWith("/lms"), // Add LMS to expanded menus state
-    incidents: location.pathname.startsWith("/incidents"), // Add this new line
+    lms: location.pathname.startsWith("/lms"),
+    incidents: location.pathname.startsWith("/incidents"),
+    payroll: location.pathname.startsWith("/payroll"), // Add payroll to expanded menus state
   })
 
   const toggleMenu = (menu) => {
@@ -292,12 +293,111 @@ const Sidebar = () => {
             </Link>
           </li>
 
+          {/* Payroll dropdown - Updated with individual contribution links */}
+          <li className="nav-item mb-1">
+            <button
+              onClick={() => toggleMenu("payroll")}
+              className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center justify-content-between w-100 border-0 ${
+                isActiveStartsWith("/payroll") ? "bg-primary text-white" : "text-dark hover-bg-light"
+              }`}
+              style={{ background: expandedMenus.payroll ? "rgba(13, 110, 253, 0.1)" : "transparent" }}
+            >
+              <div className="d-flex align-items-center">
+                <i
+                  className={`bi bi-cash-stack me-3 ${isActiveStartsWith("/payroll") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>Payroll</span>
+              </div>
+              <i className={`bi ${expandedMenus.payroll ? "bi-chevron-up" : "bi-chevron-down"}`}></i>
+            </button>
+
+            <div className={`ms-4 mt-1 ${expandedMenus.payroll ? "d-block" : "d-none"}`}>
+              <Link
+                to="/payroll/records"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/payroll/records") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i
+                  className={`bi bi-file-earmark-text me-2 ${isActive("/payroll/records") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>Payroll Records</span>
+              </Link>
+              <Link
+                to="/payroll/sss-loan"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/payroll/sss-loan") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i
+                  className={`bi bi-bank me-2 ${isActive("/payroll/sss-loan") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>SSS Loan</span>
+              </Link>
+              <Link
+                to="/payroll/pagibig-loan"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/payroll/pagibig-loan") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i
+                  className={`bi bi-house-fill me-2 ${isActive("/payroll/pagibig-loan") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>Pag-IBIG Loan</span>
+              </Link>
+              <Link
+                to="/payroll/adjustment"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/payroll/adjustment") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i
+                  className={`bi bi-sliders me-2 ${isActive("/payroll/adjustment") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>Payroll Adjustment</span>
+              </Link>
+              {/* Individual contribution items instead of a single Government Contributions link */}
+              <Link
+                to="/payroll/sss-share"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/payroll/sss-share") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i
+                  className={`bi bi-shield me-2 ${isActive("/payroll/sss-share") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>SSS EE Share</span>
+              </Link>
+              <Link
+                to="/payroll/philhealth-share"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center mb-1 ${
+                  isActive("/payroll/philhealth-share") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i
+                  className={`bi bi-hospital me-2 ${isActive("/payroll/philhealth-share") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>PhilHealth EE Share</span>
+              </Link>
+              <Link
+                to="/payroll/pagibig-share"
+                className={`nav-link rounded-3 px-3 py-2 d-flex align-items-center ${
+                  isActive("/payroll/pagibig-share") ? "bg-primary text-white" : "text-dark hover-bg-light"
+                }`}
+              >
+                <i
+                  className={`bi bi-house-heart me-2 ${isActive("/payroll/pagibig-share") ? "text-white" : "text-primary"}`}
+                ></i>
+                <span>Pag-IBIG EE Share</span>
+              </Link>
+            </div>
+          </li>
+
           {/* Other menu items */}
           {[
             { path: "/coaching-records", icon: "bi-journal-text", label: "Coaching Records" },
             { path: "/attendance", icon: "bi-calendar-check", label: "Attendance" },
             { path: "/dtr", icon: "bi-clock-history", label: "DTR" },
-            { path: "/payroll", icon: "bi-cash-stack", label: "Payroll" },
           ].map((item, index) => (
             <li key={index} className="nav-item mb-1">
               <Link

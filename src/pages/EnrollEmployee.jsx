@@ -15,6 +15,7 @@ export default function EnrollEmployee() {
   const [employees, setEmployees] = useState([])
   const [categories, setCategories] = useState([])
   const [courses, setCourses] = useState([])
+  const [filteredCourses, setFilteredCourses] = useState([]);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -29,6 +30,22 @@ export default function EnrollEmployee() {
       fetchEnrollments();
     }
   }, [employees, categories, courses]);
+
+  // Add this effect to filter courses whenever categoryId changes
+  useEffect(() => {
+    if (categoryId) {
+      const coursesInCategory = courses.filter(course => course.categoryID === parseInt(categoryId));
+      setFilteredCourses(coursesInCategory);
+
+      // If the currently selected course is not in this category, reset it
+      if (courseId && !coursesInCategory.some(course => course.id === parseInt(courseId))) {
+        setCourseId("");
+      }
+    } else {
+      setFilteredCourses([]);
+      setCourseId("");
+    }
+  }, [categoryId, courses, courseId]);
 
   // Update these functions to make real API calls
   const fetchEnrollments = async () => {
@@ -255,7 +272,7 @@ export default function EnrollEmployee() {
   };
 
   const handleEditEnrollment = (enrollment) => {
-    // Create employee options for the select dropdown - Removed employee ID from display
+    // Create employee options for the select dropdown
     const employeeSelectOptions = employees.map(emp => ({
       value: emp.emp_ID,
       label: `${emp.fName} ${emp.lName}`
@@ -263,7 +280,7 @@ export default function EnrollEmployee() {
 
     // Find the currently selected employee
     const selectedEmployee = employeeSelectOptions.find(
-      emp => emp.value === enrollment.emp_ID // Use emp_ID here instead of employee_id
+      emp => emp.value === enrollment.emp_ID
     );
 
     // Create the select element for employee
@@ -290,7 +307,7 @@ export default function EnrollEmployee() {
           <i class="bi bi-folder me-2"></i>Category
           <span class="text-danger">*</span>
         </label>
-        <select id="categorySelect" class="form-select form-select-lg">
+        <select id="categorySelect" class="form-select form-select-lg" onchange="updateCourses(this.value)">
           ${categories.map(category =>
             `<option value="${category.id}" ${category.id === enrollment.category_id ? 'selected' : ''}>
               ${category.category_title}
@@ -300,6 +317,11 @@ export default function EnrollEmployee() {
       </div>
     `;
 
+    // Filter courses based on the selected category
+    const filteredEditCourses = courses.filter(course =>
+      course.categoryID === enrollment.category_id
+    );
+
     // Create the select element for course
     const courseSelectHtml = `
       <div class="mb-3">
@@ -308,7 +330,7 @@ export default function EnrollEmployee() {
           <span class="text-danger">*</span>
         </label>
         <select id="courseSelect" class="form-select form-select-lg">
-          ${courses.map(course =>
+          ${filteredEditCourses.map(course =>
             `<option value="${course.id}" ${course.id === enrollment.course_id ? 'selected' : ''}>
               ${course.course_title}
             </option>`
@@ -325,12 +347,72 @@ export default function EnrollEmployee() {
           ${categorySelectHtml}
           ${courseSelectHtml}
         </form>
+        <script>
+          function updateCourses(categoryId) {
+            categoryId = parseInt(categoryId);
+            const courseSelect = document.getElementById('courseSelect');
+            // Clear current options
+            courseSelect.innerHTML = '';
+
+            // Filter courses based on selected category
+            const courses = ${JSON.stringify(courses)};
+            const filteredCourses = courses.filter(course => course.categoryID === categoryId);
+
+            // Add new options
+            filteredCourses.forEach(course => {
+              const option = document.createElement('option');
+              option.value = course.id;
+              option.textContent = course.course_title;
+              courseSelect.appendChild(option);
+            });
+
+            // If no courses, show message
+            if (filteredCourses.length === 0) {
+              const option = document.createElement('option');
+              option.value = '';
+              option.textContent = 'No courses available for this category';
+              courseSelect.appendChild(option);
+            }
+          }
+        </script>
       `,
       showCancelButton: true,
       confirmButtonText: "Save Changes",
       cancelButtonText: "Cancel",
       confirmButtonColor: "#198754",
       cancelButtonColor: "#dc3545",
+      didOpen: () => {
+        // Add event listener for category select
+        const categorySelect = document.getElementById('categorySelect');
+        if (categorySelect) {
+          categorySelect.addEventListener('change', (e) => {
+            const categoryId = parseInt(e.target.value);
+            const courseSelect = document.getElementById('courseSelect');
+
+            // Clear current options
+            courseSelect.innerHTML = '';
+
+            // Filter courses based on selected category
+            const filteredCourses = courses.filter(course => course.categoryID === categoryId);
+
+            // Add new options
+            filteredCourses.forEach(course => {
+              const option = document.createElement('option');
+              option.value = course.id;
+              option.textContent = course.course_title;
+              courseSelect.appendChild(option);
+            });
+
+            // If no courses, show message
+            if (filteredCourses.length === 0) {
+              const option = document.createElement('option');
+              option.value = '';
+              option.textContent = 'No courses available for this category';
+              courseSelect.appendChild(option);
+            }
+          });
+        }
+      },
       preConfirm: () => {
         const employeeId = document.getElementById("employeeSelect").value;
         const categoryId = document.getElementById("categorySelect").value;
@@ -424,6 +506,15 @@ export default function EnrollEmployee() {
     }
   }
 
+  // Modify the category select handler to reset course when category changes
+  const handleCategoryChange = (e) => {
+    const newCategoryId = e.target.value;
+    setCategoryId(newCategoryId);
+
+    // Reset course selection when category changes
+    setCourseId("");
+  };
+
   return (
     <>
       <Navbar />
@@ -486,7 +577,7 @@ export default function EnrollEmployee() {
                       id="category_id"
                       name="category_id"
                       value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
+                      onChange={handleCategoryChange} // Use the new handler
                       required
                     >
                       <option value="">Select Category</option>
@@ -516,20 +607,26 @@ export default function EnrollEmployee() {
                       value={courseId}
                       onChange={(e) => setCourseId(e.target.value)}
                       required
+                      disabled={!categoryId} // Disable if no category is selected
                     >
                       <option value="">Select Course</option>
-                      {courses.map((course) => (
+                      {filteredCourses.map((course) => (
                         <option key={course.id} value={course.id}>
                           {course.course_title}
                         </option>
                       ))}
                     </select>
-                    {courses.length === 0 && (
+                    {categoryId && filteredCourses.length === 0 ? (
                       <div className="form-text text-warning mt-2">
                         <i className="bi bi-exclamation-triangle me-1"></i>
-                        No courses available.
+                        No courses available for this category.
                       </div>
-                    )}
+                    ) : !categoryId ? (
+                      <div className="form-text text-muted mt-2">
+                        <i className="bi bi-info-circle me-1"></i>
+                        Please select a category first.
+                      </div>
+                    ) : null}
                   </div>
 
                   <button

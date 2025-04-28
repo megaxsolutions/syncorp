@@ -35,6 +35,8 @@ const EditTrainerModal = ({
     trainer?.filename_photo ? `${config.API_BASE_URL}/uploads/${trainer.filename_photo}` : null
   );
 
+  const [filteredCourses, setFilteredCourses] = useState([]);
+
   // Update form data and photo preview when trainer changes
   useEffect(() => {
     if (trainer) {
@@ -52,12 +54,33 @@ const EditTrainerModal = ({
     }
   }, [trainer]);
 
+  useEffect(() => {
+    if (formData.categoryId) {
+      const coursesInCategory = courses.filter(
+        course => course.categoryID === parseInt(formData.categoryId)
+      );
+      setFilteredCourses(coursesInCategory);
+    } else {
+      setFilteredCourses([]);
+    }
+  }, [formData.categoryId, courses]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+
+    // If changing category, also reset course selection
+    if (name === "categoryId") {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        courseId: "" // Reset course when category changes
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handlePhotoChange = (e) => {
@@ -164,9 +187,10 @@ const EditTrainerModal = ({
               value={formData.courseId}
               onChange={handleInputChange}
               required
+              disabled={!formData.categoryId}
             >
               <option value="">Select Course</option>
-              {courses.map(course => (
+              {filteredCourses.map(course => (
                 <option
                   key={course.id}
                   value={course.id}
@@ -175,6 +199,18 @@ const EditTrainerModal = ({
                 </option>
               ))}
             </select>
+            {formData.categoryId && filteredCourses.length === 0 && (
+              <div className="form-text text-warning">
+                <i className="bi bi-exclamation-triangle me-1"></i>
+                No courses available for this category
+              </div>
+            )}
+            {!formData.categoryId && (
+              <div className="form-text text-muted">
+                <i className="bi bi-info-circle me-1"></i>
+                Select a category first
+              </div>
+            )}
           </div>
 
           {/* Photo upload with improved preview */}
@@ -305,6 +341,7 @@ export default function AddTrainer() {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentTrainer, setCurrentTrainer] = useState(null);
+  const [filteredCourses, setFilteredCourses] = useState([]);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -323,6 +360,21 @@ export default function AddTrainer() {
       setEmployeeOptions(formattedOptions);
     }
   }, [employees]);
+
+  useEffect(() => {
+    if (categoryId) {
+      const coursesInCategory = courses.filter(course => course.categoryID === parseInt(categoryId));
+      setFilteredCourses(coursesInCategory);
+
+      // If the currently selected course is not in this category, reset it
+      if (courseId && !coursesInCategory.some(course => course.id === parseInt(courseId))) {
+        setCourseId("");
+      }
+    } else {
+      setFilteredCourses([]);
+      setCourseId("");
+    }
+  }, [categoryId, courses, courseId]);
 
   const fetchTrainers = async () => {
     try {
@@ -634,6 +686,11 @@ export default function AddTrainer() {
     }
   };
 
+  const handleCategoryChange = (e) => {
+    setCategoryId(e.target.value);
+    // Course will be reset by the useEffect
+  };
+
   return (
     <>
       <Navbar />
@@ -706,7 +763,7 @@ export default function AddTrainer() {
                       id="category_id"
                       name="category_id"
                       value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
+                      onChange={handleCategoryChange} // Use the new handler
                       required
                     >
                       <option value="">Select Category</option>
@@ -736,20 +793,26 @@ export default function AddTrainer() {
                       value={courseId}
                       onChange={(e) => setCourseId(e.target.value)}
                       required
+                      disabled={!categoryId} // Disable if no category selected
                     >
                       <option value="">Select Course</option>
-                      {courses.map((course) => (
+                      {filteredCourses.map((course) => (
                         <option key={course.id} value={course.id}>
                           {course.course_title}
                         </option>
                       ))}
                     </select>
-                    {courses.length === 0 && (
+                    {categoryId && filteredCourses.length === 0 ? (
                       <div className="form-text text-warning mt-2">
                         <i className="bi bi-exclamation-triangle me-1"></i>
-                        No courses available.
+                        No courses available for this category.
                       </div>
-                    )}
+                    ) : !categoryId ? (
+                      <div className="form-text text-muted mt-2">
+                        <i className="bi bi-info-circle me-1"></i>
+                        Please select a category first.
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="form-group mb-4">

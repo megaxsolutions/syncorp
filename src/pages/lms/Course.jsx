@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { LmsNavbar } from '../../components/LmsNavbar';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -24,6 +24,7 @@ const Course = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchCategories();
@@ -89,6 +90,62 @@ const Course = () => {
       setCourses([]);
     } finally {
       setLoadingCourses(false);
+    }
+  };
+
+  // New function to check if user is already enrolled
+  const checkEnrollment = async (course) => {
+    try {
+      const empId = localStorage.getItem("X-EMP-ID");
+      if (!empId) {
+        Swal.fire({
+          icon: "warning",
+          title: "Login Required",
+          text: "Please login to enroll in this course.",
+        });
+        return false;
+      }
+
+      const response = await axios.get(
+        `${config.API_BASE_URL}/enrolls/check_user_enroll/${empId}/${course.categoryID}/${course.id}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": empId,
+          },
+        }
+      );
+
+      if (response.data?.data) {
+        Swal.fire({
+          icon: "info",
+          title: "Already Enrolled",
+          text: `You are already enrolled in "${course.course_title}". Enrolled on ${new Date(response.data.data[0].datetime_enrolled).toLocaleDateString()}`,
+        });
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      // If 404 error, it means user is not enrolled yet
+      if (error.response && error.response.status === 404) {
+        return false;
+      }
+
+      console.error("Error checking enrollment:", error);
+      return false;
+    }
+  };
+
+  // Function to handle enrollment click
+  const handleEnrollClick = async (course, e) => {
+    e.preventDefault();
+
+    const isEnrolled = await checkEnrollment(course);
+
+    if (!isEnrolled) {
+      // User is not enrolled, proceed to enrollment page
+      navigate(`/lms/view-course/${course.id}`);
     }
   };
 
@@ -189,7 +246,7 @@ const Course = () => {
                       <img className="img-fluid" src={`${config.API_BASE_URL}/uploads/${course.filename}`} alt={course.course_title} />
                       <div className="w-100 d-flex justify-content-center position-absolute bottom-0 start-0 mb-4">
                         <Link to={`/lms/course/${course.id}`} className="flex-shrink-0 btn btn-sm btn-primary px-3 border-end" style={{ borderRadius: '30px 0 0 30px' }}>Read More</Link>
-                        <Link to={`/lms/view-course/${course.id}`} className="flex-shrink-0 btn btn-sm btn-primary px-3" style={{ borderRadius: '0 30px 30px 0' }}>Enroll Now</Link>
+                        <a href="#" onClick={(e) => handleEnrollClick(course, e)} className="flex-shrink-0 btn btn-sm btn-primary px-3" style={{ borderRadius: '0 30px 30px 0' }}>Enroll Now</a>
                       </div>
                     </div>
                     <div className="text-center p-4 pb-0">
@@ -277,7 +334,7 @@ const Course = () => {
           <div className="copyright">
             <div className="row">
               <div className="col-md-6 text-center text-md-start mb-3 mb-md-0">
-                &copy; <Link className="border-bottom" to="/">Your Site Name</Link>, All Right Reserved.
+                &copy; <Link className="border-bottom" to="/">Syncorp</Link>, All Right Reserved.
 
                 {/* Credit links */}
                 Designed By <a className="border-bottom" href="https://htmlcodex.com">HTML Codex</a><br /><br />
