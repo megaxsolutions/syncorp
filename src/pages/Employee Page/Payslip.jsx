@@ -289,6 +289,7 @@ const Payslip = () => {
           // Directly use the response data without additional formatting
           // This ensures we use the exact field names from the database
           const payslipData = response.data.data[0];
+          console.log(payslipData);
           setPayslips([payslipData]);
           setSelectedPayslips(payslipData);
         } else if (!Array.isArray(response.data.data)) {
@@ -700,7 +701,7 @@ const Payslip = () => {
                                 <div className="col-6">
                                   <div className="mb-2">
                                     <label className="small fw-bold">Absents:</label>
-                                    <div>{selectedPayslip.absent || 0}</div>
+                                    <div>{selectedPayslip.days_absent || 0}</div>
                                   </div>
                                 </div>
                                 <div className="col-6">
@@ -801,6 +802,12 @@ const Payslip = () => {
                             </div>
                             <div className="card-body">
                               <div className="row g-2">
+                              <div className="col-6">
+                                  <div className="mb-2">
+                                    <label className="small fw-bold">Absent(s):</label>
+                                    <div>{formatCurrency(selectedPayslip.absent || 0)}</div>
+                                  </div>
+                                </div>
                                 <div className="col-6">
                                   <div className="mb-2">
                                     <label className="small fw-bold">SSS Employee Share:</label>

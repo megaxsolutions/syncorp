@@ -32,7 +32,7 @@ const Payroll = () => {
 
         if (response.data && response.data.data) {
           setPayrollData(response.data.data)
-
+          console.log(response.data.data);
           // Extract unique year-month combinations from dates (assuming payroll data has date or cutoff_date field)
           // If payroll data doesn't have dates directly, we'll extract unique months from the available data
           const uniqueMonths = [...new Set(response.data.data
@@ -147,50 +147,62 @@ const Payroll = () => {
   // Prepare data for chart visualization
   const chartData = currentRecords.map((record) => ({
     name: `Emp ${record.emp_ID}`,
-    salary: Number.parseFloat(record.half_monthly_salary) || 0,
-    deductions: Number.parseFloat(record.total_deductions) || 0,
-    netPay: Number.parseFloat(record.total_net_pay) || 0,
+    salary: Number.parseFloat(record.half_monthly) || 0,
+    deductions: Number.parseFloat(record.total_overall_deduction) || 0,
+    netPay: Number.parseFloat(record.net_pay) || 0,
   }))
 
   // Group columns for better organization
   const columnGroups = {
-    basic: ["id", "emp_ID", "monthly_salary", "half_monthly_salary", "daily_salary", "hourly_salary"],
-    overtime: ["night_hrs", "total_night_diff", "no_of_hrs", "total_ot_pay"],
-    holidays: ["rh", "sh", "rdot_special", "total_hol_pay_and_special_ot"],
+    basic: ["emp_ID","emp_name","employment_status","basic_pay", "half_monthly", "daily", "hourly"],
+    nightdiff: ["nt_hrs", "total_night_amount"],
+    overtime: ["ot_hrs", "total_ot_amount"],
+    
+    holidays: ["total_rh_2rh_hrs", "total_sh_hrs", "total_rd_hrs", "total_rh_sh_rd_amount"],
+    
+    attendance: [
+      "reg_hrs",
+      "total_days",
+      "absent",
+      "total_abs_deduction",
+      "lates",
+      "total_late_deduction",
+      "undertime",
+      "total_undertime_deduction",
+      "overbreak",
+      "total_overbreak_deduction",
+      "total_ABSLOU_deductions",
+    ],
+    incentives_bonuses: [
+      "att_incentives",
+      "bonus",
+      "complexity",
+    ],
+    gross: [
+      "gross",
+    ],
     allowances: [
       "transpo_allowance",
-      "abs_deductions",
+      "transpo_transpoabs",
+      "transpo_transpoabs_deduction",
       "total_transpo_allowance",
-      "incentives_no_lates_abs",
-      "actual_food_allowance",
+      "food_allowance",
       "daily_food_allowance",
       "food_allowance_deduction",
-      "total_food_allowance",
+      "total_food_allowance"
     ],
-    attendance: [
-      "no_of_days",
-      "total_unavailed_leaves",
-      "absent",
-      "total_absent_deduction",
-      "late_in_mins",
-      "late_deduction",
-      "undertime_in_mins",
-      "undertime_deduction",
-      "noin_noout",
-      "noin_noout_deduction",
-      "total_abs_late_undertime_noin_noout",
-    ],
+    adjustments: ["adjustment"],
+    
     deductions: [
       "sss_ee_share",
-      "sss_load",
-      "philhealth_ee_share",
+      "sss_loan",
+      "philh_ee_share",
       "pagibig_ee_share",
       "pagibig_loan",
       "hmo",
-      "adjustment_on_sss",
-      "total_deductions",
+      'total_overall_deduction'
     ],
-    totals: ["total_net_pay"],
+    net: ["net_pay"],
   }
 
   // Format currency values
@@ -205,48 +217,57 @@ const Payroll = () => {
 
   // Column display names (more user-friendly)
   const columnLabels = {
-    id: "ID",
     emp_ID: "Employee ID",
-    monthly_salary: "Monthly Salary",
-    half_monthly_salary: "Half Monthly",
-    daily_salary: "Daily Rate",
-    hourly_salary: "Hourly Rate",
-    night_hrs: "Night Hours",
-    total_night_diff: "Night Differential",
-    no_of_hrs: "OT Hours",
-    total_ot_pay: "OT Pay",
-    rh: "Regular Holiday",
-    sh: "Special Holiday",
-    rdot_special: "RDOT Special",
-    total_hol_pay_and_special_ot: "Total Holiday Pay",
+    emp_name: "Full Name",
+    employment_status: "Employment Status",
+    basic_pay: "Monthly Salary",
+    half_monthly: "Half Monthly",
+    daily: "Daily Rate",
+    hourly: "Hourly Rate",
+    nt_hrs: "Night Hours",
+    total_night_amount: "Total Night Differential",
+    ot_hrs: "OT Hours",
+    total_ot_amount: "Total OT Amount",
+    total_rh_2rh_hrs: "Regular Holiday",
+    total_sh_hrs: "Special Holiday",
+    total_rd_hrs: "RDOT Special",
+    total_rh_sh_rd_amount: "Total Holiday/RD Pay",
+
+    reg_hrs: "Total Regular Hours",
+    total_days: "Days Worked",
+    absent: "Absences",
+    total_abs_deduction: "Absence Deduction",
+    lates: "Late (mins)",
+    total_late_deduction: "Late Deduction",
+    undertime: "Undertime (mins)",
+    total_undertime_deduction: "Undertime Deduction",
+    overbreak: "Overbreak",
+    total_overbreak_deduction: "Overbreak Deduction",
+    total_ABSLOU_deductions: "Total Attendance Deduction",
+    att_incentives: "Attendance Incentives",
+    bonus: "Bonus",
+    complexity: "Complexity",
+    gross: "Gross Pay",
+
     transpo_allowance: "Transpo Allowance",
-    abs_deductions: "Absence Deductions",
-    total_transpo_allowance: "Net Transpo Allowance",
-    incentives_no_lates_abs: "Attendance Incentives",
-    actual_food_allowance: "Actual Food Allowance",
+    transpo_transpoabs: "Absences",
+    transpo_transpoabs_deduction: "Transpo Deduction",
+    total_transpo_allowance : "Total Transpo Allowance",
+   
+    food_allowance: "Food Allowance",
     daily_food_allowance: "Daily Food Allowance",
     food_allowance_deduction: "Food Allowance Deduction",
-    total_food_allowance: "Net Food Allowance",
-    no_of_days: "Days Worked",
-    total_unavailed_leaves: "Unavailed Leaves",
-    absent: "Absences",
-    total_absent_deduction: "Absence Deduction",
-    late_in_mins: "Late (mins)",
-    late_deduction: "Late Deduction",
-    undertime_in_mins: "Undertime (mins)",
-    undertime_deduction: "Undertime Deduction",
-    noin_noout: "No In/Out Count",
-    noin_noout_deduction: "No In/Out Deduction",
-    total_abs_late_undertime_noin_noout: "Total Attendance Deductions",
+    total_food_allowance: "Total Food Allowance",
+    adjustment:"Adjustment(s)",
+
     sss_ee_share: "SSS EE Share",
-    sss_load: "SSS Loan",
-    philhealth_ee_share: "PhilHealth",
+    sss_loan: "SSS Loan",
+    philh_ee_share: "PhilHealth",
     pagibig_ee_share: "Pag-IBIG",
     pagibig_loan: "Pag-IBIG Loan",
     hmo: "HMO",
-    adjustment_on_sss: "SSS Adjustment",
-    total_deductions: "Total Deductions",
-    total_net_pay: "Net Pay",
+    total_overall_deduction: "Total Overall Deductions",
+    net_pay: "Net Pay",
   }
 
   // Render column with tooltip for long names
@@ -394,28 +415,40 @@ const Payroll = () => {
                           className="table table-bordered table-hover table-striped text-center"
                           style={{ minWidth: "2500px" }}
                         >
-                          <thead className="table-light sticky-top" style={{ top: 0, zIndex: 1 }}>
+                          <thead className="table-light sticky-top bordered" style={{ top: 0, zIndex: 1 }}>
                             <tr>
-                              <th colSpan={columnGroups.basic.length} className="table-primary">
+                              <th colSpan={columnGroups.basic.length} className="table-success">
                                 Basic Info
                               </th>
-                              <th colSpan={columnGroups.overtime.length} className="table-info">
+                              <th colSpan={columnGroups.nightdiff.length} className="table-success">
+                                Night Diffirential
+                              </th>
+                              <th colSpan={columnGroups.overtime.length} className="table-success">
                                 Overtime
                               </th>
-                              <th colSpan={columnGroups.holidays.length} className="table-warning">
+                              <th colSpan={columnGroups.holidays.length} className="table-success">
                                 Holidays
+                              </th>
+                              <th colSpan={columnGroups.attendance.length} className="table-success">
+                                Attendance
+                              </th>
+                              <th colSpan={columnGroups.incentives_bonuses.length} className="table-success">
+                                Incentives/Bonuses
+                              </th>
+                              <th colSpan={columnGroups.gross.length} className="table-success">
+                                Gross
                               </th>
                               <th colSpan={columnGroups.allowances.length} className="table-success">
                                 Allowances
                               </th>
-                              <th colSpan={columnGroups.attendance.length} className="table-danger">
-                                Attendance
+                              <th colSpan={columnGroups.adjustments.length} className="table-success">
+                                Adjustments
                               </th>
-                              <th colSpan={columnGroups.deductions.length} className="table-secondary">
+                              <th colSpan={columnGroups.deductions.length} className="table-success">
                                 Deductions
                               </th>
-                              <th colSpan={columnGroups.totals.length} className="table-dark">
-                                Total
+                              <th colSpan={columnGroups.net.length} className="table-success">
+                               Net
                               </th>
                             </tr>
                             <tr>
@@ -431,11 +464,19 @@ const Payroll = () => {
                                   {/* Basic Info */}
                                   {columnGroups.basic.map((column) => (
                                     <td key={column}>
-                                      {column.includes("salary") ? formatCurrency(record[column]) : record[column]}
+                                      {["basic", "daily", "hourly", "half"].some(keyword => column.includes(keyword))
+                                        ? formatCurrency(record[column])
+                                        : record[column]}
+                                      
                                     </td>
                                   ))}
 
                                   {/* Overtime */}
+                                  {columnGroups.nightdiff.map((column) => (
+                                    <td key={column}>
+                                      {column.includes("total") ? formatCurrency(record[column]) : record[column]}
+                                    </td>
+                                  ))}
                                   {columnGroups.overtime.map((column) => (
                                     <td key={column}>
                                       {column.includes("total") ? formatCurrency(record[column]) : record[column]}
@@ -449,18 +490,34 @@ const Payroll = () => {
                                     </td>
                                   ))}
 
-                                  {/* Allowances */}
-                                  {columnGroups.allowances.map((column) => (
-                                    <td key={column}>{formatCurrency(record[column])}</td>
-                                  ))}
 
                                   {/* Attendance */}
                                   {columnGroups.attendance.map((column) => (
                                     <td key={column}>
-                                      {column.includes("deduction") || column.includes("total")
+                                      {column.includes("deduction","deductions") || column.includes("total")
                                         ? formatCurrency(record[column])
                                         : record[column]}
                                     </td>
+                                  ))}
+
+                                  {/* Allowances */}
+                                  {columnGroups.incentives_bonuses.map((column) => (
+                                    <td key={column}>{formatCurrency(record[column])}</td>
+                                  ))}
+                                  {columnGroups.gross.map((column) => (
+                                    <td key={column}>{formatCurrency(record[column])}</td>
+                                  ))}
+                                  {/* Allowances */}
+                                  {columnGroups.allowances.map((column) => (
+                                    <td key={column}> 
+                                   {["allowance","deduction"].some(keyword => column.includes(keyword))
+                                        ? formatCurrency(record[column])
+                                        : record[column]}
+                                      </td>
+                                  ))}
+
+                                  {columnGroups.adjustments.map((column) => (
+                                    <td key={column}>{formatCurrency(record[column])}</td>
                                   ))}
 
                                   {/* Deductions */}
@@ -469,7 +526,7 @@ const Payroll = () => {
                                   ))}
 
                                   {/* Totals */}
-                                  {columnGroups.totals.map((column) => (
+                                  {columnGroups.net.map((column) => (
                                     <td key={column} className="fw-bold">
                                       {formatCurrency(record[column])}
                                     </td>

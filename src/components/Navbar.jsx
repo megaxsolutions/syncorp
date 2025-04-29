@@ -266,7 +266,7 @@ const Navbar = () => {
 
               <li><hr className="dropdown-divider" /></li>
               <li className="dropdown-footer">
-                <a href="/activity-log">View all activity logs</a>
+                {/* <a href="/activity-log">View all activity logs</a> */}
               </li>
             </ul>
           </li>

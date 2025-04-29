@@ -97,7 +97,7 @@ export const EmployeeDtr = () => {
         }
       );
 
-
+      console.log(response.data.data.dtr);
 
 
       // Format and sort the DTR data
