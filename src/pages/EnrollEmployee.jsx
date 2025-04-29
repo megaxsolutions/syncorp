@@ -15,6 +15,7 @@ export default function EnrollEmployee() {
   const [employees, setEmployees] = useState([])
   const [categories, setCategories] = useState([])
   const [courses, setCourses] = useState([])
+  const [filteredCourses, setFilteredCourses] = useState([]);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -29,6 +30,35 @@ export default function EnrollEmployee() {
       fetchEnrollments();
     }
   }, [employees, categories, courses]);
+
+  // Add this effect to filter courses whenever categoryId changes
+  useEffect(() => {
+    if (categoryId) {
+      // Convert categoryId to number for proper comparison
+      const categoryIdNum = parseInt(categoryId, 10);
+
+      // Debug logs to help identify issues
+      console.log("Selected category ID:", categoryIdNum);
+      console.log("Available courses:", courses);
+      console.log("Courses with matching category:", courses.filter(course => course.categoryID === categoryIdNum));
+
+      // Filter courses where categoryID matches the selected category
+      const coursesInCategory = courses.filter(course => {
+        // Ensure both are being compared as numbers
+        return parseInt(course.categoryID, 10) === categoryIdNum;
+      });
+
+      setFilteredCourses(coursesInCategory);
+
+      // If the currently selected course is not in this category, reset it
+      if (courseId && !coursesInCategory.some(course => parseInt(course.id, 10) === parseInt(courseId, 10))) {
+        setCourseId("");
+      }
+    } else {
+      setFilteredCourses([]);
+      setCourseId("");
+    }
+  }, [categoryId, courses, courseId]);
 
   // Update these functions to make real API calls
   const fetchEnrollments = async () => {
@@ -142,8 +172,16 @@ export default function EnrollEmployee() {
           },
         }
       );
+
       if (response.data?.data) {
-        setCourses(response.data.data);
+        // Make sure categoryID is properly formatted as a number
+        const formattedCourses = response.data.data.map(course => ({
+          ...course,
+          categoryID: parseInt(course.categoryID, 10) // Ensure categoryID is a number
+        }));
+
+        console.log("Fetched courses:", formattedCourses);
+        setCourses(formattedCourses);
       }
     } catch (error) {
       console.error("Error fetching courses:", error);
@@ -255,7 +293,7 @@ export default function EnrollEmployee() {
   };
 
   const handleEditEnrollment = (enrollment) => {
-    // Create employee options for the select dropdown - Removed employee ID from display
+    // Create employee options for the select dropdown
     const employeeSelectOptions = employees.map(emp => ({
       value: emp.emp_ID,
       label: `${emp.fName} ${emp.lName}`
@@ -263,7 +301,7 @@ export default function EnrollEmployee() {
 
     // Find the currently selected employee
     const selectedEmployee = employeeSelectOptions.find(
-      emp => emp.value === enrollment.emp_ID // Use emp_ID here instead of employee_id
+      emp => emp.value === enrollment.emp_ID
     );
 
     // Create the select element for employee
@@ -290,7 +328,7 @@ export default function EnrollEmployee() {
           <i class="bi bi-folder me-2"></i>Category
           <span class="text-danger">*</span>
         </label>
-        <select id="categorySelect" class="form-select form-select-lg">
+        <select id="categorySelect" class="form-select form-select-lg" onchange="updateCourses(this.value)">
           ${categories.map(category =>
             `<option value="${category.id}" ${category.id === enrollment.category_id ? 'selected' : ''}>
               ${category.category_title}
@@ -300,6 +338,11 @@ export default function EnrollEmployee() {
       </div>
     `;
 
+    // Filter courses based on the selected category
+    const filteredEditCourses = courses.filter(course =>
+      course.categoryID === enrollment.category_id
+    );
+
     // Create the select element for course
     const courseSelectHtml = `
       <div class="mb-3">
@@ -308,7 +351,7 @@ export default function EnrollEmployee() {
           <span class="text-danger">*</span>
         </label>
         <select id="courseSelect" class="form-select form-select-lg">
-          ${courses.map(course =>
+          ${filteredEditCourses.map(course =>
             `<option value="${course.id}" ${course.id === enrollment.course_id ? 'selected' : ''}>
               ${course.course_title}
             </option>`
@@ -325,12 +368,72 @@ export default function EnrollEmployee() {
           ${categorySelectHtml}
           ${courseSelectHtml}
         </form>
+        <script>
+          function updateCourses(categoryId) {
+            categoryId = parseInt(categoryId);
+            const courseSelect = document.getElementById('courseSelect');
+            // Clear current options
+            courseSelect.innerHTML = '';
+
+            // Filter courses based on selected category
+            const courses = ${JSON.stringify(courses)};
+            const filteredCourses = courses.filter(course => course.categoryID === categoryId);
+
+            // Add new options
+            filteredCourses.forEach(course => {
+              const option = document.createElement('option');
+              option.value = course.id;
+              option.textContent = course.course_title;
+              courseSelect.appendChild(option);
+            });
+
+            // If no courses, show message
+            if (filteredCourses.length === 0) {
+              const option = document.createElement('option');
+              option.value = '';
+              option.textContent = 'No courses available for this category';
+              courseSelect.appendChild(option);
+            }
+          }
+        </script>
       `,
       showCancelButton: true,
       confirmButtonText: "Save Changes",
       cancelButtonText: "Cancel",
       confirmButtonColor: "#198754",
       cancelButtonColor: "#dc3545",
+      didOpen: () => {
+        // Add event listener for category select
+        const categorySelect = document.getElementById('categorySelect');
+        if (categorySelect) {
+          categorySelect.addEventListener('change', (e) => {
+            const categoryId = parseInt(e.target.value);
+            const courseSelect = document.getElementById('courseSelect');
+
+            // Clear current options
+            courseSelect.innerHTML = '';
+
+            // Filter courses based on selected category
+            const filteredCourses = courses.filter(course => course.categoryID === categoryId);
+
+            // Add new options
+            filteredCourses.forEach(course => {
+              const option = document.createElement('option');
+              option.value = course.id;
+              option.textContent = course.course_title;
+              courseSelect.appendChild(option);
+            });
+
+            // If no courses, show message
+            if (filteredCourses.length === 0) {
+              const option = document.createElement('option');
+              option.value = '';
+              option.textContent = 'No courses available for this category';
+              courseSelect.appendChild(option);
+            }
+          });
+        }
+      },
       preConfirm: () => {
         const employeeId = document.getElementById("employeeSelect").value;
         const categoryId = document.getElementById("categorySelect").value;
@@ -397,22 +500,44 @@ export default function EnrollEmployee() {
       confirmButtonColor: "#dc3545",
       cancelButtonColor: "#6c757d",
       reverseButtons: true,
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        // Remove enrollment from list
-        const updatedEnrollments = enrollments.filter(item => item.id !== enrollment.id)
-        setEnrollments(updatedEnrollments)
+        try {
+          // Call the API to delete the enrollment
+          const response = await axios.delete(
+            `${config.API_BASE_URL}/enrolls/delete_enroll/${enrollment.id}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+              },
+            }
+          );
 
-        Swal.fire({
-          icon: "success",
-          title: "Deleted!",
-          text: "Enrollment has been deleted.",
-          timer: 1500,
-          showConfirmButton: false,
-        })
+          if (response.data?.success) {
+            // Show success message
+            Swal.fire({
+              icon: "success",
+              title: "Deleted!",
+              text: "Enrollment has been successfully deleted.",
+              timer: 1500,
+              showConfirmButton: false,
+            });
+
+            // Refresh enrollments list
+            fetchEnrollments();
+          }
+        } catch (error) {
+          console.error("Error deleting enrollment:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error.response?.data?.error || "Failed to delete enrollment.",
+          });
+        }
       }
-    })
-  }
+    });
+  };
 
   // Get status badge class based on status
   const getStatusBadgeClass = (status) => {
@@ -423,6 +548,30 @@ export default function EnrollEmployee() {
       default: return "bg-secondary";
     }
   }
+
+  // Modify the category select handler to reset course when category changes
+  const handleCategoryChange = (e) => {
+    const newCategoryId = e.target.value;
+    console.log("Category changed to:", newCategoryId);
+
+    // Convert to number for consistency
+    setCategoryId(newCategoryId);
+
+    // Reset course selection when category changes
+    setCourseId("");
+
+    // Immediately update filtered courses
+    if (newCategoryId) {
+      const categoryIdNum = parseInt(newCategoryId, 10);
+      const coursesInCategory = courses.filter(course =>
+        parseInt(course.categoryID, 10) === categoryIdNum
+      );
+      console.log("Filtered courses for this category:", coursesInCategory);
+      setFilteredCourses(coursesInCategory);
+    } else {
+      setFilteredCourses([]);
+    }
+  };
 
   return (
     <>
@@ -486,7 +635,7 @@ export default function EnrollEmployee() {
                       id="category_id"
                       name="category_id"
                       value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
+                      onChange={handleCategoryChange} // Use the new handler
                       required
                     >
                       <option value="">Select Category</option>
@@ -516,21 +665,42 @@ export default function EnrollEmployee() {
                       value={courseId}
                       onChange={(e) => setCourseId(e.target.value)}
                       required
+                      disabled={!categoryId} // Disable if no category is selected
                     >
                       <option value="">Select Course</option>
-                      {courses.map((course) => (
+                      {filteredCourses.map((course) => (
                         <option key={course.id} value={course.id}>
-                          {course.course_title}
+                          {course.course_title} (Cat ID: {course.categoryID})
                         </option>
                       ))}
                     </select>
-                    {courses.length === 0 && (
+                    {categoryId && filteredCourses.length === 0 ? (
                       <div className="form-text text-warning mt-2">
                         <i className="bi bi-exclamation-triangle me-1"></i>
-                        No courses available.
+                        No courses available for this category.
                       </div>
-                    )}
+                    ) : !categoryId ? (
+                      <div className="form-text text-muted mt-2">
+                        <i className="bi bi-info-circle me-1"></i>
+                        Please select a category first.
+                      </div>
+                    ) : null}
                   </div>
+
+                  {/* Add this debug info section only during development */}
+                  {categoryId && filteredCourses.length === 0 && (
+                    <div className="alert alert-info mt-2">
+                      <h6>Debugging Info:</h6>
+                      <p>Selected Category ID: {categoryId}</p>
+                      <p>Total courses: {courses.length}</p>
+                      <p>Courses with this category ID: {
+                        courses.filter(c => parseInt(c.categoryID, 10) === parseInt(categoryId, 10)).length
+                      }</p>
+                      <p>Category IDs in database: {
+                        [...new Set(courses.map(c => c.categoryID))].join(', ')
+                      }</p>
+                    </div>
+                  )}
 
                   <button
                     type="submit"

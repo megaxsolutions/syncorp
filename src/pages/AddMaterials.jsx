@@ -11,7 +11,8 @@ export default function AddMaterials() {
     course_id: "",
     title: "",
     filename: "",
-    created_by: localStorage.getItem("X-EMP-ID") || ""
+    created_by: localStorage.getItem("X-EMP-ID") || "",
+    file: null // Add file field
   })
   const [materials, setMaterials] = useState([])
   const [categories, setCategories] = useState([])
@@ -109,28 +110,38 @@ export default function AddMaterials() {
     })
   }
 
+  // Add file handling function
+  const handleFileChange = (e) => {
+    const file = e.target.files[0]
+
+    // Check if file is a PDF
+    if (file && file.type !== 'application/pdf') {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid File Type",
+        text: "Please upload only PDF files.",
+      });
+      // Reset the file input
+      e.target.value = '';
+      return;
+    }
+
+    setMaterialData({
+      ...materialData,
+      file: file
+    })
+  }
+
   const handleAddMaterial = async (e) => {
     e.preventDefault()
 
-    if (!materialData.category_id || !materialData.course_id || !materialData.title || !materialData.filename) {
+    if (!materialData.category_id || !materialData.course_id || !materialData.title || (!materialData.filename && !materialData.file)) {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Please fill in all required fields including the URL.",
+        text: "Please fill in all required fields including either a URL or upload a file.",
       })
       return
-    }
-
-    // Validate URL format
-
-
-    // Match the backend's expected field names
-    const requestData = {
-      course_id: Number(materialData.course_id), // Convert to number
-      category_id: Number(materialData.category_id), // Convert to number
-      title: materialData.title,
-      filename: materialData.filename, // This is now the URL
-      created_by: Number(materialData.created_by) // Convert to number
     }
 
     try {
@@ -144,13 +155,27 @@ export default function AddMaterials() {
         },
       })
 
+      // Create FormData object for file upload
+      const formData = new FormData();
+      formData.append('course_id', Number(materialData.course_id));
+      formData.append('category_id', Number(materialData.category_id));
+      formData.append('title', materialData.title);
+      formData.append('filename', materialData.filename);
+      formData.append('created_by', Number(materialData.created_by));
+
+      // Append file if it exists - CHANGED 'file' to 'file_uploaded' to match backend expectation
+      if (materialData.file) {
+        formData.append('file_uploaded', materialData.file);
+      }
+
       const response = await axios.post(
         `${config.API_BASE_URL}/materials/add_material`,
-        requestData,
+        formData,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
             "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "Content-Type": "multipart/form-data" // Important for file uploads
           },
         }
       )
@@ -167,7 +192,8 @@ export default function AddMaterials() {
           course_id: "",
           title: "",
           filename: "",
-          created_by: localStorage.getItem("X-EMP-ID") || ""
+          created_by: localStorage.getItem("X-EMP-ID") || "",
+          file: null
         })
         fetchMaterials()
       }
@@ -183,6 +209,9 @@ export default function AddMaterials() {
   }
 
   const handleEditMaterial = (material) => {
+    // Create a FormData instance for easy file manipulation
+    const formData = new FormData();
+
     Swal.fire({
       title: "Edit Material",
       html: `
@@ -235,6 +264,20 @@ export default function AddMaterials() {
               value="${material.filename || ''}"
             >
           </div>
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="bi bi-file-earmark-arrow-up me-2"></i>Replace File (PDF only)
+            </label>
+            <input
+              type="file"
+              id="fileUpload"
+              class="form-control form-control-lg"
+              accept="application/pdf"
+            >
+            <div class="form-text">
+              Leave empty to keep the existing file. Only PDF files are accepted.
+            </div>
+          </div>
         </form>
       `,
       showCancelButton: true,
@@ -247,28 +290,39 @@ export default function AddMaterials() {
         const courseId = document.getElementById("courseId").value;
         const title = document.getElementById("title").value;
         const filename = document.getElementById("imageUrl").value;
+        const fileInput = document.getElementById("fileUpload");
+        const fileUploaded = fileInput.files.length > 0 ? fileInput.files[0] : null;
 
-        // Create update data object with the new values
-        const updateData = {
-          category_id: categoryId ? Number(categoryId) : Number(material.categoryID),
-          course_id: courseId ? Number(courseId) : Number(material.courseID),
-          title: title || material.title,
-          filename: filename || material.filename,
-          created_by: Number(material.created_by)
-        };
+        // Check if uploaded file is a PDF
+        if (fileUploaded && fileUploaded.type !== 'application/pdf') {
+          Swal.showValidationMessage('Please upload only PDF files');
+          return false;
+        }
 
-        return updateData;
+        formData.append('category_id', categoryId ? Number(categoryId) : Number(material.categoryID));
+        formData.append('course_id', courseId ? Number(courseId) : Number(material.courseID));
+        formData.append('title', title || material.title);
+        formData.append('filename', filename || material.filename);
+        formData.append('created_by', Number(material.created_by));
+
+        if (fileUploaded) {
+          // CHANGED 'file' to 'file_uploaded' to match backend expectation
+          formData.append('file_uploaded', fileUploaded);
+        }
+
+        return true;
       },
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
           const response = await axios.put(
             `${config.API_BASE_URL}/materials/update_material/${material.id}`,
-            result.value,
+            formData,
             {
               headers: {
                 "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
                 "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+                "Content-Type": "multipart/form-data" // Important for file uploads
               },
             }
           )
@@ -453,7 +507,7 @@ export default function AddMaterials() {
                   <div className="form-group mb-4">
                     <label htmlFor="filename" className="form-label">
                       <i className="bi bi-link me-2"></i>URL
-                      <span className="text-danger">*</span>
+                      {!materialData.file && <span className="text-danger">*</span>}
                     </label>
                     <input
                       type="text"
@@ -463,17 +517,47 @@ export default function AddMaterials() {
                       value={materialData.filename}
                       onChange={handleChange}
                       placeholder="Enter URL"
-                      required
+                      required={!materialData.file}
                     />
                     <div className="form-text">
-                      Please provide a valid URL.
+                      Please provide a valid URL or upload a file below.
+                    </div>
+                  </div>
+
+                  <div className="form-group mb-4">
+                    <label htmlFor="file" className="form-label">
+                      <i className="bi bi-file-earmark-arrow-up me-2"></i>Upload File (PDF only)
+                      {!materialData.filename && <span className="text-danger">*</span>}
+                    </label>
+                    <input
+                      type="file"
+                      className={`form-control form-control-lg ${materialData.file ? "is-valid" : ""}`}
+                      id="file"
+                      onChange={handleFileChange}
+                      required={!materialData.filename}
+                      accept="application/pdf" // Restrict to PDF files only
+                    />
+                    <div className="form-text">
+                      {materialData.file ? (
+                        <span className="text-success">
+                          <i className="bi bi-check-circle me-1"></i>
+                          File selected: {materialData.file.name}
+                        </span>
+                      ) : (
+                        "Upload a PDF file or provide a URL above."
+                      )}
                     </div>
                   </div>
 
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
-                    disabled={!materialData.category_id || !materialData.course_id || !materialData.title || !materialData.filename}
+                    disabled={
+                      !materialData.category_id ||
+                      !materialData.course_id ||
+                      !materialData.title ||
+                      (!materialData.filename && !materialData.file)
+                    }
                   >
                     <i className="bi bi-plus-circle-fill"></i>
                     Save Material

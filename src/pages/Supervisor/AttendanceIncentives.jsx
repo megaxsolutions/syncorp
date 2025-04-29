@@ -38,21 +38,32 @@ export default function AttendanceIncentives() {
   const [sortOrder, setSortOrder] = useState('asc');
   const [cutOffError, setCutOffError] = useState('');
   const [amountError, setAmountError] = useState('');
+  const [selectedCutoffFilter, setSelectedCutoffFilter] = useState(null);
 
   // Initialize data on component mount
   useEffect(() => {
     const initializeData = async () => {
-      setIsLoading(true);
-      await fetchSupervisorInfo();
-      await fetchCutOffPeriods(); // Still needed for submission form
+      try {
+        setIsLoading(true);
+        await fetchSupervisorInfo();
+        await fetchCutOffPeriods();
 
-      // Directly fetch all eligible employees
-      const eligibleEmployees = await fetchEligibleEmployees();
-      setEmployees(eligibleEmployees);
-      setFilteredEmployees(eligibleEmployees);
+        // Set default filter to "All Cut-off Periods" first
+        const defaultFilter = { value: "all", label: "All Cut-off Periods" };
+        setSelectedCutoffFilter(defaultFilter);
 
-      await fetchIncentives();
-      setIsLoading(false);
+        // Then fetch all employees without filtering
+        const eligibleEmployees = await fetchEligibleEmployees();
+        setEmployees(eligibleEmployees);
+        setFilteredEmployees(eligibleEmployees);
+
+        await fetchIncentives();
+      } catch (err) {
+        console.error("Error initializing data:", err);
+        setError(`Failed to initialize data: ${err.message}`);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     initializeData();
@@ -188,14 +199,25 @@ const fetchEmployees = async () => {
 
   // Update fetchEligibleEmployees to get all eligible employees across all cutoffs
 
-const fetchEligibleEmployees = async () => {
+const fetchEligibleEmployees = async (cutoffId = null) => {
   try {
     const supervisorEmpId = localStorage.getItem("X-EMP-ID");
     setIsLoading(true);
+    setError(""); // Clear any previous errors
 
-    // Updated endpoint to use the new API
+    // Base URL
+    let url = `${config.API_BASE_URL}/eligible_att_incentives/get_all_eligible_att_incentive_employees_supervisor/${supervisorEmpId}`;
+
+    // Add cutoffId parameter if provided - ensure it's being passed as a number or string correctly
+    if (cutoffId && cutoffId !== "all") {
+      url += `?cutoffId=${cutoffId}`;
+      console.log(`Filtering by cutoff ID: ${cutoffId}`, url);
+    } else {
+      console.log("Fetching all eligible employees across all cutoffs");
+    }
+
     const response = await axios.get(
-      `${config.API_BASE_URL}/eligible_att_incentives/get_all_eligible_att_incentive_employees_supervisor/${supervisorEmpId}`,
+      url,
       {
         headers: {
           "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -212,11 +234,12 @@ const fetchEligibleEmployees = async () => {
         department: emp.department || 'N/A',
         amount: emp.amount || 2000,
         cutoffPeriod: emp.cutoff_period || 'Current Period',
-        cutoffId: emp.cutoffID || '', // Note: using cutoffID from API response
+        cutoffId: emp.cutoffID || '', // Make sure this matches exactly what comes from backend
         status: 'Eligible',
         checked: false
       }));
 
+      console.log(`Received ${eligibleEmployees.length} eligible employees from API`);
       return eligibleEmployees;
     } else {
       console.warn("No eligible employee data found or invalid format");
@@ -224,7 +247,7 @@ const fetchEligibleEmployees = async () => {
     }
   } catch (error) {
     console.error("Error fetching eligible employees:", error);
-    setError("Failed to load eligible employees");
+    setError(`Failed to load eligible employees: ${error.response?.data?.error || error.message}`);
     return [];
   } finally {
     setIsLoading(false);
@@ -464,6 +487,37 @@ const handleSubmit = async (e) => {
   const isAllChecked = filteredEmployees.length > 0 &&
     filteredEmployees.every(employee => employee.checked);
 
+  const handleCutoffFilterChange = async (selectedOption) => {
+  try {
+    // Set the selected filter option before showing loading state
+    setSelectedCutoffFilter(selectedOption);
+    setIsLoading(true);
+    setError(""); // Clear previous errors
+
+    let cutoffId = null;
+
+    // Check if a valid cutoff is selected
+    if (selectedOption && selectedOption.value !== "all") {
+      cutoffId = selectedOption.value;
+    }
+
+    console.log("Cutoff filter changed to:", selectedOption?.label, "ID:", cutoffId);
+
+    const employeesList = await fetchEligibleEmployees(cutoffId);
+
+    // Update employees list and clear selections
+    setEmployees(employeesList);
+    setFilteredEmployees(employeesList);
+    setCurrentPage(1);
+    setSelectedEmployees([]);
+  } catch (err) {
+    console.error("Error in cutoff filter change:", err);
+    setError(`Filter error: ${err.message}`);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
   return (
     <>
       <SupervisorNavbar />
@@ -503,7 +557,9 @@ const handleSubmit = async (e) => {
                     <div className="alert alert-info d-flex align-items-center mb-4" role="alert">
                       <i className="bi bi-info-circle-fill me-2"></i>
                       <div>
-                        <strong>Currently showing:</strong> All eligible employees for incentives across all cut-off periods.
+                        <strong>Currently showing:</strong> {selectedCutoffFilter && selectedCutoffFilter.value !== "all" ?
+                          `Eligible employees for ${selectedCutoffFilter.label} cut-off period.` :
+                          "All eligible employees for incentives across all cut-off periods."}
                       </div>
                     </div>
                   ) : !isLoading && (
@@ -521,6 +577,57 @@ const handleSubmit = async (e) => {
                       <div>{error}</div>
                     </div>
                   )}
+
+                  {/* Add cutoff filter dropdown */}
+                  <div className="row mb-4">
+                    <div className="col-12">
+                      <div className="card shadow-sm border">
+                        <div className="card-body">
+                          <h6 className="card-subtitle mb-3 text-muted">
+                            <i className="bi bi-funnel me-2"></i>
+                            Filter by Cut-off Period
+                          </h6>
+                          <div className="row">
+                            <div className="col-md-8">
+                              <Select
+                                options={[
+                                  { value: "all", label: "All Cut-off Periods" },
+                                  ...cutOffOptions
+                                ]}
+                                value={selectedCutoffFilter}
+                                onChange={handleCutoffFilterChange}
+                                placeholder="Select a cut-off period to filter..."
+                                isLoading={isLoadingCutoffs}
+                                isSearchable
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                menuPortalTarget={document.body}  // This renders the dropdown in a portal
+                                styles={{
+                                  menuPortal: base => ({ ...base, zIndex: 9999 }),
+                                  menu: base => ({ ...base, zIndex: 9999 }),
+                                  control: base => ({ ...base, zIndex: 5 })
+                                }}
+                                isClearable={false} // Prevent clearing without handling logic
+                                isDisabled={isLoading} // Disable while loading
+                              />
+                            </div>
+                            <div className="col-md-4">
+                              {selectedCutoffFilter && selectedCutoffFilter.value !== "all" && (
+                                <button
+                                  className="btn btn-outline-secondary w-100"
+                                  onClick={() => handleCutoffFilterChange({ value: "all", label: "All Cut-off Periods" })}
+                                  disabled={isLoading}
+                                >
+                                  <i className="bi bi-x-circle me-1"></i>
+                                  Clear Filter
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="row mb-3">
                     <div className="col-md-6">
@@ -838,6 +945,43 @@ const handleSubmit = async (e) => {
           .incentive-form-container {
             box-shadow: 0 0 10px rgba(0,0,0,0.05);
             transition: all 0.3s ease;
+          }
+
+          .react-select-container .react-select__menu {
+            z-index: 1050 !important;
+            position: absolute !important;
+          }
+
+          .react-select__menu-portal {
+            z-index: 9999 !important;
+          }
+
+          .card-body {
+            overflow: visible !important;
+          }
+
+          .react-select-container {
+            position: relative;
+            z-index: 5;
+          }
+
+          .react-select-container .react-select__control {
+            border-color: #ced4da;
+            box-shadow: none;
+            min-height: 38px;
+          }
+
+          .react-select-container .react-select__control:hover {
+            border-color: #86b7fe;
+          }
+
+          .react-select-container .react-select__control--is-focused {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+          }
+
+          .card-subtitle {
+            font-size: 0.875rem;
           }
         `}
       </style>

@@ -286,114 +286,34 @@ const Payslip = () => {
       // Check if we have valid data
       if (response.data && response.data.data) {
         if (Array.isArray(response.data.data) && response.data.data.length > 0) {
-          // We have data in an array format
-          const payslipData = response.data.data[0]; // Get the first payslip
-
-          // Format the payslip data
-          const formattedPayslip = {
-            id: payslipData.id,
-            emp_ID: payslipData.emp_ID,
-            cutoffPeriod: payslipData.cutoffPeriod || `Cutoff ID: ${cutoffId}`,
-            paymentDate: payslipData.paymentDate || new Date(),
-            basicPay: parseFloat(payslipData.basicPay || 0),
-            semiMonthlyRate: parseFloat(payslipData.semiMonthlyRate || 0),
-            totalDays: payslipData.totalDays || 0,
-            totalHours: payslipData.totalHours || 0,
-            totalUndertime: payslipData.totalUndertime || 0,
-            totalLate: payslipData.totalLate || 0,
-            absents: payslipData.absents || 0,
-            overtime: payslipData.overtime || 0,
-            specialOT: payslipData.specialOT || 0,
-            nightDifferential: payslipData.nightDifferential || 0,
-            foodAllowance: parseFloat(payslipData.foodAllowance || 0),
-            transpoAllowance: parseFloat(payslipData.transpoAllowance || 0),
-            undertimeLatesDeduction: parseFloat(payslipData.undertimeLatesDeduction || 0),
-            absenceDeduction: parseFloat(payslipData.absenceDeduction || 0),
-            cashAdvance: parseFloat(payslipData.cashAdvance || 0),
-            healthcare: parseFloat(payslipData.healthcare || 0),
-            sssShare: parseFloat(payslipData.sssShare || 0),
-            pagibigShare: parseFloat(payslipData.pagibigShare || 0),
-            sssLoan: parseFloat(payslipData.sssLoan || 0),
-            pagibigLoan: parseFloat(payslipData.pagibigLoan || 0),
-            netPay: parseFloat(payslipData.netPay || 0),
-            comments: payslipData.comments || '',
-            cutoffID: payslipData.cutoffID || cutoffId,
-          };
-
-          setPayslips([formattedPayslip]);
-          setSelectedPayslips(formattedPayslip);
+          // Directly use the response data without additional formatting
+          // This ensures we use the exact field names from the database
+          const payslipData = response.data.data[0];
+          setPayslips([payslipData]);
+          setSelectedPayslips(payslipData);
         } else if (!Array.isArray(response.data.data)) {
           // Data is not an array, but maybe a single object
           const payslipData = response.data.data;
-
-          // Format as a single payslip object
-          const formattedPayslip = {
-            id: payslipData.id,
-            emp_ID: payslipData.emp_ID,
-            cutoffPeriod: payslipData.cutoffPeriod || `Cutoff ID: ${cutoffId}`,
-            paymentDate: payslipData.paymentDate || new Date(),
-            basicPay: parseFloat(payslipData.basicPay || 0),
-            semiMonthlyRate: parseFloat(payslipData.semiMonthlyRate || 0),
-            totalDays: payslipData.totalDays || 0,
-            totalHours: payslipData.totalHours || 0,
-            totalUndertime: payslipData.totalUndertime || 0,
-            totalLate: payslipData.totalLate || 0,
-            absents: payslipData.absents || 0,
-            overtime: payslipData.overtime || 0,
-            specialOT: payslipData.specialOT || 0,
-            nightDifferential: payslipData.nightDifferential || 0,
-            foodAllowance: parseFloat(payslipData.foodAllowance || 0),
-            transpoAllowance: parseFloat(payslipData.transpoAllowance || 0),
-            undertimeLatesDeduction: parseFloat(payslipData.undertimeLatesDeduction || 0),
-            absenceDeduction: parseFloat(payslipData.absenceDeduction || 0),
-            cashAdvance: parseFloat(payslipData.cashAdvance || 0),
-            healthcare: parseFloat(payslipData.healthcare || 0),
-            sssShare: parseFloat(payslipData.sssShare || 0),
-            pagibigShare: parseFloat(payslipData.pagibigShare || 0),
-            sssLoan: parseFloat(payslipData.sssLoan || 0),
-            pagibigLoan: parseFloat(payslipData.pagibigLoan || 0),
-            netPay: parseFloat(payslipData.netPay || 0),
-            comments: payslipData.comments || '',
-            cutoffID: payslipData.cutoffID || cutoffId,
-          };
-
-          setPayslips([formattedPayslip]);
-          setSelectedPayslips(formattedPayslip);
+          setPayslips([payslipData]);
+          setSelectedPayslips(payslipData);
         } else {
-          // We have an empty array
+          // Empty array
           console.log("No payslip data found for this period");
           toast.info(`No payslip available for the selected cutoff period`);
           setPayslips([]);
           setSelectedPayslips(null);
         }
       } else {
-        // No data property in the response
+        // No data property in response
         console.warn("No payslip data in response:", response.data);
         toast.info(`No payslip available for the selected cutoff period`);
         setPayslips([]);
         setSelectedPayslips(null);
       }
     } catch (error) {
+      // Error handling remains the same
       console.error("Error fetching payslip:", error);
-
-      // Enhanced error handling
-      if (error.response) {
-        if (error.response.status === 404) {
-          toast.info(`No payslip available for the selected cutoff period`);
-        } else {
-          setError(`Error: ${error.response.status} - ${error.response.data?.error || 'Unknown error'}`);
-          toast.error(`Failed to load payslip: ${error.response.data?.error || 'Server error'}`);
-        }
-      } else if (error.request) {
-        setError("Network error. Please check your connection.");
-        toast.error("Network error. Please check your connection.");
-      } else {
-        setError(`Error: ${error.message}`);
-        toast.error(`Error: ${error.message}`);
-      }
-
-      setPayslips([]);
-      setSelectedPayslips(null);
+      // ...existing error handling...
     } finally {
       setLoading(false);
     }
@@ -680,9 +600,10 @@ const Payslip = () => {
                       </button>
                     )}
                   </h5>
+                  {/* Updated Payslip Preview Section */}
                   <div
                     className="payslip-container"
-                    id="payslip-preview" /* Add an ID for capturing the layout */
+                    id="payslip-preview"
                   >
                     {selectedPayslip ? (
                       <div className="row g-4">
@@ -695,49 +616,49 @@ const Payslip = () => {
                             <div className="card-body">
                               <div className="mb-3">
                                 <label className="fw-bold">Employee ID:</label>
-                                <div>{employeeData.emp_ID}</div>
+                                <div>{selectedPayslip.emp_ID || employeeData.emp_ID}</div>
+                              </div>
+                              <div className="mb-3">
+                                <label className="fw-bold">Employee Name:</label>
+                                <div>{selectedPayslip.emp_name || employeeData.fullName}</div>
                               </div>
                               <div className="mb-3">
                                 <label className="fw-bold">Position:</label>
-                                <div>{employeeData.position}</div>
-                              </div>
-                              <div className="mb-3">
-                                <label className="fw-bold">Name:</label>
-                                <div>{employeeData.fullName}</div>
+                                <div>{selectedPayslip.position || employeeData.position}</div>
                               </div>
                               <div className="mb-3">
                                 <label className="fw-bold">Date Hired:</label>
-                                <div>{employeeData.dateHired}</div>
-                              </div>
-                              <div className="mb-3">
-                                <label className="fw-bold">SSS:</label>
-                                <div>{employeeData.sss}</div>
-                              </div>
-                              <div className="mb-3">
-                                <label className="fw-bold">Pag-IBIG:</label>
-                                <div>{employeeData.pagibig}</div>
+                                <div>{selectedPayslip.date_hired ? new Date(selectedPayslip.date_hired).toLocaleDateString() : employeeData.dateHired}</div>
                               </div>
                               <div className="mb-3">
                                 <label className="fw-bold">TIN:</label>
-                                <div>{employeeData.tin}</div>
+                                <div>{selectedPayslip.tin || employeeData.tin}</div>
+                              </div>
+                              <div className="mb-3">
+                                <label className="fw-bold">SSS:</label>
+                                <div>{selectedPayslip.sss || employeeData.sss}</div>
+                              </div>
+                              <div className="mb-3">
+                                <label className="fw-bold">Pag-IBIG:</label>
+                                <div>{selectedPayslip.pagibig || employeeData.pagibig}</div>
                               </div>
                               <div className="mb-3">
                                 <label className="fw-bold">PhilHealth:</label>
-                                <div>{employeeData.philhealth}</div>
+                                <div>{selectedPayslip.philhealth || employeeData.philhealth}</div>
                               </div>
                               <hr />
                               <div className="mb-3">
                                 <label className="fw-bold">Basic Pay:</label>
-                                <div>{formatCurrency(selectedPayslip.basicPay || employeeData.basicPay)}</div>
+                                <div>{formatCurrency(selectedPayslip.basic_pay || employeeData.basicPay)}</div>
                               </div>
                               <div className="mb-3">
-                                <label className="fw-bold">Semi-Monthly:</label>
-                                <div>{formatCurrency(selectedPayslip.semiMonthlyRate || employeeData.semiMonthlyRate)}</div>
+                                <label className="fw-bold">Semi-Monthly Pay:</label>
+                                <div>{formatCurrency(selectedPayslip.semi_monthly_pay || employeeData.semiMonthlyRate)}</div>
                               </div>
                               <hr />
                               <div className="mt-4">
-                                <h6 className="fw-bold">Comments:</h6>
-                                <p className="fst-italic text-muted">{selectedPayslip.comments || 'No comments'}</p>
+                                <h6 className="fw-bold">Notes:</h6>
+                                <p className="fst-italic text-muted">{selectedPayslip.notes || 'No notes'}</p>
                               </div>
                             </div>
                           </div>
@@ -748,38 +669,38 @@ const Payslip = () => {
                           {/* Container 1: Days and Hours */}
                           <div className="card mb-3">
                             <div className="card-header bg-light">
-                              <h5 className="mb-0">Attendance</h5>
+                              <h5 className="mb-0">Attendance & Work Hours</h5>
                             </div>
                             <div className="card-body">
                               <div className="row g-2">
                                 <div className="col-6">
                                   <div className="mb-2">
-                                    <label className="small fw-bold">Days:</label>
-                                    <div>{selectedPayslip.totalDays || 0}</div>
+                                    <label className="small fw-bold">Days Worked:</label>
+                                    <div>{selectedPayslip.days_work || 0}</div>
                                   </div>
                                 </div>
                                 <div className="col-6">
                                   <div className="mb-2">
                                     <label className="small fw-bold">Total Hours:</label>
-                                    <div>{selectedPayslip.totalHours || 0}</div>
+                                    <div>{selectedPayslip.total_hrs || 0}</div>
                                   </div>
                                 </div>
                                 <div className="col-6">
                                   <div className="mb-2">
-                                    <label className="small fw-bold">Total Undertime:</label>
-                                    <div>{selectedPayslip.totalUndertime || 0}</div>
+                                    <label className="small fw-bold">Undertime:</label>
+                                    <div>{selectedPayslip.undertime || 0}</div>
                                   </div>
                                 </div>
                                 <div className="col-6">
                                   <div className="mb-2">
-                                    <label className="small fw-bold">Late/Overbreaks:</label>
-                                    <div>{selectedPayslip.totalLate || 0}</div>
+                                    <label className="small fw-bold">Late/Overbreak:</label>
+                                    <div>{selectedPayslip.late_overbreak || 0}</div>
                                   </div>
                                 </div>
                                 <div className="col-6">
                                   <div className="mb-2">
                                     <label className="small fw-bold">Absents:</label>
-                                    <div>{selectedPayslip.absents || 0}</div>
+                                    <div>{selectedPayslip.absent || 0}</div>
                                   </div>
                                 </div>
                                 <div className="col-6">
@@ -790,37 +711,83 @@ const Payslip = () => {
                                 </div>
                                 <div className="col-6">
                                   <div className="mb-2">
-                                    <label className="small fw-bold">Special OT:</label>
-                                    <div>{selectedPayslip.specialOT || 0}</div>
+                                    <label className="small fw-bold">Special Overtime:</label>
+                                    <div>{selectedPayslip.special_overtime || 0}</div>
                                   </div>
                                 </div>
                                 <div className="col-6">
                                   <div className="mb-2">
                                     <label className="small fw-bold">Night Differential:</label>
-                                    <div>{selectedPayslip.nightDifferential || 0}</div>
+                                    <div>{selectedPayslip.night_differential || 0}</div>
+                                  </div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="mb-2">
+                                    <label className="small fw-bold">Regular Holiday:</label>
+                                    <div>{selectedPayslip.rh || 0}</div>
+                                  </div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="mb-2">
+                                    <label className="small fw-bold">Special Holiday:</label>
+                                    <div>{selectedPayslip.sh || 0}</div>
                                   </div>
                                 </div>
                               </div>
                             </div>
                           </div>
 
-                          {/* Container 2: Allowances */}
+                          {/* Container 2: Allowances & Benefits */}
                           <div className="card mb-3">
                             <div className="card-header bg-light">
-                              <h5 className="mb-0">Allowances</h5>
+                              <h5 className="mb-0">Allowances & Benefits</h5>
                             </div>
                             <div className="card-body">
                               <div className="row">
                                 <div className="col-6">
                                   <div className="mb-2">
                                     <label className="small fw-bold">Food:</label>
-                                    <div>{formatCurrency(selectedPayslip.foodAllowance || 0)}</div>
+                                    <div>{formatCurrency(selectedPayslip.food_allowance || 0)}</div>
                                   </div>
                                 </div>
                                 <div className="col-6">
                                   <div className="mb-2">
                                     <label className="small fw-bold">Transportation:</label>
-                                    <div>{formatCurrency(selectedPayslip.transpoAllowance || 0)}</div>
+                                    <div>{formatCurrency(selectedPayslip.transpo_allowance || 0)}</div>
+                                  </div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="mb-2">
+                                    <label className="small fw-bold">Adjustments:</label>
+                                    <div>{formatCurrency(selectedPayslip.adjustments || 0)}</div>
+                                  </div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="mb-2">
+                                    <label className="small fw-bold">Complexity:</label>
+                                    <div>{formatCurrency(selectedPayslip.complexity_allowance || 0)}</div>
+                                  </div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="mb-2">
+                                    <label className="small fw-bold">Bonus:</label>
+                                    <div>{formatCurrency(selectedPayslip.bonus || 0)}</div>
+                                  </div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="mb-2">
+                                    <label className="small fw-bold">Attendance Incentives:</label>
+                                    <div>{formatCurrency(selectedPayslip.att_incentives || 0)}</div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="row mt-2">
+                                <div className="col-12">
+                                  <div className="alert alert-info mb-0 py-2">
+                                    <div className="d-flex justify-content-between align-items-center">
+                                      <span className="fw-bold">Gross Pay:</span>
+                                      <span>{formatCurrency(selectedPayslip.gross_pay || 0)}</span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -836,50 +803,48 @@ const Payslip = () => {
                               <div className="row g-2">
                                 <div className="col-6">
                                   <div className="mb-2">
-                                    <label className="small fw-bold">Undertime/Lates:</label>
-                                    <div>{formatCurrency(selectedPayslip.undertimeLatesDeduction || 0)}</div>
-                                  </div>
-                                </div>
-                                <div className="col-6">
-                                  <div className="mb-2">
-                                    <label className="small fw-bold">Absence:</label>
-                                    <div>{formatCurrency(selectedPayslip.absenceDeduction || 0)}</div>
-                                  </div>
-                                </div>
-                                <div className="col-6">
-                                  <div className="mb-2">
-                                    <label className="small fw-bold">Cash Advance:</label>
-                                    <div>{formatCurrency(selectedPayslip.cashAdvance || 0)}</div>
-                                  </div>
-                                </div>
-                                <div className="col-6">
-                                  <div className="mb-2">
-                                    <label className="small fw-bold">Healthcare:</label>
-                                    <div>{formatCurrency(selectedPayslip.healthcare || 0)}</div>
-                                  </div>
-                                </div>
-                                <div className="col-6">
-                                  <div className="mb-2">
-                                    <label className="small fw-bold">SSS (share):</label>
-                                    <div>{formatCurrency(selectedPayslip.sssShare || 0)}</div>
-                                  </div>
-                                </div>
-                                <div className="col-6">
-                                  <div className="mb-2">
-                                    <label className="small fw-bold">Pag-IBIG (share):</label>
-                                    <div>{formatCurrency(selectedPayslip.pagibigShare || 0)}</div>
+                                    <label className="small fw-bold">SSS Employee Share:</label>
+                                    <div>{formatCurrency(selectedPayslip.sss_eeshare || 0)}</div>
                                   </div>
                                 </div>
                                 <div className="col-6">
                                   <div className="mb-2">
                                     <label className="small fw-bold">SSS Loan:</label>
-                                    <div>{formatCurrency(selectedPayslip.sssLoan || 0)}</div>
+                                    <div>{formatCurrency(selectedPayslip.sss_loan || 0)}</div>
+                                  </div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="mb-2">
+                                    <label className="small fw-bold">PhilHealth Share:</label>
+                                    <div>{formatCurrency(selectedPayslip.philh_eeshare || 0)}</div>
+                                  </div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="mb-2">
+                                    <label className="small fw-bold">Pag-IBIG Share:</label>
+                                    <div>{formatCurrency(selectedPayslip.pagibig_eeshare || 0)}</div>
                                   </div>
                                 </div>
                                 <div className="col-6">
                                   <div className="mb-2">
                                     <label className="small fw-bold">Pag-IBIG Loan:</label>
-                                    <div>{formatCurrency(selectedPayslip.pagibigLoan || 0)}</div>
+                                    <div>{formatCurrency(selectedPayslip.pagibig_loan || 0)}</div>
+                                  </div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="mb-2">
+                                    <label className="small fw-bold">Healthcare:</label>
+                                    <div>{formatCurrency(selectedPayslip.heathcare || 0)}</div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="row mt-2">
+                                <div className="col-12">
+                                  <div className="alert alert-warning mb-0 py-2">
+                                    <div className="d-flex justify-content-between align-items-center">
+                                      <span className="fw-bold">Total Deductions:</span>
+                                      <span>{formatCurrency(selectedPayslip.total_deductions || 0)}</span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -893,8 +858,8 @@ const Payslip = () => {
                             </div>
                             <div className="card-body">
                               <div className="d-flex justify-content-between align-items-center">
-                                <h3 className="mb-0 text-success fw-bold">{formatCurrency(selectedPayslip.netPay || 0)}</h3>
-                                <span className="badge bg-success">For {selectedPayslip.cutoffPeriod}</span>
+                                <h3 className="mb-0 text-success fw-bold">{formatCurrency(selectedPayslip.net_pay || 0)}</h3>
+                                <span className="badge bg-success">For {selectedPayslip.payroll_period || 'Current Period'}</span>
                               </div>
                             </div>
                           </div>

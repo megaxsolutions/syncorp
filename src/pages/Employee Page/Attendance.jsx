@@ -728,7 +728,7 @@ const EmployeeAttendance = () => {
                         <th>Break Start</th>
                         <th>Break End</th>
                         <th>Duration</th>
-                        <th>Reason</th>
+
                       </tr>
                     </thead>
                     <tbody>
@@ -741,7 +741,7 @@ const EmployeeAttendance = () => {
                               calculateTimeDifference(breakRecord.breakIN, breakRecord.breakOUT) :
                               'In progress'}
                           </td>
-                          <td>{breakRecord.reason || 'Not specified'}</td>
+
                         </tr>
                       ))}
                     </tbody>

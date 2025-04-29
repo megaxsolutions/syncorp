@@ -2,7 +2,7 @@ import { LmsNavbar } from "../../components/LmsNavbar"
 import { Carousel } from "react-bootstrap"
 import "bootstrap/dist/css/bootstrap.min.css"
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import axios from "axios"
 import Swal from "sweetalert2"
 import config from "../../config"
@@ -31,6 +31,10 @@ export default function Homepage() {
   const [isLoading, setIsLoading] = useState(true);
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [trainers, setTrainers] = useState([]);
+  const [loadingTrainers, setLoadingTrainers] = useState(true);
+  const [enrolledCourses, setEnrolledCourses] = useState({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -46,9 +50,16 @@ export default function Homepage() {
     // Fetch data when component mounts
     fetchCategories();
     fetchCourses();
+    fetchTrainers();
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (courses.length > 0) {
+      checkEnrollmentsForCourses();
+    }
+  }, [courses]);
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
@@ -116,6 +127,220 @@ export default function Homepage() {
     }
   };
 
+  // Add the new function to fetch trainers
+  const fetchTrainers = async () => {
+    try {
+      setLoadingTrainers(true);
+      const response = await axios.get(
+        `${config.API_BASE_URL}/trainers/get_all_trainer`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (response.data?.data) {
+        setTrainers(response.data.data);
+      } else {
+        setTrainers([]);
+      }
+    } catch (error) {
+      console.error("Error fetching trainers:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load trainers.",
+      });
+      setTrainers([]);
+    } finally {
+      setLoadingTrainers(false);
+    }
+  };
+
+  const checkEnrollmentsForCourses = async () => {
+    const empId = localStorage.getItem("X-EMP-ID");
+    if (!empId) return;
+
+    try {
+      const enrollmentStatus = {};
+
+      for (const course of courses) {
+        try {
+          const response = await axios.get(
+            `${config.API_BASE_URL}/enrolls/check_user_enroll/${empId}/${course.categoryID}/${course.id}`,
+            {
+              headers: {
+                "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                "X-EMP-ID": empId,
+              },
+            }
+          );
+
+          if (response.data?.data && response.data.data.length > 0) {
+            enrollmentStatus[course.id] = {
+              enrolled: true,
+              enrollDate: response.data.data[0].datetime_enrolled
+            };
+          }
+        } catch (error) {
+          if (error.response && error.response.status === 404) {
+            enrollmentStatus[course.id] = { enrolled: false };
+          }
+        }
+      }
+
+      setEnrolledCourses(enrollmentStatus);
+    } catch (error) {
+      console.error("Error checking enrollments:", error);
+    }
+  };
+
+  const handleEnrollClick = (course, e) => {
+    e.preventDefault();
+    const empId = localStorage.getItem("X-EMP-ID");
+
+    if (!empId) {
+      Swal.fire({
+        icon: "warning",
+        title: "Login Required",
+        text: "Please login to access this course.",
+      });
+      return;
+    }
+
+    // If already enrolled, navigate to the course view
+    if (enrolledCourses[course.id]?.enrolled) {
+      navigate(`/lms/view-course/${course.id}`);
+      return;
+    }
+
+    // If not enrolled, show admin-only enrollment warning
+    Swal.fire({
+      title: 'Enrollment Required',
+      text: `You are not enrolled in "${course.course_title}". Please contact an administrator to get enrolled.`,
+      icon: 'warning',
+      confirmButtonColor: '#3085d6',
+      confirmButtonText: 'Understood'
+    });
+  };
+
+  // Add this function to fetch and show course details
+  const handleReadMore = async (courseId, e) => {
+    e.preventDefault();
+
+    try {
+      // Show loading state
+      Swal.fire({
+        title: 'Loading course details...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      // Fetch course details from API
+      const response = await axios.get(
+        `${config.API_BASE_URL}/courses/get_user_course/${courseId}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (response.data?.data && response.data.data.length > 0) {
+        const course = response.data.data[0];
+
+        // Format the date
+        const dateAdded = new Date(course.date_added).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        // Create star rating HTML
+        const starRating = [];
+        const rating = Math.round(parseFloat(course.average_rating));
+        for (let i = 1; i <= 5; i++) {
+          if (i <= rating) {
+            starRating.push('<i class="fa fa-star text-warning"></i>');
+          } else {
+            starRating.push('<i class="fa fa-star-o text-muted"></i>');
+          }
+        }
+
+        // Show course details in a modal
+        Swal.fire({
+          title: course.course_title,
+          html: `
+            <div class="text-start">
+              <div class="mb-4 text-center">
+                <img src="${config.API_BASE_URL}/uploads/${course.filename}"
+                  alt="${course.course_title}"
+                  style="max-width: 100%; max-height: 300px; object-fit: cover; border-radius: 8px;">
+              </div>
+
+              <div class="mb-3">
+                <h6 class="fw-bold">Description</h6>
+                <p>${course.course_details || 'No description available.'}</p>
+              </div>
+
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <h6 class="fw-bold">Category</h6>
+                  <p>${course.category_title}</p>
+                </div>
+                <div class="col-md-6">
+                  <h6 class="fw-bold">Date Added</h6>
+                  <p>${dateAdded}</p>
+                </div>
+              </div>
+
+              <div class="mb-2">
+                <h6 class="fw-bold">Rating</h6>
+                <div class="d-flex align-items-center">
+                  <div class="me-2">${starRating.join('')}</div>
+                  <span>(${course.average_rating} / 5 - ${course.total_rating} ${course.total_rating === 1 ? 'review' : 'reviews'})</span>
+                </div>
+              </div>
+            </div>
+          `,
+          width: '600px',
+          showCloseButton: true,
+          showConfirmButton: true,
+          confirmButtonText: 'Enroll Now',
+          confirmButtonColor: '#06BBCC',
+          showCancelButton: true,
+          cancelButtonText: 'Close',
+          cancelButtonColor: '#6c757d',
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Handle enrollment click
+            handleEnrollClick(course, new Event('click'));
+          }
+        });
+
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Course details not found.'
+        });
+      }
+
+    } catch (error) {
+      console.error("Error fetching course details:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load course details.'
+      });
+    }
+  };
+
   return (
     <>
       {/* Enhanced Navigation Bar */}
@@ -175,9 +400,7 @@ export default function Homepage() {
                     <a href="about.html" className="btn btn-primary py-md-3 px-md-5 me-3 animated slideInLeft">
                       Read More
                     </a>
-                    <a href="join.html" className="btn btn-light py-md-3 px-md-5 animated slideInRight">
-                      Join Now
-                    </a>
+
                   </div>
                 </div>
               </div>
@@ -373,7 +596,7 @@ export default function Homepage() {
         </div>
       </div>
 
-      {/* Courses Section */}
+      {/* Updated Courses Section with buttons below image */}
       <div className="container-xxl py-5">
         <div className="container">
           <div className="text-center wow fadeInUp" data-wow-delay="0.1s">
@@ -395,32 +618,47 @@ export default function Homepage() {
             <div className="row g-4 justify-content-center">
               {courses.slice(0, 3).map((course, index) => (
                 <div key={course.id} className="col-lg-4 col-md-6 wow fadeInUp" data-wow-delay={`0.${index + 1}s`}>
-                  <div className="course-item bg-light">
+                  <div className="course-item bg-light h-100 d-flex flex-column">
                     <div className="position-relative overflow-hidden">
                       <img
                         className="img-fluid"
                         src={`${config.API_BASE_URL}/uploads/${course.filename}`}
                         alt={course.course_title}
+                        style={{ height: "220px", width: "100%", objectFit: "cover" }}
                       />
-                      <div className="w-100 d-flex justify-content-center position-absolute bottom-0 start-0 mb-4">
-                        <Link
-                          to={`/lms/course/${course.id}`}
-                          className="flex-shrink-0 btn btn-sm btn-primary px-3 border-end"
-                          style={{ borderRadius: "30px 0 0 30px" }}
-                        >
-                          Read More
-                        </Link>
-                        <Link
-                          to={`/lms/view-course/${course.id}`}
-                          className="flex-shrink-0 btn btn-sm btn-success px-3"
-                          style={{ borderRadius: "0 30px 30px 0" }}
-                        >
-                          Enroll Now
-                        </Link>
-                      </div>
                     </div>
+
+                    {/* Course buttons moved here - below the image */}
+                    <div className="d-flex justify-content-center mt-3 px-3">
+                      <a
+                        href="#"
+                        onClick={(e) => handleReadMore(course.id, e)}
+                        className="btn btn-sm btn-primary px-3 flex-grow-1 me-1"
+                      >
+                        <i className="fa fa-info-circle me-1"></i> Read More
+                      </a>
+
+                      {enrolledCourses[course.id]?.enrolled ? (
+                        <a
+                          href="#"
+                          onClick={(e) => handleEnrollClick(course, e)}
+                          className="btn btn-sm btn-success px-3 flex-grow-1"
+                        >
+                          <i className="fas fa-play me-1"></i> Continue
+                        </a>
+                      ) : (
+                        <a
+                          href="#"
+                          onClick={(e) => handleEnrollClick(course, e)}
+                          className="btn btn-sm btn-primary px-3 flex-grow-1"
+                        >
+                          <i className="fas fa-sign-in-alt me-1"></i> Enroll Now
+                        </a>
+                      )}
+                    </div>
+
                     <div className="text-center p-4 pb-0">
-                      <h3 className="mb-0">{course.course_title}</h3>
+                      <h3 className="mb-3">{course.course_title}</h3>
                       <div className="mb-3">
                         <small className="fa fa-star text-primary"></small>
                         <small className="fa fa-star text-primary"></small>
@@ -429,128 +667,116 @@ export default function Homepage() {
                         <small className="fa fa-star text-primary"></small>
                         <small className="ms-1">(123)</small>
                       </div>
-
+                      <p className="small text-muted">
+                        {course.course_details?.substring(0, 80) || 'Learn the fundamentals and advanced concepts in this comprehensive course.'}
+                        {course.course_details?.length > 80 ? '...' : ''}
+                      </p>
                     </div>
-                    <div className="d-flex border-top">
+
+                    <div className="d-flex border-top mt-auto">
                       <small className="flex-fill text-center border-end py-2">
                         <i className="fa fa-calendar text-primary me-2"></i>
                         {new Date(course.date_added).toLocaleDateString()}
                       </small>
-
+                      <small className="flex-fill text-center py-2">
+                        <i className="fa fa-user text-primary me-2"></i>
+                        {course.category_title || "All Levels"}
+                      </small>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
+
+          {courses.length > 3 && (
+            <div className="text-center mt-4">
+              <Link to="/lms/course" className="btn btn-primary py-2 px-4">
+                View All Courses
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Instructors Section */}
+      {/* Updated Instructors Section */}
       <div className="container-xxl py-5">
         <div className="container">
           <div className="text-center wow fadeInUp" data-wow-delay="0.1s">
             <h6 className="section-title bg-white text-center text-primary px-3">Instructors</h6>
             <h1 className="mb-5">Expert Instructors</h1>
           </div>
-          <div className="row g-4">
-            <div className="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.1s">
-              <div className="team-item bg-light">
-                <div className="overflow-hidden">
-                  <img className="img-fluid" src={profileImg} alt="Instructor 1" />
-                </div>
-                <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
-                  <div className="bg-light d-flex justify-content-center pt-2 px-1">
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Facebook">
-                      <i className="fab fa-facebook-f"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Twitter">
-                      <i className="fab fa-twitter"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="LinkedIn">
-                      <i className="fab fa-linkedin-in"></i>
-                    </a>
-                  </div>
-                </div>
-                <div className="text-center p-4">
-                  <h5 className="mb-0">Dr. John Smith</h5>
-                  <small>Web Development Expert</small>
-                </div>
+
+          {loadingTrainers ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
               </div>
             </div>
-            <div className="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.3s">
-              <div className="team-item bg-light">
-                <div className="overflow-hidden">
-                  <img className="img-fluid" src={profileImg} alt="Instructor 2" />
-                </div>
-                <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
-                  <div className="bg-light d-flex justify-content-center pt-2 px-1">
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Facebook">
-                      <i className="fab fa-facebook-f"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Twitter">
-                      <i className="fab fa-twitter"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="LinkedIn">
-                      <i className="fab fa-linkedin-in"></i>
-                    </a>
+          ) : trainers.length === 0 ? (
+            <div className="alert alert-info text-center" role="alert">
+              No instructors available at the moment.
+            </div>
+          ) : (
+            <div className="row g-4">
+              {trainers.slice(0, 4).map((trainer, index) => (
+                <div
+                  className="col-lg-3 col-md-6 wow fadeInUp"
+                  data-wow-delay={`0.${index + 1}s`}
+                  key={trainer.id}
+                >
+                  <div className="team-item bg-light">
+                    <div className="overflow-hidden">
+                      <img
+                        className="img-fluid"
+                        src={trainer.filename_photo
+                          ? `${config.API_BASE_URL}/uploads/${trainer.filename_photo}`
+                          : profileImg}
+                        alt={trainer.fullname || `Trainer ${trainer.emp_ID}`}
+                        style={{ height: "250px", width: "100%", objectFit: "cover" }}
+                      />
+                    </div>
+                    <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
+                      <div className="bg-light d-flex justify-content-center pt-2 px-1">
+                        {trainer.facebook && (
+                          <a className="btn btn-sm-square btn-primary mx-1" href={trainer.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                            <i className="fab fa-facebook-f"></i>
+                          </a>
+                        )}
+                        {trainer.twitter && (
+                          <a className="btn btn-sm-square btn-primary mx-1" href={trainer.twitter} target="_blank" rel="noopener noreferrer" aria-label="Twitter">
+                            <i className="fab fa-twitter"></i>
+                          </a>
+                        )}
+                        {trainer.linkedin && (
+                          <a className="btn btn-sm-square btn-primary mx-1" href={trainer.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                            <i className="fab fa-linkedin-in"></i>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-center p-4">
+                      <h5 className="mb-0">{trainer.fullname || `Trainer ${trainer.emp_ID}`}</h5>
+                      {trainer.course_title && (
+                        <small className="text-muted d-block">{trainer.course_title}</small>
+                      )}
+                      {trainer.category_title && (
+                        <small className="text-primary">{trainer.category_title}</small>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="text-center p-4">
-                  <h5 className="mb-0">Sarah Johnson</h5>
-                  <small>Graphic Design Specialist</small>
-                </div>
-              </div>
+              ))}
             </div>
-            <div className="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.5s">
-              <div className="team-item bg-light">
-                <div className="overflow-hidden">
-                  <img className="img-fluid" src={profileImg} alt="Instructor 3" />
-                </div>
-                <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
-                  <div className="bg-light d-flex justify-content-center pt-2 px-1">
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Facebook">
-                      <i className="fab fa-facebook-f"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Twitter">
-                      <i className="fab fa-twitter"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="LinkedIn">
-                      <i className="fab fa-linkedin-in"></i>
-                    </a>
-                  </div>
-                </div>
-                <div className="text-center p-4">
-                  <h5 className="mb-0">Michael Brown</h5>
-                  <small>Digital Marketing Guru</small>
-                </div>
-              </div>
+          )}
+
+          {trainers.length > 4 && (
+            <div className="text-center mt-4">
+              <Link to="/lms/trainers" className="btn btn-primary">
+                View All Instructors
+              </Link>
             </div>
-            <div className="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.7s">
-              <div className="team-item bg-light">
-                <div className="overflow-hidden">
-                  <img className="img-fluid" src={profileImg} alt="Instructor 4" />
-                </div>
-                <div className="position-relative d-flex justify-content-center" style={{ marginTop: "-23px" }}>
-                  <div className="bg-light d-flex justify-content-center pt-2 px-1">
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Facebook">
-                      <i className="fab fa-facebook-f"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="Twitter">
-                      <i className="fab fa-twitter"></i>
-                    </a>
-                    <a className="btn btn-sm-square btn-primary mx-1" href="#" aria-label="LinkedIn">
-                      <i className="fab fa-linkedin-in"></i>
-                    </a>
-                  </div>
-                </div>
-                <div className="text-center p-4">
-                  <h5 className="mb-0">Emily Davis</h5>
-                  <small>Video Production Expert</small>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
