@@ -1,116 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { LmsNavbar } from '../../components/LmsNavbar';
+import axios from 'axios';
+import config from '../../config';
 import '../../css/LmsCourse.css';
+import Swal from 'sweetalert2';
 
 // Import images
 import footerImg1 from '../../assets/img/product-1.jpg';
 import footerImg2 from '../../assets/img/product-2.jpg';
 import footerImg3 from '../../assets/img/product-3.jpg';
-import courseImg from '../../assets/img/news-5.jpg';
+import defaultCourseImg from '../../assets/img/news-5.jpg';
 
-// Mock Data
-const MOCK_COURSE = {
-  id: 1,
-  course_title: "Introduction to Web Development",
-  course_details: "Learn the fundamentals of web development, including HTML, CSS, and JavaScript. This course is designed for beginners who want to start their journey in web development. You'll learn how to create responsive websites and gain a solid foundation in front-end development.",
-  date_added: "2023-09-15T10:30:00"
-};
-
-const MOCK_VIDEOS = [
-  {
-    id: 1,
-    course_id: 1,
-    video_title: "Getting Started with HTML",
-    video_description: "Learn the basics of HTML structure, tags, and elements. This introductory lesson covers everything you need to know to start building your first web page.",
-    video_url: "https://www.youtube.com/embed/qz0aGYrrlhU",
-    duration: "15:30",
-    sequence: 1,
-    type: "video"
-  },
-  {
-    id: 2,
-    course_id: 1,
-    video_title: "CSS Fundamentals",
-    video_description: "Discover how to style your HTML pages with CSS. This lesson covers selectors, properties, values, and how to create beautiful layouts.",
-    video_url: "https://www.youtube.com/embed/1PnVor36_40",
-    duration: "20:45",
-    sequence: 2,
-    type: "video"
-  },
-  {
-    id: 5, // Added PDF material
-    course_id: 1,
-    video_title: "HTML Cheat Sheet",
-    video_description: "A comprehensive reference guide for HTML elements, attributes, and best practices. Keep this handy while coding your web pages.",
-    pdf_url: "https://websitesetup.org/wp-content/uploads/2019/08/HTML-CHEAT-SHEET.pdf",
-    duration: "5 pages",
-    sequence: 3,
-    type: "pdf"
-  },
-  {
-    id: 3,
-    course_id: 1,
-    video_title: "JavaScript Basics",
-    video_description: "Learn the fundamentals of JavaScript programming. This lesson covers variables, data types, functions, and basic DOM manipulation.",
-    video_url: "https://www.youtube.com/embed/W6NZfCO5SIk",
-    duration: "25:10",
-    sequence: 4,
-    type: "video"
-  },
-  {
-    id: 6, // Added PDF material
-    course_id: 1,
-    video_title: "CSS Reference Guide",
-    video_description: "Complete reference for CSS properties and values. This document includes examples and common use cases for styling elements.",
-    pdf_url: "https://websitesetup.org/wp-content/uploads/2019/08/CSS-CHEAT-SHEET.pdf",
-    duration: "6 pages",
-    sequence: 5,
-    type: "pdf"
-  },
-  {
-    id: 4,
-    course_id: 1,
-    video_title: "Building a Simple Web Project",
-    video_description: "Put everything together by building a complete small web project. Apply your HTML, CSS, and JavaScript knowledge in a practical example.",
-    video_url: "https://www.youtube.com/embed/PkZNo7MFNFg",
-    duration: "30:00",
-    sequence: 6,
-    type: "video"
-  }
-];
-
-const MOCK_QUIZ = {
-  id: 1,
-  course_id: 1,
-  title: "Web Development Basics Quiz",
-  questions: [
-    {
-      id: 1,
-      question: "Which HTML tag is used to define an internal style sheet?",
-      options: ["<style>", "<script>", "<css>", "<link>"],
-      correct_answer: 0
-    },
-    {
-      id: 2,
-      question: "Which property is used to change the background color in CSS?",
-      options: ["color", "bgcolor", "background-color", "background"],
-      correct_answer: 2
-    },
-    {
-      id: 3,
-      question: "Which JavaScript method is used to access an HTML element by id?",
-      options: ["getElementById()", "getElement()", "querySelector()", "getElementByName()"],
-      correct_answer: 0
-    },
-    {
-      id: 4,
-      question: "What does CSS stand for?",
-      options: ["Computer Style Sheets", "Creative Style Sheets", "Cascading Style Sheets", "Colorful Style Sheets"],
-      correct_answer: 2
-    }
-  ]
-};
+// Add these imports for the quiz modal functionality
+import { Modal, Button } from 'react-bootstrap';
 
 const ViewCourse = () => {
   const { courseId } = useParams();
@@ -125,21 +28,196 @@ const ViewCourse = () => {
   const [quizScore, setQuizScore] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
+  // Fetch course data using Axios
   useEffect(() => {
-    // Simulate API loading time
-    const timer = setTimeout(() => {
-      setCourse(MOCK_COURSE);
-      setVideos(MOCK_VIDEOS);
-      setCurrentItem(MOCK_VIDEOS[0]);
-      setQuiz(MOCK_QUIZ);
-      setIsLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    if (courseId) {
+      fetchCourseData();
+      fetchQuizData();
+    }
   }, [courseId]);
 
+  const fetchQuizData = async () => {
+      // Update the quiz fetching logic
+      try {
+        // Fetch all questions and filter by courseID
+        const questionsResponse = await axios.get(
+          `${config.API_BASE_URL}/questions/get_all_question`,
+          {
+            headers: {
+              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            },
+          }
+        );
+
+        if (questionsResponse.data?.data) {
+          // Filter questions for this specific course
+          const courseQuestions = questionsResponse.data.data.filter(
+            question => question.courseID === parseInt(courseId, 10)
+          );
+
+          if (courseQuestions.length > 0) {
+            // Process each question
+            const quizQuestions = await Promise.all(
+              courseQuestions.map(async (question) => {
+                // For each question, fetch the specific details
+                try {
+                  const questionDetails = await axios.get(
+                    `${config.API_BASE_URL}/questions/get_specific_question/${question.id}`,
+                    {
+                      headers: {
+                        "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                        "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+                      },
+                    }
+                  );
+
+                  if (questionDetails.data?.data && questionDetails.data.data.length > 0) {
+                    // Parse the question JSON and correct answer
+                    const questionData = questionDetails.data.data[0];
+                    let parsedQuestion = null;
+                    let parsedOptions = [];
+                    let correctAnswer = null;
+
+                    try {
+                      // Parse the question JSON which contains the question text and options
+                      parsedQuestion = JSON.parse(questionData.question);
+                      parsedOptions = parsedQuestion.options || [];
+
+                      // Parse the correct_answer field (might be a string, array or index)
+                      if (questionData.correct_answer) {
+                        try {
+                          correctAnswer = JSON.parse(questionData.correct_answer);
+                        } catch {
+                          // If it's not valid JSON, use it as-is (probably a single index)
+                          correctAnswer = questionData.correct_answer;
+                        }
+                      }
+                    } catch (parseError) {
+                      console.error("Error parsing question data:", parseError);
+                    }
+
+                    return {
+                      id: questionData.id,
+                      question_text: parsedQuestion?.question || "No question available",
+                      options: parsedOptions,
+                      correct_answer: correctAnswer,
+                      selection_type: questionData.selection_type
+                    };
+                  }
+                  return null;
+                } catch (error) {
+                  console.error(`Error fetching details for question ${question.id}:`, error);
+                  return null;
+                }
+              })
+            );
+
+            // Remove any null values from failed fetches
+            const validQuestions = quizQuestions.filter(q => q !== null);
+
+            if (validQuestions.length > 0) {
+              setQuiz({
+                courseId: courseId,
+                questions: validQuestions
+              });
+            } else {
+              setQuiz(null);
+            }
+          } else {
+            setQuiz(null);
+          }
+        } else {
+          setQuiz(null);
+        }
+      } catch (quizError) {
+        console.error("Error fetching quiz data:", quizError);
+        setQuiz(null);
+      }
+
+  }
+  const fetchAllMaterials = async () => {
+    try {
+      // Fetch all materials at once
+      const materialsResponse = await axios.get(
+        `${config.API_BASE_URL}/materials/get_all_material`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (materialsResponse.data?.data) {
+        // Filter materials for current course
+        const allMaterials = materialsResponse.data.data;
+        const courseMaterials = allMaterials.filter(
+          material => material.courseID === parseInt(courseId, 10)
+        );
+
+        console.log("Materials for this course:", courseMaterials);
+
+        setVideos(courseMaterials);
+        if (courseMaterials.length > 0) {
+          setCurrentItem(courseMaterials[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching materials:", error);
+      setVideos([]);
+    }
+  };
+
+  const fetchCourseData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch course details
+      const courseResponse = await axios.get(
+        `${config.API_BASE_URL}/courses/get_specific_course/${courseId}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (courseResponse.data?.data && courseResponse.data.data.length > 0) {
+        setCourse(courseResponse.data.data[0]);
+
+        // Use the new fetchAllMaterials function instead
+        await fetchAllMaterials();
+      } else {
+        console.error("No course data found");
+        Swal.fire({
+          icon: "error",
+          title: "Course Not Found",
+          text: "The requested course could not be found.",
+        });
+      }
+
+    } catch (error) {
+      console.error("Error fetching course data:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load course data. Please try again later.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  // Rest of your existing functions
   const handleContentSelect = (item) => {
+    // First set the basic item data we already have
     setCurrentItem(item);
+
+    // Then fetch more detailed information about this specific material
+    fetchSpecificMaterialDetails(item.id);
+
     // Track progress in localStorage for demo purposes
     const progress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
     if (!progress[courseId]) {
@@ -151,6 +229,36 @@ const ViewCourse = () => {
     }
   };
 
+  // Add this function after handleContentSelect
+  const fetchSpecificMaterialDetails = async (materialId) => {
+    try {
+      const response = await axios.get(
+        `${config.API_BASE_URL}/materials/get_specific_material/${materialId}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (response.data?.data && response.data.data.length > 0) {
+        // Merge the detailed material data with current item
+        const detailedMaterial = response.data.data[0];
+        setCurrentItem(prev => ({
+          ...prev,
+          title: detailedMaterial.title || prev.title,
+          date_created: detailedMaterial.date_created,
+          created_by: detailedMaterial.created_by,
+          // Add any other fields you want to display
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching specific material details:", error);
+      // Don't update state on error, keep current item as is
+    }
+  };
+
   const handleAnswerSelect = (questionId, optionIndex) => {
     setUserAnswers({
       ...userAnswers,
@@ -158,36 +266,83 @@ const ViewCourse = () => {
     });
   };
 
-  const handleQuizSubmit = () => {
-    let score = 0;
-    quiz.questions.forEach(question => {
-      if (userAnswers[question.id] === question.correct_answer) {
-        score++;
-      }
-    });
+  const handleQuizSubmit = async () => {
+    const empId = localStorage.getItem("X-EMP-ID");
 
-    const percentage = Math.round((score / quiz.questions.length) * 100);
-    setQuizScore(percentage);
-    setQuizSubmitted(true);
+    try {
+      // First, submit each answer to the backend
+      const submissionResponses = await Promise.all(
+        quiz.questions.map(async (question) => {
+          const userAnswer = userAnswers[question.id];
 
-    // Add quiz completion to progress
-    const progress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
-    if (!progress[courseId]) {
-      progress[courseId] = { watched: [], quizCompleted: true };
-    } else {
-      progress[courseId].quizCompleted = true;
+          // Skip if user didn't answer this question
+          if (userAnswer === undefined) return null;
+
+          // Submit answer to the backend
+          try {
+            const response = await axios.post(
+              `${config.API_BASE_URL}/submissions/add_submission`,
+              {
+                course_id: parseInt(courseId, 10),
+                category_id: course.categoryID,
+                emp_id: empId,
+                question_id: question.id,
+                answer: userAnswer,
+              },
+              {
+                headers: {
+                  "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                  "X-EMP-ID": empId,
+                  "Content-Type": "application/json"
+                },
+              }
+            );
+
+            // Return the response for further processing
+            return response.data;
+          } catch (error) {
+            console.error(`Error submitting answer for question ${question.id}:`, error);
+            return null;
+          }
+        })
+      );
+
+      const questionsResponse = await axios.get(
+        `${config.API_BASE_URL}/submissions/get_score_submission/${localStorage.getItem("X-EMP-ID")}/${course.id}/${course.categoryID}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+      const data = questionsResponse.data.data;
+      const totalCorrect = data.reduce((sum, item) => sum + item.is_correct, 0);
+
+      // Caulate final score percentage
+      const percentage = Math.round((totalCorrect / quiz.questions.length) * 100);
+      setQuizScore(percentage);
+      setQuizSubmitted(true);
+
+      // Show success message
+      Swal.fire({
+        icon: percentage >= 70 ? "success" : "warning",
+        title: percentage >= 70 ? "Quiz Passed!" : "Quiz Failed",
+        text: `Your score: ${percentage}%${percentage >= 70 ? " - Congratulations!" : " - You need 70% to pass."}`,
+        timer: 3000,
+        timerProgressBar: true,
+      });
+
+
+
+    } catch (error) {
+      console.error("Error submitting quiz answers:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Submission Error",
+        text: "There was a problem submitting your quiz. Please try again.",
+      });
     }
-    localStorage.setItem('courseProgress', JSON.stringify(progress));
-
-    // If score is too low, don't close modal to allow retry
-    if (percentage < 70) return;
-
-    // Close modal after 3 seconds if passed
-    setTimeout(() => {
-      const quizModalEl = document.getElementById('quizModal');
-      const modal = bootstrap.Modal.getInstance(quizModalEl);
-      if (modal) modal.hide();
-    }, 3000);
   };
 
   const resetQuiz = () => {
@@ -208,7 +363,7 @@ const ViewCourse = () => {
     const totalItems = quiz ? videos.length + 1 : videos.length;
     const completedItems = watched.length + (quizCompleted ? 1 : 0);
 
-    const percentage = Math.round((completedItems / totalItems) * 100);
+    const percentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
     return {
       percentage,
       count: watched.length,
@@ -241,30 +396,18 @@ const ViewCourse = () => {
                       <div className="ratio ratio-16x9">
                         <iframe
                           src={currentItem.video_url}
-                          title={currentItem.video_title}
+                          title={currentItem.title || "Course Video"}
                           allowFullScreen
                           className="border-0"
                         ></iframe>
                       </div>
                     ) : (
-                      <div className="ratio ratio-16x9">
-                        <object
-                          data={`${currentItem.pdf_url}#zoom=100&view=FitH`}
-                          type="application/pdf"
-                          className="w-100 h-100"
-                        >
-                          <p className="text-center p-5">
-                            Your browser does not support PDF viewing.
-                            <a
-                              href={currentItem.pdf_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-sm btn-primary ms-2"
-                            >
-                              <i className="fa fa-download me-1"></i> Download PDF
-                            </a>
-                          </p>
-                        </object>
+                      <div className="ratio ratio-4x3">
+                         <iframe
+                          src={`https://docs.google.com/gview?url=${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}&embedded=true`}
+                          allowFullScreen
+                          className="border-0"
+                        ></iframe>
                       </div>
                     )
                   ) : (
@@ -288,18 +431,34 @@ const ViewCourse = () => {
                         {currentItem.type === "video" ? "Video" : "PDF"}
                       </span>
                     )}
-                    <h3 className="mb-0">{currentItem ? currentItem.video_title : 'Content Not Available'}</h3>
+                    <h3 className="mb-0">{currentItem ? currentItem.title || 'Untitled Content' : 'Content Not Available'}</h3>
                   </div>
-                  <p>{currentItem ? currentItem.video_description || 'No description available.' : ''}</p>
-                  {currentItem && currentItem.type === "pdf" && (
+                  <p>{currentItem ? currentItem.description || 'No description available.' : ''}</p>
+
+                  {/* Add more material details */}
+                  {currentItem && currentItem.date_created && (
+                    <p className="mb-1 text-muted">
+                      <i className="fa fa-calendar-alt me-2"></i>
+                      Added: {new Date(currentItem.date_created).toLocaleDateString()}
+                    </p>
+                  )}
+
+                  {currentItem && currentItem.created_by && (
+                    <p className="mb-3 text-muted">
+                      <i className="fa fa-user me-2"></i>
+                      Uploaded by: {currentItem.created_by}
+                    </p>
+                  )}
+
+                  {currentItem && currentItem.type !== "video" && currentItem.filename_uploaded && (
                     <div className="mt-3">
                       <a
-                        href={currentItem.pdf_url}
+                        href={`${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-sm btn-outline-primary"
                       >
-                        <i className="fa fa-download me-1"></i> Download PDF
+                        <i className="fa fa-download me-1"></i> Download Material
                       </a>
                     </div>
                   )}
@@ -338,240 +497,215 @@ const ViewCourse = () => {
                 </div>
 
                 {/* Quiz Modal Button */}
-                <div className="bg-light p-4 rounded shadow mt-4">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <h4 className="mb-1">Knowledge Check Quiz</h4>
-                      <p className="text-muted mb-0">
-                        Test your knowledge to complete this course
-                        {progress.quizCompleted &&
-                          <span className="text-success ms-2">
-                            <i className="fa fa-check-circle"></i> Completed
-                          </span>
-                        }
-                      </p>
-                    </div>
-                    <button
-                      className="btn btn-primary px-4"
-                      data-bs-toggle="modal"
-                      data-bs-target="#quizModal"
-                      onClick={() => {
-                        resetQuiz();
-                        setCurrentQuestionIndex(0);
-                      }}
-                    >
-                      {progress.quizCompleted ? "Retake Quiz" : "Start Quiz"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Quiz Modal */}
-                <div
-                  className="modal fade quiz-modal"
-                  id="quizModal"
-                  tabIndex="-1"
-                  aria-labelledby="quizModalLabel"
-                  aria-hidden="true"
-                >
-                  <div className="modal-dialog modal-dialog-centered modal-lg">
-                    <div className="modal-content">
-                      <div className="modal-header quiz-header">
-                        <h5 className="modal-title text-white" id="quizModalLabel">
-                          {quiz?.title || "Course Quiz"}
-                        </h5>
-                        <button
-                          type="button"
-                          className="btn-close btn-close-white"
-                          data-bs-dismiss="modal"
-                          aria-label="Close"
-                        ></button>
+                {quiz && (
+                  <div className="bg-light p-4 rounded shadow mt-4">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <h4 className="mb-1">Knowledge Check Quiz</h4>
+                        <p className="text-muted mb-0">
+                          Test your knowledge to complete this course
+                          {progress.quizCompleted &&
+                            <span className="text-success ms-2">
+                              <i className="fa fa-check-circle"></i> Completed
+                            </span>
+                          }
+                        </p>
                       </div>
-                      <div className="modal-body p-0">
-                        {quizSubmitted ? (
-                          // Quiz Results
-                          <div className="quiz-results p-4">
-                            <div className={`quiz-score-circle ${quizScore >= 70 ? 'quiz-celebrate' : ''}`}>
+                      <button
+                        className="btn btn-primary px-4"
+                        onClick={() => {
+                          resetQuiz();
+                          setCurrentQuestionIndex(0);
+                          setShowQuiz(true); // This opens the React Bootstrap modal
+                        }}
+                      >
+                        {progress.quizCompleted ? "Retake Quiz" : "Start Quiz"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <Modal
+                  show={showQuiz}
+                  onHide={() => setShowQuiz(false)}
+                  size="lg"
+                  backdrop="static"
+                  keyboard={false}
+                  centered
+                  id="quizModal"
+                >
+                  <Modal.Header closeButton>
+                    <Modal.Title>
+                      <i className="fas fa-question-circle text-primary me-2"></i>
+                      {quiz && quizSubmitted
+                        ? `Quiz Results (${quizScore}%)`
+                        : `Course Quiz - Question ${currentQuestionIndex + 1} of ${quiz?.questions.length || 0}`
+                      }
+                    </Modal.Title>
+                  </Modal.Header>
+                  <Modal.Body>
+                    {quiz ? (
+                      quizSubmitted ? (
+                        // Quiz Results View
+                        <div className="text-center py-4">
+                          <div className={`display-1 mb-4 ${quizScore >= 70 ? 'text-success' : 'text-danger'}`}>
+                            <i className={`fas ${quizScore >= 70 ? 'fa-check-circle' : 'fa-times-circle'}`}></i>
+                          </div>
+                          <h4 className="mb-3">
+                            {quizScore >= 70 ? 'Congratulations!' : 'Try Again!'}
+                          </h4>
+                          <div className="progress mb-4">
+                            <div
+                              className={`progress-bar ${quizScore >= 70 ? 'bg-success' : 'bg-danger'}`}
+                              role="progressbar"
+                              style={{ width: `${quizScore}%` }}
+                              aria-valuenow={quizScore}
+                              aria-valuemin="0"
+                              aria-valuemax="100"
+                            >
                               {quizScore}%
                             </div>
-                            <h3 className="mb-3">{quizScore >= 70 ? "Congratulations!" : "Quiz Results"}</h3>
-                            <p className="mb-4">You answered <strong>{Math.round((quizScore / 100) * quiz.questions.length)}</strong> out of <strong>{quiz.questions.length}</strong> questions correctly.</p>
+                          </div>
+                          <p className="mb-4">
+                            {quizScore >= 70
+                              ? 'You\'ve successfully passed the quiz!'
+                              : 'You need to score at least 70% to pass the quiz.'
+                            }
+                          </p>
 
+                          <div className="d-grid gap-2 col-6 mx-auto">
                             {quizScore >= 70 ? (
-                              <div className="alert alert-success d-flex align-items-center" role="alert">
-                                <div className="me-3 fs-3">
-                                  <i className="fa fa-check-circle"></i>
-                                </div>
-                                <div>
-                                  <h5 className="alert-heading">You've passed the quiz!</h5>
-                                  <p className="mb-0">Great job mastering the material in this course.</p>
-                                </div>
-                              </div>
+                              <Button variant="success" onClick={() => setShowQuiz(false)}>
+                                <i className="fas fa-check-double me-2"></i>
+                                Complete Course
+                              </Button>
                             ) : (
-                              <div className="alert alert-warning d-flex align-items-center" role="alert">
-                                <div className="me-3 fs-3">
-                                  <i className="fa fa-exclamation-triangle"></i>
-                                </div>
-                                <div>
-                                  <h5 className="alert-heading">Almost there!</h5>
-                                  <p className="mb-0">Review the course material and try again to pass the quiz.</p>
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="d-flex justify-content-center mt-4">
-                              <button className="btn btn-outline-primary me-2" data-bs-dismiss="modal">
-                                Close
-                              </button>
-                              <button className="btn btn-primary" onClick={resetQuiz}>
+                              <Button
+                                variant="primary"
+                                onClick={() => {
+                                  resetQuiz();
+                                  setCurrentQuestionIndex(0);
+                                }}
+                              >
+                                <i className="fas fa-redo me-2"></i>
                                 Try Again
-                              </button>
-                            </div>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        // Quiz Questions View
+                        quiz.questions && quiz.questions.length > 0 && (
+                          <div>
+                            <h4 className="mb-3">{quiz.questions[currentQuestionIndex].question_text}</h4>
+                            <div className="mb-4">
+                              {quiz.questions[currentQuestionIndex].options.map((option, optionIndex) => {
+                                const isOptionSelected = userAnswers[quiz.questions[currentQuestionIndex].id] === optionIndex;
 
-                            {/* Answer Review Section */}
-                            <div className="quiz-answer-review text-start">
-                              <h5 className="mb-3">Review Your Answers</h5>
-                              {quiz.questions.map((question, qIndex) => {
-                                const isCorrect = userAnswers[question.id] === question.correct_answer;
                                 return (
                                   <div
-                                    key={question.id}
-                                    className={`quiz-answer-review-item ${isCorrect ? 'correct' : 'incorrect'}`}
+                                    key={optionIndex}
+                                    className={`p-3 mb-2 border rounded ${isOptionSelected ? 'bg-light border-primary' : ''}`}
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleAnswerSelect(quiz.questions[currentQuestionIndex].id, optionIndex)}
                                   >
-                                    <div className="d-flex align-items-center mb-2">
-                                      <span className={`badge ${isCorrect ? 'bg-success' : 'bg-danger'} me-2`}>
-                                        {isCorrect ? 'Correct' : 'Incorrect'}
-                                      </span>
-                                      <h6 className="mb-0">Question {qIndex + 1}</h6>
-                                    </div>
-                                    <p className="mb-2">{question.question}</p>
-                                    <div className="d-flex flex-column mb-1">
-                                      <small className="text-muted">Your answer: </small>
-                                      <strong className={isCorrect ? 'text-success' : 'text-danger'}>
-                                        {userAnswers[question.id] !== undefined
-                                          ? question.options[userAnswers[question.id]]
-                                          : 'Not answered'}
-                                      </strong>
-                                    </div>
-                                    {!isCorrect && (
-                                      <div className="d-flex flex-column">
-                                        <small className="text-muted">Correct answer: </small>
-                                        <strong className="text-success">
-                                          {question.options[question.correct_answer]}
-                                        </strong>
+                                    <div className="d-flex align-items-center">
+                                      <div className="me-3">
+                                        {quiz.questions[currentQuestionIndex].selection_type === 'radio' ? (
+                                          <div className={`form-check form-check-inline m-0 ${isOptionSelected ? 'text-primary' : ''}`}>
+                                            <input
+                                              type="radio"
+                                              className="form-check-input"
+                                              checked={isOptionSelected}
+                                              readOnly
+                                            />
+                                          </div>
+                                        ) : (
+                                          <div className={`form-check form-check-inline m-0 ${isOptionSelected ? 'text-primary' : ''}`}>
+                                            <input
+                                              type="checkbox"
+                                              className="form-check-input"
+                                              checked={isOptionSelected}
+                                              readOnly
+                                            />
+                                          </div>
+                                        )}
                                       </div>
-                                    )}
+                                      <div>{option}</div>
+                                    </div>
                                   </div>
                                 );
                               })}
                             </div>
                           </div>
-                        ) : (
-                          // Quiz Questions - Enhanced Slider Style
-                          <>
-                            {quiz && quiz.questions && (
-                              <div className="quiz-slide-container">
-                                {/* Progress indicator */}
-                                <div className="quiz-progress">
-                                  <div
-                                    className="progress-bar"
-                                    role="progressbar"
-                                    style={{ width: `${((currentQuestionIndex + 1) / quiz.questions.length) * 100}%` }}
-                                    aria-valuenow={(currentQuestionIndex + 1)}
-                                    aria-valuemin="0"
-                                    aria-valuemax={quiz.questions.length}
-                                  ></div>
-                                </div>
-
-                                <div className="p-4">
-                                  <div className="d-flex justify-content-between align-items-center mb-4">
-                                    <span className="badge bg-primary px-3 py-2 rounded-pill">
-                                      Question {currentQuestionIndex + 1} of {quiz.questions.length}
-                                    </span>
-                                    <div className="text-muted small">
-                                      <i className="fa fa-info-circle me-1"></i>
-                                      Select the best answer
-                                    </div>
-                                  </div>
-
-                                  <div className="question-slide">
-                                    <h4 className="mb-4">{quiz.questions[currentQuestionIndex].question}</h4>
-                                    <div className="options-container">
-                                      {quiz.questions[currentQuestionIndex].options.map((option, oIndex) => {
-                                        const isSelected = userAnswers[quiz.questions[currentQuestionIndex].id] === oIndex;
-                                        return (
-                                          <div
-                                            key={oIndex}
-                                            className={`option-card mb-3 p-3 rounded ${isSelected ? 'selected' : ''}`}
-                                            onClick={() => handleAnswerSelect(quiz.questions[currentQuestionIndex].id, oIndex)}
-                                          >
-                                            <div className="option-number">{String.fromCharCode(65 + oIndex)}</div>
-                                            <div className="ps-2">{option}</div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-
-                      {!quizSubmitted && (
-                        <div className="modal-footer d-flex justify-content-between bg-light p-3">
-                          <button
-                            type="button"
-                            className="btn btn-outline-secondary quiz-nav-btn"
-                            disabled={currentQuestionIndex === 0}
-                            onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-                          >
-                            <i className="fa fa-arrow-left me-2"></i>Previous
-                          </button>
-
-                          <div className="text-center d-none d-md-block">
-                            {/* Question indicators */}
-                            {quiz?.questions.map((_, idx) => (
-                              <span
-                                key={idx}
-                                className={`badge rounded-pill me-1 ${
-                                  idx === currentQuestionIndex
-                                    ? 'bg-primary'
-                                    : userAnswers[quiz.questions[idx].id] !== undefined
-                                      ? 'bg-success'
-                                      : 'bg-light text-dark border'
-                                }`}
-                                style={{ width: '30px', height: '30px', lineHeight: '1.8' }}
-                              >
-                                {idx + 1}
-                              </span>
-                            ))}
-                          </div>
-
-                          {currentQuestionIndex < quiz?.questions.length - 1 ? (
-                            <button
-                              type="button"
-                              className="btn btn-primary quiz-nav-btn"
-                              disabled={userAnswers[quiz?.questions[currentQuestionIndex]?.id] === undefined}
-                              onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
-                            >
-                              Next<i className="fa fa-arrow-right ms-2"></i>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="btn btn-success quiz-nav-btn"
-                              disabled={Object.keys(userAnswers).length < quiz?.questions.length}
-                              onClick={handleQuizSubmit}
-                            >
-                              <i className="fa fa-check-circle me-2"></i>Submit Quiz
-                            </button>
-                          )}
+                        )
+                      )
+                    ) : (
+                      <div className="text-center py-5">
+                        <div className="spinner-border text-primary" role="status">
+                          <span className="visually-hidden">Loading...</span>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                        <p className="mt-3">Loading quiz questions...</p>
+                      </div>
+                    )}
+                  </Modal.Body>
+                  <Modal.Footer>
+                    {quiz && !quizSubmitted && (
+                      <>
+                        <div className="me-auto">
+                          <span className="badge bg-info">
+                            {currentQuestionIndex + 1} of {quiz.questions.length}
+                          </span>
+                        </div>
+
+                        {currentQuestionIndex > 0 && (
+                          <Button
+                            variant="outline-secondary"
+                            onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
+                          >
+                            <i className="fas fa-arrow-left me-2"></i>
+                            Previous
+                          </Button>
+                        )}
+
+                        {currentQuestionIndex < quiz.questions.length - 1 ? (
+                          <Button
+                            variant="primary"
+                            onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+                            disabled={userAnswers[quiz.questions[currentQuestionIndex].id] === undefined}
+                          >
+                            Next
+                            <i className="fas fa-arrow-right ms-2"></i>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="success"
+                            onClick={handleQuizSubmit}
+                            disabled={
+                              quiz.questions.some(q => userAnswers[q.id] === undefined)
+                            }
+                          >
+                            Submit Quiz
+                            <i className="fas fa-check ms-2"></i>
+                          </Button>
+                        )}
+                      </>
+                    )}
+
+                    {quiz && quizSubmitted && quizScore < 70 && (
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          resetQuiz();
+                          setCurrentQuestionIndex(0);
+                        }}
+                      >
+                        <i className="fas fa-redo me-2"></i>
+                        Try Again
+                      </Button>
+                    )}
+                  </Modal.Footer>
+                </Modal>
+
               </div>
 
               <div className="col-lg-4">
@@ -579,45 +713,109 @@ const ViewCourse = () => {
                 <div className="bg-primary text-white p-4 rounded mb-4 shadow">
                   <h3 className="text-white mb-3">{course.course_title}</h3>
                   <div className="mb-3">
-                    <img src={courseImg} alt={course.course_title} className="img-fluid rounded" />
+                    <img
+                      src={course.filename
+                        ? `${config.API_BASE_URL}/uploads/${course.filename}`
+                        : defaultCourseImg
+                      }
+                      alt={course.course_title}
+                      className="img-fluid rounded"
+                      onError={(e) => {e.target.src = defaultCourseImg}}
+                    />
                   </div>
                   <p className="mb-2"><i className="fa fa-calendar-alt me-2"></i>Added: {new Date(course.date_added).toLocaleDateString()}</p>
+
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <p className="mb-0">
+                      <i className="fa fa-list-ul me-2"></i>
+                      {videos.filter(item => item.filename != "").length} Videos,
+                      {" "}{videos.filter(item => item.filename_uploaded !== "").length} Materials
+                    </p>
+
+                    <div className="d-flex align-items-center">
+                      <div className="me-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <i
+                            key={star}
+                            className={`fa fa-star ${star <= Math.round(course.average_rating) ? 'text-warning' : 'text-light'}`}>
+                          </i>
+                        ))}
+                      </div>
+                      <span>({course.average_rating || "0"})</span>
+                    </div>
+                  </div>
+
                   <p className="mb-0">
-                    <i className="fa fa-list-ul me-2"></i>
-                    {videos.filter(item => item.type === "video").length} Videos,
-                    {" "}{videos.filter(item => item.type === "pdf").length} PDFs
+                    <i className="fa fa-bookmark me-2"></i>
+                    Category: {course.category_title || "Uncategorized"}
                   </p>
                 </div>
 
-                {/* Course Content List - Updated to show icons for content type */}
+                {/* Course Content List */}
                 <div className="bg-light p-4 rounded shadow">
                   <h4 className="mb-3">Course Content</h4>
                   <div className="list-group">
                     {videos.length > 0 ? (
                       videos.map((item, index) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          className={`list-group-item list-group-item-action ${currentItem && currentItem.id === item.id ? 'active' : ''}`}
-                          onClick={() => handleContentSelect(item)}
-                        >
-                          <div className="d-flex w-100 justify-content-between">
-                            <h5 className="mb-1">
-                              {index + 1}.{" "}
-                              {item.type === "video" ? (
-                                <i className="fa fa-video me-2"></i>
-                              ) : (
-                                <i className="fa fa-file-pdf me-2"></i>
-                              )}
-                              {item.video_title}
-                            </h5>
-                            <small>{item.duration}</small>
-                          </div>
-                          <small>{item.video_description?.substring(0, 60)}...</small>
-                          {item.type === "pdf" && (
-                            <span className="badge bg-success ms-2">PDF</span>
-                          )}
-                        </button>
+                        <div>
+                        {item?.filename_uploaded && (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={`list-group-item list-group-item-action ${
+                              currentItem && currentItem.id === item.id ? 'active' : ''
+                            }`}
+                            onClick={() => handleContentSelect(item)}
+                          >
+                            <div className="d-flex w-100 justify-content-between">
+                              <h5 className="mb-1">
+                                {index + 1}.{" "}
+                                {item.type === "video" ? (
+                                  <i className="fa fa-video me-2"></i>
+                                ) : (
+                                  <i className="fa fa-file-pdf me-2"></i>
+                                )}
+                                {item.title ? `${item.title} - UPLOADED` : "Untitled"}
+                              </h5>
+                              <small>{item.duration || ""}</small>
+                            </div>
+                            <small>
+                              {item.description?.substring(0, 60) || 'No description'}
+                              {item.description?.length > 60 ? '...' : ''}
+                            </small>
+                            {item.type !== "video" && (
+                              <span className="badge bg-success ms-2">Document</span>
+                            )}
+                          </button>
+                        )}
+
+                        {item?.filename && (
+                            <button
+                            key={item.id}
+                            type="button"
+                            className={`list-group-item list-group-item-action ${currentItem && currentItem.id === item.id ? 'active' : ''}`}
+                            onClick={() => handleContentSelect(item)}
+                          >
+                            <div className="d-flex w-100 justify-content-between">
+                              <h5 className="mb-1">
+                                {index + 1}.{" "}
+                                {item.type === "video" ? (
+                                  <i className="fa fa-video me-2"></i>
+                                ) : (
+                                  <i className="fa fa-file-pdf me-2"></i>
+                                )}
+                                {item?.title || item?.filename ? `${item.title} - ONLINE` : "Untitled"}
+                              </h5>
+                              <small>{item.duration || ""}</small>
+                            </div>
+                            <small>{item.description?.substring(0, 60) || 'No description'}{item.description?.length > 60 ? '...' : ''}</small>
+                            {item.type !== "video" && (
+                              <span className="badge bg-success ms-2">Document</span>
+                            )}
+                          </button>
+                        )}
+
+                        </div>
                       ))
                     ) : (
                       <div className="text-center py-3">

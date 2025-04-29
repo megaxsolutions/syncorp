@@ -212,6 +212,10 @@ export default function AddMaterials() {
     // Create a FormData instance for easy file manipulation
     const formData = new FormData();
 
+    // Create a properly escaped title value
+    const escapedTitle = material.title ? material.title.replace(/"/g, '&quot;') : '';
+    const escapedFilename = material.filename ? material.filename.replace(/"/g, '&quot;') : '';
+
     Swal.fire({
       title: "Edit Material",
       html: `
@@ -250,7 +254,8 @@ export default function AddMaterials() {
               type="text"
               id="title"
               class="form-control form-control-lg"
-              value="${material.title || ''}"
+              placeholder="Enter material title"
+              value="${escapedTitle}"
             >
           </div>
           <div class="mb-3">
@@ -261,7 +266,7 @@ export default function AddMaterials() {
               type="text"
               id="imageUrl"
               class="form-control form-control-lg"
-              value="${material.filename || ''}"
+              value="${escapedFilename}"
             >
           </div>
           <div class="mb-3">
@@ -285,6 +290,11 @@ export default function AddMaterials() {
       cancelButtonText: "Cancel",
       confirmButtonColor: "#198754",
       cancelButtonColor: "#dc3545",
+      didOpen: () => {
+        // Set the title value directly after modal opens
+        document.getElementById('title').value = material.title || '';
+        document.getElementById('imageUrl').value = material.filename || '';
+      },
       preConfirm: () => {
         const categoryId = document.getElementById("categoryId").value;
         const courseId = document.getElementById("courseId").value;
@@ -293,20 +303,30 @@ export default function AddMaterials() {
         const fileInput = document.getElementById("fileUpload");
         const fileUploaded = fileInput.files.length > 0 ? fileInput.files[0] : null;
 
+        // Debug logging
+        console.log("Title value:", title);
+        console.log("Title length:", title.length);
+        console.log("Title trimmed length:", title.trim().length);
+
         // Check if uploaded file is a PDF
         if (fileUploaded && fileUploaded.type !== 'application/pdf') {
           Swal.showValidationMessage('Please upload only PDF files');
           return false;
         }
 
+        // Validation - title cannot be empty
+        if (!title || !title.trim()) {
+          Swal.showValidationMessage('Material title cannot be empty');
+          return false;
+        }
+
         formData.append('category_id', categoryId ? Number(categoryId) : Number(material.categoryID));
         formData.append('course_id', courseId ? Number(courseId) : Number(material.courseID));
-        formData.append('title', title || material.title);
+        formData.append('title', title);
         formData.append('filename', filename || material.filename);
         formData.append('created_by', Number(material.created_by));
 
         if (fileUploaded) {
-          // CHANGED 'file' to 'file_uploaded' to match backend expectation
           formData.append('file_uploaded', fileUploaded);
         }
 
@@ -315,6 +335,11 @@ export default function AddMaterials() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
+          // Log the formData entries for debugging
+          for (let pair of formData.entries()) {
+            console.log(pair[0] + ': ' + pair[1]);
+          }
+
           const response = await axios.put(
             `${config.API_BASE_URL}/materials/update_material/${material.id}`,
             formData,
@@ -325,7 +350,7 @@ export default function AddMaterials() {
                 "Content-Type": "multipart/form-data" // Important for file uploads
               },
             }
-          )
+          );
 
           if (response.data.success) {
             await Swal.fire({
@@ -349,8 +374,8 @@ export default function AddMaterials() {
           });
         }
       }
-    })
-  }
+    });
+  };
 
   const handleDeleteMaterial = (material) => {
     Swal.fire({

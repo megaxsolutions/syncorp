@@ -14,6 +14,9 @@ export default function CreateQuiz() {
   const [selectedCourseTitle, setSelectedCourseTitle] = useState("");
   const [questionType, setQuestionType] = useState("radio");
 
+  // Add this state for filtered courses
+  const [filteredCourses, setFilteredCourses] = useState([]);
+
   // State for quiz question creation
   const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState("");
@@ -61,6 +64,7 @@ export default function CreateQuiz() {
     }
   };
 
+  // Update the fetchCourses function to get all courses
   const fetchCourses = async () => {
     try {
       const response = await axios.get(
@@ -84,6 +88,24 @@ export default function CreateQuiz() {
       });
     }
   };
+
+  // Add a useEffect to filter courses when categoryId changes
+  useEffect(() => {
+    if (categoryId) {
+      // Convert categoryId to number to ensure type-safe comparison
+      const categoryIdNum = parseInt(categoryId, 10);
+      // Filter courses that belong to the selected category
+      const coursesInCategory = courses.filter(
+        course => parseInt(course.categoryID, 10) === categoryIdNum
+      );
+      setFilteredCourses(coursesInCategory);
+
+      // Reset course selection when category changes
+      setCourseId("");
+    } else {
+      setFilteredCourses([]);
+    }
+  }, [categoryId, courses]);
 
   const handleCourseSelect = async (e) => {
     e.preventDefault();
@@ -294,6 +316,13 @@ export default function CreateQuiz() {
     }
   };
 
+  // Add a handler for category change
+  const handleCategoryChange = (e) => {
+    setCategoryId(e.target.value);
+    // Reset course selection when category changes
+    setCourseId("");
+  };
+
   return (
     <>
       <Navbar />
@@ -331,7 +360,7 @@ export default function CreateQuiz() {
                       id="category_id"
                       name="category_id"
                       value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
+                      onChange={handleCategoryChange}
                       required
                     >
                       <option value="">Select Category</option>
@@ -361,20 +390,26 @@ export default function CreateQuiz() {
                       value={courseId}
                       onChange={(e) => setCourseId(e.target.value)}
                       required
+                      disabled={!categoryId} // Disable until a category is selected
                     >
                       <option value="">Select Course</option>
-                      {courses.map((course) => (
+                      {filteredCourses.map((course) => (
                         <option key={course.id} value={course.id}>
                           {course.course_title}
                         </option>
                       ))}
                     </select>
-                    {courses.length === 0 && (
+                    {categoryId && filteredCourses.length === 0 ? (
                       <div className="form-text text-warning mt-2">
                         <i className="bi bi-exclamation-triangle me-1"></i>
-                        No courses available.
+                        No courses available in this category.
                       </div>
-                    )}
+                    ) : !categoryId ? (
+                      <div className="form-text text-muted mt-2">
+                        <i className="bi bi-info-circle me-1"></i>
+                        Select a category first to see available courses.
+                      </div>
+                    ) : null}
                   </div>
 
                   <button
