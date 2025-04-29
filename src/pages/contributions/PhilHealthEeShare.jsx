@@ -4,6 +4,7 @@ import Sidebar from "../../components/Sidebar";
 import axios from "axios";
 import config from "../../config";
 import Swal from "sweetalert2";
+import Select from "react-select";
 
 export default function PhilHealthEeShare() {
   // State for the form data
@@ -11,7 +12,7 @@ export default function PhilHealthEeShare() {
     emp_id: "",
     ee_amount: ""
   });
-
+  const [searchQuery, setSearchQuery] = useState("");
   // State for employees dropdown
   const [employees, setEmployees] = useState([]);
   // State for PhilHealth contributions list
@@ -46,7 +47,12 @@ export default function PhilHealthEeShare() {
       );
 
       const employeesData = response.data.data || [];
-      setEmployees(employeesData);
+      
+      const options = employeesData.map(employee => ({
+        value: employee.emp_ID,
+        label: `${employee.emp_ID} - ${employee.fName} ${employee.lName}`
+      }));
+      setEmployees(options);
     } catch (error) {
       console.error("Fetch employees error:", error);
       Swal.fire({
@@ -90,7 +96,14 @@ export default function PhilHealthEeShare() {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-
+  const handleSelect = (selectedOption) => {
+    console.log(selectedOption);
+    setFormData(prev => ({
+      ...prev,
+      emp_id: selectedOption ? selectedOption.value : ""
+    }));
+    
+  };
   // Add new PhilHealth contribution
   const addContribution = async (e) => {
     e.preventDefault();
@@ -295,7 +308,10 @@ export default function PhilHealthEeShare() {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US');
   };
-
+  const filteredContributions = currentContributions.filter(item =>
+    item.fullname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.id?.toString().includes(searchQuery)
+  );
   return (
     <>
       <Navbar />
@@ -332,21 +348,28 @@ export default function PhilHealthEeShare() {
                       <i className="bi bi-person-badge me-1"></i>Employee
                       <span className="text-danger">*</span>
                     </label>
-                    <select
-                      id="emp_id"
-                      name="emp_id"
-                      className="form-select"
-                      value={formData.emp_id}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">Select Employee</option>
-                      {employees.map((employee) => (
-                        <option key={employee.emp_ID} value={employee.emp_ID}>
-                          {employee.fName} {employee.lName}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                               id="emp_id"
+                               name="emp_id"
+                               className="form-select"
+                              isSearchable={true}
+                              options={employees}
+                              value={employees.find(emp => emp.value === formData.emp_id)}
+                              onChange={handleSelect}
+                              placeholder="Select Employee"
+                              required
+                              styles={{
+                                control: (base, state) => ({
+                                  ...base,
+                                  borderColor: state.isFocused ? '#80bdff' : '#ced4da',
+                                  boxShadow: state.isFocused ? '0 0 0 0.2rem rgba(0,123,255,.25)' : null,
+                                  '&:hover': {
+                                    borderColor: state.isFocused ? '#80bdff' : '#ced4da',
+                                  },
+                                })
+                              }}
+                            />
+
                   </div>
 
                   <div className="mb-3">
@@ -388,6 +411,13 @@ export default function PhilHealthEeShare() {
                 <h2 className="h5 mb-0">PhilHealth Employee Shares List</h2>
               </div>
               <div className="card-body">
+              <input
+                  type="text"
+                  placeholder="Search employee.."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="form-input"
+                />
                 {loading ? (
                   <div className="text-center py-4">
                     <div className="spinner-border text-primary" role="status">
@@ -413,7 +443,7 @@ export default function PhilHealthEeShare() {
                           </tr>
                         </thead>
                         <tbody>
-                          {currentContributions.map((contribution) => (
+                          {filteredContributions.map((contribution) => (
                             <tr key={contribution.id}>
                               <td>{contribution.fullname}</td>
                               <td>{formatAmount(contribution.ee_amount)}</td>

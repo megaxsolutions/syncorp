@@ -9,7 +9,7 @@ import Swal from 'sweetalert2';
 
 const EmployeeNavbar = () => {
   const navigate = useNavigate();
-  const [photoUrl, setPhotoUrl] = useState("https://avatar.iran.liara.run/public/26");
+  const [photoUrl, setPhotoUrl] = useState(`${config.API_BASE_URL}/uploads/users/default_image_profile/image.png`);
   const [employeeName, setEmployeeName] = useState("");
   const [employeeData, setEmployeeData] = useState(null);
   const [role, setRole] = useState("");

@@ -5,10 +5,11 @@ import axios from "axios";
 import moment from "moment";
 import logo from "../assets/logo.png";
 import config from "../config";
+import { Upload } from "lucide-react";
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const [photoUrl, setPhotoUrl] = useState("https://avatar.iran.liara.run/public/26");
+  const [photoUrl, setPhotoUrl] = useState(`${config.API_BASE_URL}/uploads/users/default_image_profile/image.png`);
   const [adminName, setAdminName] = useState("");
   const [adminData, setAdminData] = useState(null);
   const [role, setRole] = useState("");
