@@ -1,14 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom';
 import '../App.css';
 import logo from '../assets/logo.png';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import config from '../config';
 import Swal from 'sweetalert2';
 
 function Login() {
   const navigate = useNavigate();
-
 
   const [credentials, setCredentials] = useState({
     emp_ID: '',
@@ -21,6 +20,7 @@ function Login() {
     password: '',
   });
 
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [alertText, setAlertText] = useState('');
   const [error, setError] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -30,6 +30,20 @@ function Login() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordVerified, setPasswordVerified] = useState(false);
+
+
+  useEffect(() => {
+    // Check if the user is logged in (replace this with your actual login check)
+    const isLoggedIn = localStorage.getItem("X-EMP-ID") !== null; // Example check
+    setIsLoggedIn(isLoggedIn); // Set login state based on localStorage
+    // If the user is logged in and tries to access the home page, redirect them
+    if (isLoggedIn && window.location.pathname === '/') {
+      navigate('/employee_dashboard'); // Redirect to employee dashboard if logged in
+    }
+  }, [navigate]);
+
+
+
 
 
   const handleChange = (e) => {
@@ -243,8 +257,10 @@ function Login() {
     }
   };
 
+
   return (
-    <>
+   isLoggedIn == true ? null : (
+   <>
       <div>
         <div className="container register">
           <div className="row">
@@ -531,6 +547,7 @@ function Login() {
         </div>
       </div>
     </>
+    )
   );
 }
 

@@ -159,30 +159,13 @@ const Calendar = () => {
             : response.data;
 
         const sitesData = parsedData.sites || parsedData.data?.sites || [];
-        const departmentsData =
-          parsedData.departments || parsedData.data?.departments || [];
-        const clustersData =
-          parsedData.clusters || parsedData.data?.clusters || parsedData.data || [];
-
-        const updatedClusters = clustersData.map((c) => {
-          const siteID = c.siteID || c.site_id;
-          const departmentID = c.departmentID || c.department_id;
-
-          const site = sitesData.find((s) => s.id === siteID);
-          const department = departmentsData.find((d) => d.id === departmentID);
-
-          return {
-            id: c.id,
-            name: c.cluster_name || c.name || c.clusterName || "Unnamed Cluster",
-            site: site || { id: siteID, siteName: "Site not found" },
-            department: department || { id: departmentID, departmentName: "Department not found" },
-            siteID: siteID,
-            departmentID: departmentID,
-          };
-        });
-
         setSites(sitesData);
 
+        // Only fetch holidays after sites are loaded
+        if (sitesData.length > 0) {
+          fetchHolidays();
+          fetchCurrentYearHolidays();
+        }
       } catch (error) {
         console.error("Fetch data error:", error);
       }
@@ -224,18 +207,13 @@ const Calendar = () => {
     }
   };
 
-  useEffect(() => {
-    fetchHolidays();
-    fetchCurrentYearHolidays();
-  }, []);
-
   // Add
   const addNewHoliday = async () => {
-    if (!selectedDate || !holidayName || !holidayType) {
+    if (!selectedDate || !holidayName || !holidayType || siteIDs.length === 0) {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Please fill in all fields and select a type.",
+        text: "Please fill in all fields, select a type, and select at least one site.",
       });
       return;
     }
@@ -265,10 +243,13 @@ const Calendar = () => {
           title: "Success",
           text: "Holiday added successfully.",
         });
-        fetchHolidays();
+
+        // Refresh both datasets before closing the modal
+        await Promise.all([fetchHolidays(), fetchCurrentYearHolidays()]);
         closeModal();
       }
-    } catch {
+    } catch (error) {
+      console.error("Error adding holiday:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -279,7 +260,15 @@ const Calendar = () => {
 
   // Update
   const handleUpdateHoliday = async () => {
-    if (!selectedHoliday) return;
+    if (!selectedHoliday || !holidayName || !holidayType || siteIDs.length === 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Please fill in all fields and select at least one site.",
+      });
+      return;
+    }
+
     try {
       const formattedDate = moment(selectedDate).format("YYYY-MM-DD");
       const response = await axios.put(
@@ -303,10 +292,13 @@ const Calendar = () => {
           title: "Success",
           text: "Holiday updated successfully.",
         });
-        fetchHolidays();
+
+        // Refresh both datasets before closing the modal
+        await Promise.all([fetchHolidays(), fetchCurrentYearHolidays()]);
         closeModal();
       }
-    } catch {
+    } catch (error) {
+      console.error("Error updating holiday:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -318,6 +310,7 @@ const Calendar = () => {
   // Delete
   const handleDeleteHoliday = async () => {
     if (!selectedHoliday) return;
+
     try {
       const response = await axios.delete(
         `${config.API_BASE_URL}/holidays/delete_holiday/${selectedHoliday.id}`,
@@ -334,10 +327,13 @@ const Calendar = () => {
           title: "Success",
           text: "Holiday deleted successfully.",
         });
-        fetchHolidays();
+
+        // Refresh both datasets before closing the modal
+        await Promise.all([fetchHolidays(), fetchCurrentYearHolidays()]);
         closeModal();
       }
-    } catch {
+    } catch (error) {
+      console.error("Error deleting holiday:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -354,6 +350,12 @@ const Calendar = () => {
     setHolidayType("");
     setSelectedHoliday(null);
     setIsEditing(false);
+    setSiteIDs([]);
+    setSelectedSite("");
+
+    // Refresh data after modal closes
+    fetchHolidays();
+    fetchCurrentYearHolidays();
   };
 
   // Click date
@@ -603,6 +605,13 @@ const Calendar = () => {
           className={cellClasses}
           style={cellStyle}
           onClick={() => onDateClick(day)}
+          data-bs-toggle="tooltip"
+          title={dayHolidays.map(h =>
+            `${h.holiday_name} (${h.holiday_type === "SH" ? "Special" : "Regular"} Holiday)
+            Sites: ${h.siteIDs && h.siteIDs.length > 0
+              ? h.siteIDs.map(id => getSiteNameById(id)).join(', ')
+              : 'None'}`
+          ).join('\n')}
         >
           <div className="date-number">{day.getDate()}</div>
           {isToday && <small className="today-marker">Today</small>}
@@ -654,6 +663,14 @@ const Calendar = () => {
     setSiteIDs(selectedOptions ? selectedOptions.map(option => option.value) : []);
   };
 
+  // Add this function to the Calendar component to map site IDs to site names
+  const getSiteNameById = (siteId) => {
+    if (!sites || sites.length === 0) return "Unknown Site";
+
+    const site = sites.find(site => site.id === siteId);
+    return site ? site.siteName : "Unknown Site";
+  };
+
   // Add this new function to fetch current year holidays
   const fetchCurrentYearHolidays = async () => {
     setIsLoadingYearlyHolidays(true);
@@ -669,10 +686,26 @@ const Calendar = () => {
       );
 
       const data = response.data.data || [];
-      setYearlyHolidays(data);
+
+      // Replace the existing site name mapping code in fetchCurrentYearHolidays function
+      // with this improved version
+      const holidaysWithSiteInfo = data.map(holiday => {
+        // Extract site details for each holiday
+        let siteNames = [];
+        if (holiday.siteIDs && Array.isArray(holiday.siteIDs)) {
+          siteNames = holiday.siteIDs.map(siteId => getSiteNameById(siteId));
+        }
+
+        return {
+          ...holiday,
+          siteNames: siteNames
+        };
+      });
+
+      setYearlyHolidays(holidaysWithSiteInfo);
 
       // Group holidays by month for easier display
-      const holidaysByMonth = data.reduce((acc, holiday) => {
+      const holidaysByMonth = holidaysWithSiteInfo.reduce((acc, holiday) => {
         const month = moment(holiday.date).format("MMMM");
         if (!acc[month]) {
           acc[month] = [];
@@ -692,6 +725,15 @@ const Calendar = () => {
     } finally {
       setIsLoadingYearlyHolidays(false);
     }
+
+    // Add this to the fetchCurrentYearHolidays function at the end, before the finally block
+    // Initialize tooltips after the data is loaded
+    setTimeout(() => {
+      const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+      });
+    }, 500);
   };
 
   return (
@@ -848,7 +890,7 @@ const Calendar = () => {
                         <th>Date</th>
                         <th>Holiday</th>
                         <th>Type</th>
-
+                        <th>Sites</th> {/* New column for sites */}
                       </tr>
                     </thead>
                     <tbody>
@@ -860,6 +902,27 @@ const Calendar = () => {
                             <span className={`badge ${holiday.holiday_type === 'RH' ? 'bg-danger' : 'bg-purple'}`}>
                               {holiday.holiday_type === 'RH' ? 'Regular' : 'Special'} Holiday
                             </span>
+                          </td>
+                          <td>
+                            {holiday.siteNames && holiday.siteNames.length > 0 ? (
+                              holiday.siteNames.length > 2 ? (
+                                <div className="d-flex align-items-center">
+                                  <span className="me-1">{holiday.siteNames.sort().slice(0, 2).join(", ")}</span>
+                                  <span
+                                    className="badge bg-secondary"
+                                    data-bs-toggle="tooltip"
+                                    title={holiday.siteNames.sort().join(", ")}
+                                    style={{ cursor: 'pointer' }}
+                                  >
+                                    +{holiday.siteNames.length - 2} more
+                                  </span>
+                                </div>
+                              ) : (
+                                holiday.siteNames.sort().join(", ")
+                              )
+                            ) : (
+                              <span className="text-muted">No sites specified</span>
+                            )}
                           </td>
                         </tr>
                       ))}

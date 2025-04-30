@@ -168,9 +168,24 @@ export default function AttendanceIncentives() {
   // Update the fetchEmployees function
 
 const fetchEmployees = async () => {
-  const eligibleEmployees = await fetchEligibleEmployees();
-  setEmployees(eligibleEmployees);
-  setFilteredEmployees(eligibleEmployees);
+  try {
+    // Get the currently selected cutoffId if any
+    const cutoffId = selectedCutoffFilter && selectedCutoffFilter.value !== "all"
+      ? selectedCutoffFilter.value
+      : null;
+
+    // Fetch employees with the current filter applied
+    const eligibleEmployees = await fetchEligibleEmployeesCutoff(cutoffId);
+
+    setEmployees(eligibleEmployees);
+    setFilteredEmployees(eligibleEmployees);
+
+    // Clear any selections when refreshing
+    setSelectedEmployees([]);
+  } catch (error) {
+    console.error("Error refreshing employees:", error);
+    setError(`Failed to refresh employees: ${error.message}`);
+  }
 };
 
   const fetchIncentives = async () => {
@@ -199,19 +214,27 @@ const fetchEmployees = async () => {
 
   // Update fetchEligibleEmployees to get all eligible employees across all cutoffs
 
-const fetchEligibleEmployees = async (cutoffId = null) => {
+// Update the fetchEligibleEmployees function to properly mark zero amount employees
+// Update the fetchEligibleEmployees function to use cutoff_period instead of cutoffID
+const fetchEligibleEmployeesCutoff = async (cutoffId = null) => {
+
   try {
     const supervisorEmpId = localStorage.getItem("X-EMP-ID");
     setIsLoading(true);
     setError(""); // Clear any previous errors
 
-    // Base URL
-    let url = `${config.API_BASE_URL}/eligible_att_incentives/get_all_eligible_att_incentive_employees_supervisor/${supervisorEmpId}`;
+    // Base URL that works for both filtered and unfiltered requests
+    let url = `${config.API_BASE_URL}/eligible_att_incentives/get_all_eligible_att_incentive_employees_supervisor_cutoff/${supervisorEmpId}/${cutoffId}`;
 
-    // Add cutoffId parameter if provided - ensure it's being passed as a number or string correctly
+    // Add cutoffId parameter if provided
     if (cutoffId && cutoffId !== "all") {
-      url += `?cutoffId=${cutoffId}`;
-      console.log(`Filtering by cutoff ID: ${cutoffId}`, url);
+      // Find the selected cutoff period label from the options
+      const selectedCutoff = cutOffOptions.find(option => option.value === cutoffId);
+      if (selectedCutoff) {
+        // Append cutoff_period as query parameter instead of cutoffID
+        url += `?cutoff_period=${encodeURIComponent(selectedCutoff.label)}`;
+        console.log(`Filtering by cutoff period: ${selectedCutoff.label}`, url);
+      }
     } else {
       console.log("Fetching all eligible employees across all cutoffs");
     }
@@ -232,17 +255,25 @@ const fetchEligibleEmployees = async (cutoffId = null) => {
         name: emp.employee_fullname,
         position: emp.position || 'N/A',
         department: emp.department || 'N/A',
-        amount: emp.amount || 2000,
+        amount: emp.amount || 0,
         cutoffPeriod: emp.cutoff_period || 'Current Period',
-        cutoffId: emp.cutoffID || '', // Make sure this matches exactly what comes from backend
-        status: 'Eligible',
-        checked: false
+        // Use cutoffPeriod as the unique ID for this employee-cutoff combination
+        // since we're now filtering by period rather than ID
+        cutoffId: emp.cutoff_period || '',
+        // Determine eligibility based on amount
+        status: emp.amount > 0 ? 'Eligible' : 'Ineligible',
+        checked: false, // Always start unchecked
+        // This prevents checkbox selection for ineligible employees
+        disabled: emp.amount <= 0
       }));
 
-      console.log(`Received ${eligibleEmployees.length} eligible employees from API`);
+      console.log(`Received ${eligibleEmployees.length} employees in total`);
+      console.log(`${eligibleEmployees.filter(emp => emp.status === 'Eligible').length} are eligible`);
+      console.log(`${eligibleEmployees.filter(emp => emp.status === 'Ineligible').length} are ineligible`);
+
       return eligibleEmployees;
     } else {
-      console.warn("No eligible employee data found or invalid format");
+      console.warn("No employee data found or invalid format");
       return [];
     }
   } catch (error) {
@@ -254,53 +285,136 @@ const fetchEligibleEmployees = async (cutoffId = null) => {
   }
 };
 
-  const handleCheckboxChange = (empId) => {
-    const updatedEmployees = filteredEmployees.map(employee => {
-      if (employee.empId === empId) {
-        return { ...employee, checked: !employee.checked };
+const fetchEligibleEmployees = async () => {
+  try {
+    const supervisorEmpId = localStorage.getItem("X-EMP-ID");
+    setIsLoading(true);
+    setError(""); // Clear any previous errors
+
+    // Base URL that works for both filtered and unfiltered requests
+    let url = `${config.API_BASE_URL}/eligible_att_incentives/get_all_eligible_att_incentive_employees_supervisor/${supervisorEmpId}`;
+
+
+
+    const response = await axios.get(
+      url,
+      {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": supervisorEmpId,
+        },
       }
-      return employee;
-    });
+    );
 
-    setFilteredEmployees(updatedEmployees);
+    if (response.data?.data && Array.isArray(response.data.data)) {
+      const eligibleEmployees = response.data.data.map(emp => ({
+        empId: emp.emp_ID,
+        name: emp.employee_fullname,
+        position: emp.position || 'N/A',
+        department: emp.department || 'N/A',
+        amount: emp.amount || 0,
+        cutoffPeriod: emp.cutoff_period || 'Current Period',
+        // Use cutoffPeriod as the unique ID for this employee-cutoff combination
+        // since we're now filtering by period rather than ID
+        cutoffId: emp.cutoff_period || '',
+        // Determine eligibility based on amount
+        status: emp.amount > 0 ? 'Eligible' : 'Ineligible',
+        checked: false, // Always start unchecked
+        // This prevents checkbox selection for ineligible employees
+        disabled: emp.amount <= 0
+      }));
 
-    // Update the original employees array
-    const updatedAllEmployees = employees.map(employee => {
-      if (employee.empId === empId) {
-        return { ...employee, checked: !employee.checked };
-      }
-      return employee;
-    });
+      console.log(`Received ${eligibleEmployees.length} employees in total`);
+      console.log(`${eligibleEmployees.filter(emp => emp.status === 'Eligible').length} are eligible`);
+      console.log(`${eligibleEmployees.filter(emp => emp.status === 'Ineligible').length} are ineligible`);
 
-    setEmployees(updatedAllEmployees);
+      return eligibleEmployees;
+    } else {
+      console.warn("No employee data found or invalid format");
+      return [];
+    }
+  } catch (error) {
+    console.error("Error fetching eligible employees:", error);
+    setError(`Failed to load eligible employees: ${error.response?.data?.error || error.message}`);
+    return [];
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-    // Update selected employees for form submission
-    const selected = updatedAllEmployees.filter(emp => emp.checked);
-    setSelectedEmployees(selected);
-  };
+  // Update the handleCheckboxChange function to use a composite key of empId + cutoffId
+const handleCheckboxChange = (empId, cutoffId) => {
+  // Create a unique identifier using both empId and cutoffId
+  const compositeKey = `${empId}-${cutoffId}`;
 
-  const handleSelectAll = (isChecked) => {
-    const updatedEmployees = filteredEmployees.map(employee => ({
-      ...employee,
-      checked: isChecked
-    }));
+  // Find the employee using the composite key
+  const employee = employees.find(emp =>
+    emp.empId === empId && emp.cutoffId === cutoffId
+  );
 
-    setFilteredEmployees(updatedEmployees);
+  // If employee is ineligible (has zero amount), don't allow checking
+  if (employee && employee.disabled) {
+    return; // Don't process further
+  }
 
-    // Update the original employees array for items on the current page
-    const updatedAllEmployees = employees.map(employee => {
-      if (filteredEmployees.some(fe => fe.empId === employee.empId)) {
-        return { ...employee, checked: isChecked };
-      }
-      return employee;
-    });
+  const updatedEmployees = filteredEmployees.map(employee => {
+    if (employee.empId === empId && employee.cutoffId === cutoffId && !employee.disabled) {
+      return { ...employee, checked: !employee.checked };
+    }
+    return employee;
+  });
 
-    setEmployees(updatedAllEmployees);
+  setFilteredEmployees(updatedEmployees);
 
-    // Update selected employees for form submission
-    const selected = updatedAllEmployees.filter(emp => emp.checked);
-    setSelectedEmployees(selected);
-  };
+  // Update the original employees array
+  const updatedAllEmployees = employees.map(employee => {
+    if (employee.empId === empId && employee.cutoffId === cutoffId && !employee.disabled) {
+      return { ...employee, checked: !employee.checked };
+    }
+    return employee;
+  });
+
+  setEmployees(updatedAllEmployees);
+
+  // Update selected employees for form submission
+  const selected = updatedAllEmployees.filter(emp => emp.checked);
+  setSelectedEmployees(selected);
+};
+
+
+  // Update handleSelectAll to respect unique employee-cutoff combinations
+const handleSelectAll = (isChecked) => {
+  // Handle current filtered employees page
+  const updatedEmployees = filteredEmployees.map(employee => ({
+    ...employee,
+    checked: employee.disabled ? false : isChecked // Only check if not disabled
+  }));
+
+  setFilteredEmployees(updatedEmployees);
+
+  // Update all employees but be careful with duplicated IDs across different cutoffs
+  const updatedAllEmployees = employees.map(employee => {
+    // Check if this employee is on the current filtered page (using both ID and cutoff)
+    const isOnCurrentPage = filteredEmployees.some(
+      fe => fe.empId === employee.empId && fe.cutoffId === employee.cutoffId
+    );
+
+    // Only update the checked status of employees on the current page
+    if (isOnCurrentPage) {
+      return {
+        ...employee,
+        checked: employee.disabled ? false : isChecked
+      };
+    }
+    return employee;
+  });
+
+  setEmployees(updatedAllEmployees);
+
+  // Update selected employees for form submission
+  const selected = updatedAllEmployees.filter(emp => emp.checked);
+  setSelectedEmployees(selected);
+};
 
   const resetForm = () => {
     setCutOff(null);
@@ -484,8 +598,10 @@ const handleSubmit = async (e) => {
     setCurrentPage(pageNumber);
   };
 
-  const isAllChecked = filteredEmployees.length > 0 &&
-    filteredEmployees.every(employee => employee.checked);
+  // Update isAllChecked calculation to only consider eligible employees
+const isAllChecked =
+  filteredEmployees.filter(emp => !emp.disabled).length > 0 &&
+  filteredEmployees.filter(emp => !emp.disabled).every(employee => employee.checked);
 
   const handleCutoffFilterChange = async (selectedOption) => {
   try {
@@ -501,9 +617,11 @@ const handleSubmit = async (e) => {
       cutoffId = selectedOption.value;
     }
 
+
+
     console.log("Cutoff filter changed to:", selectedOption?.label, "ID:", cutoffId);
 
-    const employeesList = await fetchEligibleEmployees(cutoffId);
+    const employeesList = await fetchEligibleEmployeesCutoff(cutoffId);
 
     // Update employees list and clear selections
     setEmployees(employeesList);
@@ -554,22 +672,22 @@ const handleSubmit = async (e) => {
                   </h5>
 
                   {employees.length > 0 ? (
-                    <div className="alert alert-info d-flex align-items-center mb-4" role="alert">
-                      <i className="bi bi-info-circle-fill me-2"></i>
-                      <div>
-                        <strong>Currently showing:</strong> {selectedCutoffFilter && selectedCutoffFilter.value !== "all" ?
-                          `Eligible employees for ${selectedCutoffFilter.label} cut-off period.` :
-                          "All eligible employees for incentives across all cut-off periods."}
-                      </div>
-                    </div>
-                  ) : !isLoading && (
-                    <div className="alert alert-warning d-flex align-items-center mb-4" role="alert">
-                      <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                      <div>
-                        No eligible employees found. All employees may have attendance issues.
-                      </div>
-                    </div>
-                  )}
+  <div className="alert alert-info d-flex align-items-center mb-4" role="alert">
+    <i className="bi bi-info-circle-fill me-2"></i>
+    <div>
+      <strong>Currently showing:</strong> {selectedCutoffFilter && selectedCutoffFilter.value !== "all" ?
+        `Employees for ${selectedCutoffFilter.label} cut-off period.` :
+        "All employees across all cut-off periods."} <span className="ms-1 badge bg-success">{employees.filter(emp => !emp.disabled).length}</span> eligible.
+    </div>
+  </div>
+) : !isLoading && (
+  <div className="alert alert-warning d-flex align-items-center mb-4" role="alert">
+    <i className="bi bi-exclamation-triangle-fill me-2"></i>
+    <div>
+      No employees found for the selected period. Try selecting a different cut-off period.
+    </div>
+  </div>
+)}
 
                   {error && (
                     <div className="alert alert-danger d-flex align-items-center" role="alert">
@@ -722,57 +840,67 @@ const handleSubmit = async (e) => {
                           </tr>
                         </thead>
                         <tbody>
-                          {currentItems.length === 0 ? (
-                            <tr>
-                              <td colSpan="6" className="text-center py-4 text-muted">
-                                <i className="bi bi-people fs-2 d-block mb-2"></i>
-                                {isLoading ? (
-                                  <>Loading eligible employees...</>
-                                ) : !cutOff ? (
-                                  <>No cut-off period available. Please contact an administrator.</>
-                                ) : (
-                                  <>No eligible employees found for this cut-off period. All employees may have attendance issues.</>
-                                )}
-                              </td>
-                            </tr>
-                          ) : (
-                            currentItems.map((employee, index) => (
-                              <tr key={index} className={employee.checked ? 'table-primary' : ''}>
-                                <td>
-                                  <div className="form-check">
-                                    <input
-                                      className="form-check-input"
-                                      type="checkbox"
-                                      checked={employee.checked || false}
-                                      onChange={() => handleCheckboxChange(employee.empId)}
-                                      id={`employee-${employee.empId}`}
-                                    />
-                                    <label className="form-check-label" htmlFor={`employee-${employee.empId}`}></label>
-                                  </div>
-                                </td>
-                                <td>{employee.empId}</td>
-                                <td>
-                                  <div className="d-flex align-items-center">
-                                    <div
-                                      className="avatar-sm bg-light rounded-circle text-center me-2"
-                                      style={{width: "32px", height: "32px", lineHeight: "32px"}}
-                                    >
-                                      {employee.name?.trim()[0]?.toUpperCase() || 'U'}
-                                    </div>
-                                    <div>{employee.name}</div>
-                                  </div>
-                                </td>
-                                <td>
-                                  <span className="fw-semibold">{Number(employee.amount).toLocaleString()}</span>
-                                </td>
-                                <td>{employee.cutoffPeriod || '-'}</td>
-                                <td>
-                                  <span className="badge bg-success">Eligible</span>
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
+  {currentItems.length === 0 ? (
+    <tr>
+      <td colSpan="6" className="text-center py-4 text-muted">
+        <i className="bi bi-people fs-2 d-block mb-2"></i>
+        {isLoading ? (
+          <>Loading employees...</>
+        ) : !cutOff ? (
+          <>No cut-off period available. Please contact an administrator.</>
+        ) : (
+          <>No employees found for this cut-off period.</>
+        )}
+      </td>
+    </tr>
+  ) : (
+    currentItems.map((employee, index) => (
+      <tr
+        key={index}
+        className={`${employee.checked ? 'table-primary' : ''} ${employee.disabled ? 'text-muted' : ''}`}
+      >
+        <td>
+          <div className="form-check">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              checked={employee.checked || false}
+              onChange={() => handleCheckboxChange(employee.empId, employee.cutoffId)}
+              id={`employee-${employee.empId}-${employee.cutoffId}`}
+              disabled={employee.disabled}
+            />
+            <label className="form-check-label" htmlFor={`employee-${employee.empId}-${employee.cutoffId}`}></label>
+          </div>
+        </td>
+        <td>{employee.empId}</td>
+        <td>
+          <div className="d-flex align-items-center">
+            <div
+              className="avatar-sm bg-light rounded-circle text-center me-2"
+              style={{width: "32px", height: "32px", lineHeight: "32px"}}
+            >
+              {employee.name?.trim()[0]?.toUpperCase() || 'U'}
+            </div>
+            <div>{employee.name}</div>
+          </div>
+        </td>
+        <td>
+          <span className={`fw-semibold ${employee.amount <= 0 ? 'text-danger' : ''}`}>
+            {Number(employee.amount).toLocaleString()}
+          </span>
+        </td>
+        <td>{employee.cutoffPeriod || '-'}</td>
+        <td>
+          {employee.amount > 0 ? (
+            <span className="badge bg-success">Eligible</span>
+          ) : (
+            <span className="badge bg-secondary">Ineligible</span>
+          )}
+        </td>
+      </tr>
+    ))
+  )}
+</tbody>
                       </table>
                     </div>
 

@@ -28,114 +28,122 @@ const ViewCourse = () => {
   const [quizScore, setQuizScore] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
+  // Add this state to your existing state declarations
+  const [userRating, setUserRating] = useState(0);
+  const [userComment, setUserComment] = useState('');
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [loadingRating, setLoadingRating] = useState(false);
+  const [userHasRated, setUserHasRated] = useState(false);
+
   // Fetch course data using Axios
   useEffect(() => {
     if (courseId) {
       fetchCourseData();
       fetchQuizData();
+      checkUserRating(); // Add this line
     }
   }, [courseId]);
 
   const fetchQuizData = async () => {
-      // Update the quiz fetching logic
-      try {
-        // Fetch all questions and filter by courseID
-        const questionsResponse = await axios.get(
-          `${config.API_BASE_URL}/questions/get_all_question`,
-          {
-            headers: {
-              "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-              "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-            },
-          }
+    try {
+      // Fetch all questions and filter by courseID
+      const questionsResponse = await axios.get(
+        `${config.API_BASE_URL}/questions/get_all_question`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (questionsResponse.data?.data) {
+        // Filter questions for this specific course
+        const courseQuestions = questionsResponse.data.data.filter(
+          question => question.courseID === parseInt(courseId, 10)
         );
 
-        if (questionsResponse.data?.data) {
-          // Filter questions for this specific course
-          const courseQuestions = questionsResponse.data.data.filter(
-            question => question.courseID === parseInt(courseId, 10)
+        if (courseQuestions.length > 0) {
+          // Process each question
+          const quizQuestions = await Promise.all(
+            courseQuestions.map(async (question) => {
+              // For each question, fetch the specific details using the specific endpoint
+              try {
+                const questionDetails = await axios.get(
+                  `${config.API_BASE_URL}/questions/get_specific_question/${question.id}`,
+                  {
+                    headers: {
+                      "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+                      "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+                    },
+                  }
+                );
+
+                if (questionDetails.data?.data && questionDetails.data.data.length > 0) {
+                  // Parse the question JSON and correct answer
+                  const questionData = questionDetails.data.data[0];
+                  let parsedQuestion = null;
+                  let parsedOptions = [];
+                  let correctAnswer = null;
+
+                  try {
+                    // Parse the question JSON which contains the question text and options
+                    parsedQuestion = JSON.parse(questionData.question);
+                    parsedOptions = parsedQuestion.options || [];
+
+                    // Parse the correct_answer field (might be a string, array or index)
+                    if (questionData.correct_answer) {
+                      try {
+                        correctAnswer = JSON.parse(questionData.correct_answer);
+                      } catch {
+                        // If it's not valid JSON, use it as-is (probably a single index)
+                        correctAnswer = questionData.correct_answer;
+                      }
+                    }
+                  } catch (parseError) {
+                    console.error("Error parsing question data:", parseError);
+                    console.error("Raw question data:", questionData.question);
+                  }
+
+                  return {
+                    id: questionData.id,
+                    question_text: parsedQuestion?.question || "No question available",
+                    options: parsedOptions,
+                    correct_answer: correctAnswer,
+                    selection_type: questionData.selection_type
+                  };
+                }
+                return null;
+              } catch (error) {
+                console.error(`Error fetching details for question ${question.id}:`, error);
+                return null;
+              }
+            })
           );
 
-          if (courseQuestions.length > 0) {
-            // Process each question
-            const quizQuestions = await Promise.all(
-              courseQuestions.map(async (question) => {
-                // For each question, fetch the specific details
-                try {
-                  const questionDetails = await axios.get(
-                    `${config.API_BASE_URL}/questions/get_specific_question/${question.id}`,
-                    {
-                      headers: {
-                        "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-                        "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
-                      },
-                    }
-                  );
+          // Remove any null values from failed fetches
+          const validQuestions = quizQuestions.filter(q => q !== null);
 
-                  if (questionDetails.data?.data && questionDetails.data.data.length > 0) {
-                    // Parse the question JSON and correct answer
-                    const questionData = questionDetails.data.data[0];
-                    let parsedQuestion = null;
-                    let parsedOptions = [];
-                    let correctAnswer = null;
-
-                    try {
-                      // Parse the question JSON which contains the question text and options
-                      parsedQuestion = JSON.parse(questionData.question);
-                      parsedOptions = parsedQuestion.options || [];
-
-                      // Parse the correct_answer field (might be a string, array or index)
-                      if (questionData.correct_answer) {
-                        try {
-                          correctAnswer = JSON.parse(questionData.correct_answer);
-                        } catch {
-                          // If it's not valid JSON, use it as-is (probably a single index)
-                          correctAnswer = questionData.correct_answer;
-                        }
-                      }
-                    } catch (parseError) {
-                      console.error("Error parsing question data:", parseError);
-                    }
-
-                    return {
-                      id: questionData.id,
-                      question_text: parsedQuestion?.question || "No question available",
-                      options: parsedOptions,
-                      correct_answer: correctAnswer,
-                      selection_type: questionData.selection_type
-                    };
-                  }
-                  return null;
-                } catch (error) {
-                  console.error(`Error fetching details for question ${question.id}:`, error);
-                  return null;
-                }
-              })
-            );
-
-            // Remove any null values from failed fetches
-            const validQuestions = quizQuestions.filter(q => q !== null);
-
-            if (validQuestions.length > 0) {
-              setQuiz({
-                courseId: courseId,
-                questions: validQuestions
-              });
-            } else {
-              setQuiz(null);
-            }
+          if (validQuestions.length > 0) {
+            setQuiz({
+              courseId: courseId,
+              questions: validQuestions
+            });
           } else {
             setQuiz(null);
           }
         } else {
           setQuiz(null);
         }
-      } catch (quizError) {
-        console.error("Error fetching quiz data:", quizError);
+      } else {
         setQuiz(null);
       }
+    } catch (quizError) {
+      console.error("Error fetching quiz data:", quizError);
+      setQuiz(null);
+    }
+  };
 
-  }
   const fetchAllMaterials = async () => {
     try {
       // Fetch all materials at once
@@ -159,8 +167,23 @@ const ViewCourse = () => {
         console.log("Materials for this course:", courseMaterials);
 
         setVideos(courseMaterials);
+
+        // Set first content item with proper content type
         if (courseMaterials.length > 0) {
-          setCurrentItem(courseMaterials[0]);
+          // Prioritize video content if available
+          const firstVideo = courseMaterials.find(item => item.filename && item.filename !== "");
+          const firstDocument = courseMaterials.find(item => item.filename_uploaded && item.filename_uploaded !== "");
+
+          if (firstVideo) {
+            // Set first video as default
+            handleVideoSelect(firstVideo);
+          } else if (firstDocument) {
+            // If no videos, set first document as default
+            handleDocumentSelect(firstDocument);
+          } else {
+            // Fallback if neither video nor document is available
+            setCurrentItem(courseMaterials[0]);
+          }
         }
       }
     } catch (error) {
@@ -209,55 +232,140 @@ const ViewCourse = () => {
     }
   };
 
-
-  // Rest of your existing functions
-  const handleContentSelect = (item) => {
-    // First set the basic item data we already have
-    setCurrentItem(item);
-
-    // Then fetch more detailed information about this specific material
-    fetchSpecificMaterialDetails(item.id);
-
-    // Track progress in localStorage for demo purposes
-    const progress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
-    if (!progress[courseId]) {
-      progress[courseId] = { watched: [] };
-    }
-    if (!progress[courseId].watched.includes(item.id)) {
-      progress[courseId].watched.push(item.id);
-      localStorage.setItem('courseProgress', JSON.stringify(progress));
-    }
-  };
-
-  // Add this function after handleContentSelect
-  const fetchSpecificMaterialDetails = async (materialId) => {
+  // Add this function to check if user has already rated the course
+  const checkUserRating = async () => {
     try {
+      const empId = localStorage.getItem("X-EMP-ID");
+      if (!empId || !courseId) return;
+
       const response = await axios.get(
-        `${config.API_BASE_URL}/materials/get_specific_material/${materialId}`,
+        `${config.API_BASE_URL}/ratings/get_user_rating/${empId}/${courseId}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
-            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+            "X-EMP-ID": empId,
           },
         }
       );
 
       if (response.data?.data && response.data.data.length > 0) {
-        // Merge the detailed material data with current item
-        const detailedMaterial = response.data.data[0];
-        setCurrentItem(prev => ({
-          ...prev,
-          title: detailedMaterial.title || prev.title,
-          date_created: detailedMaterial.date_created,
-          created_by: detailedMaterial.created_by,
-          // Add any other fields you want to display
-        }));
+        const userRatingData = response.data.data[0];
+        setUserRating(userRatingData.rating);
+        setUserComment(userRatingData.comment || '');
+        setUserHasRated(true);
       }
     } catch (error) {
-      console.error("Error fetching specific material details:", error);
-      // Don't update state on error, keep current item as is
+      console.error("Error fetching user rating:", error);
     }
   };
+
+  // Rest of your existing functions
+  // Update the handleContentSelect function to set the content type explicitly
+const handleContentSelect = (item) => {
+  // Set content type based on what's available
+  const updatedItem = {
+    ...item,
+    contentType: item.filename && item.filename !== "" ? "video" :
+                 item.filename_uploaded && item.filename_uploaded !== "" ? "document" :
+                 "unknown"
+  };
+
+  // Set the current item with explicit type
+  setCurrentItem(updatedItem);
+
+  // Then fetch more detailed information about this specific material
+  fetchSpecificMaterialDetails(item.id);
+
+  // Track progress in localStorage for demo purposes
+  const progress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+  if (!progress[courseId]) {
+    progress[courseId] = { watched: [] };
+  }
+  if (!progress[courseId].watched.includes(item.id)) {
+    progress[courseId].watched.push(item.id);
+    localStorage.setItem('courseProgress', JSON.stringify(progress));
+  }
+};
+
+// Update the fetchSpecificMaterialDetails function to preserve content type
+const fetchSpecificMaterialDetails = async (materialId) => {
+  try {
+    const response = await axios.get(
+      `${config.API_BASE_URL}/materials/get_specific_material/${materialId}`,
+      {
+        headers: {
+          "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+          "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+        },
+      }
+    );
+
+    if (response.data?.data && response.data.data.length > 0) {
+      // Merge the detailed material data with current item
+      const detailedMaterial = response.data.data[0];
+      setCurrentItem(prev => ({
+        ...prev,
+        title: detailedMaterial.title || prev.title,
+        date_created: detailedMaterial.date_created,
+        created_by: detailedMaterial.created_by,
+        // Keep the content type we set earlier
+        contentType: prev.contentType
+      }));
+    }
+  } catch (error) {
+    console.error("Error fetching specific material details:", error);
+  }
+};
+
+// Update the handleContentSelect function to be more explicit about content types
+const handleVideoSelect = (item) => {
+  // Set content type explicitly for videos
+  const updatedItem = {
+    ...item,
+    contentType: "video"
+  };
+
+  // Set the current item with explicit type
+  setCurrentItem(updatedItem);
+
+  // Then fetch more detailed information about this specific material
+  fetchSpecificMaterialDetails(item.id);
+
+  // Track progress in localStorage for demo purposes
+  updateContentProgress(item.id);
+};
+
+const handleDocumentSelect = (item) => {
+  // Set content type explicitly for documents
+  const updatedItem = {
+    ...item,
+    contentType: "document"
+  };
+
+  // Set the current item with explicit type
+  setCurrentItem(updatedItem);
+
+  // Then fetch more detailed information about this specific material
+  fetchSpecificMaterialDetails(item.id);
+
+  // Track progress in localStorage for demo purposes
+  updateContentProgress(item.id);
+};
+
+// Update the content tracking in both handlers
+const updateContentProgress = (itemId) => {
+  // Track progress in localStorage
+  const progress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+  if (!progress[courseId]) {
+    progress[courseId] = { watched: [], quizCompleted: false };
+  }
+
+  // Only add if not already tracked
+  if (!progress[courseId].watched.includes(itemId)) {
+    progress[courseId].watched.push(itemId);
+    localStorage.setItem('courseProgress', JSON.stringify(progress));
+  }
+};
 
   const handleAnswerSelect = (questionId, optionIndex) => {
     setUserAnswers({
@@ -333,7 +441,34 @@ const ViewCourse = () => {
         timerProgressBar: true,
       });
 
+      // Update inside handleQuizSubmit after the quiz score is calculated
+      // After calculating the percentage:
+      if (percentage >= 70) {
+        // Mark quiz as completed in progress tracking
+        const progress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+        if (!progress[courseId]) {
+          progress[courseId] = { watched: [], quizCompleted: false };
+        }
+        progress[courseId].quizCompleted = true;
+        localStorage.setItem('courseProgress', JSON.stringify(progress));
 
+        // Show completion message
+        Swal.fire({
+          icon: "success",
+          title: "Quiz Passed!",
+          text: `Congratulations! You scored ${percentage}% and successfully completed the course.`,
+          timer: 3000,
+          timerProgressBar: true,
+        });
+      } else {
+        Swal.fire({
+          icon: "warning",
+          title: "Quiz Failed",
+          text: `Your score: ${percentage}%. You need 70% to pass and complete the course.`,
+          timer: 3000,
+          timerProgressBar: true,
+        });
+      }
 
     } catch (error) {
       console.error("Error submitting quiz answers:", error);
@@ -351,27 +486,68 @@ const ViewCourse = () => {
     setQuizScore(0);
   };
 
-  // Calculate progress for display
-  const calculateProgress = () => {
-    const progress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
-    if (!progress[courseId]) return { percentage: 0, count: 0, quizCompleted: false };
+  // Add this function to handle rating submission
+  const handleRatingSubmit = async () => {
+    if (userRating === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Rating Required",
+        text: "Please select a rating between 1-5 stars.",
+      });
+      return;
+    }
 
-    const watched = progress[courseId].watched || [];
-    const quizCompleted = progress[courseId].quizCompleted || false;
+    try {
+      setLoadingRating(true);
+      const empId = localStorage.getItem("X-EMP-ID");
 
-    // If there's a quiz, include it in the progress calculation (videos + quiz)
-    const totalItems = quiz ? videos.length + 1 : videos.length;
-    const completedItems = watched.length + (quizCompleted ? 1 : 0);
+      const response = await axios.post(
+        `${config.API_BASE_URL}/ratings/add_rating`,
+        {
+          emp_id: empId,
+          rating: userRating,
+          comment: userComment,
+          course_id: courseId,
+        },
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": empId,
+            "Content-Type": "application/json"
+          },
+        }
+      );
 
-    const percentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-    return {
-      percentage,
-      count: watched.length,
-      quizCompleted
-    };
+      if (response.data?.success) {
+        Swal.fire({
+          icon: "success",
+          title: userHasRated ? "Rating Updated" : "Rating Submitted",
+          text: userHasRated ? "Your rating has been updated successfully!" : "Thank you for rating this course!",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+        setShowRatingModal(false);
+        setUserHasRated(true);
+        // Refresh course data to get updated ratings
+        fetchCourseData();
+      }
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Submission Error",
+        text: "There was a problem submitting your rating. Please try again.",
+      });
+    } finally {
+      setLoadingRating(false);
+    }
   };
 
-  const progress = calculateProgress();
+  // Function to format YouTube URLs to embed format
+  const formatYouTubeUrl = (url) => {
+    const videoIdMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+    return videoIdMatch ? `https://www.youtube.com/embed/${videoIdMatch[1]}` : url;
+  };
 
   return (
     <>
@@ -389,27 +565,46 @@ const ViewCourse = () => {
           ) : course ? (
             <div className="row g-4">
               <div className="col-lg-8">
-                {/* Content Player - Displays Video or PDF based on current item */}
+                {/* Content Player - Updated to handle YouTube links properly */}
                 <div className="mb-4 rounded overflow-hidden shadow">
                   {currentItem ? (
-                    currentItem.type === "video" ? (
-                      <div className="ratio ratio-16x9">
-                        <iframe
-                          src={currentItem.video_url}
-                          title={currentItem.title || "Course Video"}
-                          allowFullScreen
-                          className="border-0"
-                        ></iframe>
-                      </div>
-                    ) : (
-                      <div className="ratio ratio-4x3">
-                         <iframe
-                          src={`https://docs.google.com/gview?url=${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}&embedded=true`}
-                          allowFullScreen
-                          className="border-0"
-                        ></iframe>
-                      </div>
-                    )
+                    <>
+                      {currentItem.contentType === "video" ? (
+                        <div className="ratio ratio-16x9">
+                          {currentItem.filename && (currentItem.filename.includes('youtube.com') || currentItem.filename.includes('youtu.be')) ? (
+                            // Handle YouTube links properly by converting them to embed URLs
+                            <iframe
+                              src={formatYouTubeUrl(currentItem.filename)}
+                              title={currentItem.title || "YouTube Video"}
+                              allowFullScreen
+                              className="border-0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            ></iframe>
+                          ) : (
+                            // Handle other video types
+                            <iframe
+                              src={currentItem.video_url || currentItem.filename}
+                              title={currentItem.title || "Course Video"}
+                              allowFullScreen
+                              className="border-0"
+                            ></iframe>
+                          )}
+                        </div>
+                      ) : currentItem.contentType === "document" ? (
+                        <div className="ratio ratio-4x3">
+                          <iframe
+                            src={`https://docs.google.com/gview?url=${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}&embedded=true`}
+                            allowFullScreen
+                            className="border-0"
+                          ></iframe>
+                        </div>
+                      ) : (
+                        <div className="bg-light text-center p-5">
+                          <h5>Content not available</h5>
+                          <p>This item doesn't have viewable content.</p>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="bg-light text-center p-5">
                       <h5>No content available for this course</h5>
@@ -418,24 +613,31 @@ const ViewCourse = () => {
                   )}
                 </div>
 
-                {/* Content Title and Description */}
+                {/* Update Content Details section to show more information */}
                 <div className="bg-light p-4 mb-4 rounded shadow">
                   <div className="d-flex align-items-center mb-3">
                     {currentItem && (
-                      <span className={`badge me-2 ${currentItem.type === "video" ? "bg-primary" : "bg-success"}`}>
-                        {currentItem.type === "video" ? (
-                          <i className="fa fa-video me-1"></i>
+                      <>
+                        {currentItem.contentType === "video" ? (
+                          <span className="badge bg-primary me-2">
+                            <i className="fa fa-video me-1"></i> Video
+                          </span>
+                        ) : currentItem.contentType === "document" ? (
+                          <span className="badge bg-success me-2">
+                            <i className="fa fa-file-pdf me-1"></i> Document
+                          </span>
                         ) : (
-                          <i className="fa fa-file-pdf me-1"></i>
+                          <span className="badge bg-secondary me-2">
+                            <i className="fa fa-file me-1"></i> Content
+                          </span>
                         )}
-                        {currentItem.type === "video" ? "Video" : "PDF"}
-                      </span>
+                      </>
                     )}
                     <h3 className="mb-0">{currentItem ? currentItem.title || 'Untitled Content' : 'Content Not Available'}</h3>
                   </div>
                   <p>{currentItem ? currentItem.description || 'No description available.' : ''}</p>
 
-                  {/* Add more material details */}
+                  {/* Material details */}
                   {currentItem && currentItem.date_created && (
                     <p className="mb-1 text-muted">
                       <i className="fa fa-calendar-alt me-2"></i>
@@ -450,16 +652,29 @@ const ViewCourse = () => {
                     </p>
                   )}
 
-                  {currentItem && currentItem.type !== "video" && currentItem.filename_uploaded && (
-                    <div className="mt-3">
-                      <a
-                        href={`${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-sm btn-outline-primary"
-                      >
-                        <i className="fa fa-download me-1"></i> Download Material
-                      </a>
+                  {/* Download options */}
+                  {currentItem && (
+                    <div className="mt-3 d-flex flex-wrap gap-2">
+                      {currentItem.filename_uploaded && (
+                        <a
+                          href={`${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-sm btn-outline-primary"
+                        >
+                          <i className="fa fa-download me-1"></i> Download PDF Material
+                        </a>
+                      )}
+                      {currentItem.filename && !currentItem.filename.includes('youtube') && !currentItem.filename.includes('vimeo') && (
+                        <a
+                          href={currentItem.filename}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-sm btn-outline-success"
+                        >
+                          <i className="fa fa-external-link-alt me-1"></i> Open Video in New Tab
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>
@@ -468,62 +683,36 @@ const ViewCourse = () => {
                 <div className="bg-light p-4 rounded shadow">
                   <h4 className="mb-3">Course Details</h4>
                   <p>{course.course_details || 'No course details available.'}</p>
-
-                  <div className="mt-4">
-                    <h5>Your Progress</h5>
-                    <div className="progress">
-                      <div
-                        className="progress-bar bg-primary"
-                        role="progressbar"
-                        style={{ width: `${progress.percentage}%` }}
-                        aria-valuenow={progress.percentage}
-                        aria-valuemin="0"
-                        aria-valuemax="100"
-                      >
-                        {progress.percentage}%
-                      </div>
-                    </div>
-                    <small className="text-muted mt-2 d-block">
-                      You have completed {progress.count} of {videos.length} items
-                      {quiz && (
-                        <>
-                          {progress.quizCompleted ?
-                            ' and passed the quiz.' :
-                            ' and need to complete the quiz.'}
-                        </>
-                      )}
-                    </small>
-                  </div>
                 </div>
 
                 {/* Quiz Modal Button */}
                 {quiz && (
-                  <div className="bg-light p-4 rounded shadow mt-4">
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <h4 className="mb-1">Knowledge Check Quiz</h4>
-                        <p className="text-muted mb-0">
-                          Test your knowledge to complete this course
-                          {progress.quizCompleted &&
-                            <span className="text-success ms-2">
-                              <i className="fa fa-check-circle"></i> Completed
-                            </span>
-                          }
-                        </p>
-                      </div>
-                      <button
-                        className="btn btn-primary px-4"
-                        onClick={() => {
-                          resetQuiz();
-                          setCurrentQuestionIndex(0);
-                          setShowQuiz(true); // This opens the React Bootstrap modal
-                        }}
-                      >
-                        {progress.quizCompleted ? "Retake Quiz" : "Start Quiz"}
-                      </button>
-                    </div>
-                  </div>
-                )}
+  <div className="bg-light p-4 rounded shadow mt-4">
+    <div className="d-flex justify-content-between align-items-center">
+      <div>
+        <h4 className="mb-1">Knowledge Check Quiz</h4>
+        <p className="text-muted mb-0">
+          Test your knowledge to complete this course
+          {quizScore >= 70 && (
+            <span className="text-success ms-2">
+              <i className="fa fa-check-circle"></i> Completed
+            </span>
+          )}
+        </p>
+      </div>
+      <button
+        className="btn btn-primary px-4"
+        onClick={() => {
+          resetQuiz();
+          setCurrentQuestionIndex(0);
+          setShowQuiz(true);
+        }}
+      >
+        {quizScore >= 70 ? "Retake Quiz" : "Start Quiz"}
+      </button>
+    </div>
+  </div>
+)}
                 <Modal
                   show={showQuiz}
                   onHide={() => setShowQuiz(false)}
@@ -749,80 +938,100 @@ const ViewCourse = () => {
                     <i className="fa fa-bookmark me-2"></i>
                     Category: {course.category_title || "Uncategorized"}
                   </p>
+
+                  {/* Add this inside the bg-primary section, after the existing rating stars display */}
+                  <div className="mt-3">
+                    <button
+                      className="btn btn-light btn-sm w-100"
+                      onClick={() => setShowRatingModal(true)}
+                    >
+                      <i className="fa fa-star text-warning me-2"></i>
+                      {userHasRated ? 'Update Your Rating' : 'Rate This Course'}
+                    </button>
+                  </div>
                 </div>
 
-                {/* Course Content List */}
+                {/* Course Content List - Updated with separated content types */}
                 <div className="bg-light p-4 rounded shadow">
                   <h4 className="mb-3">Course Content</h4>
-                  <div className="list-group">
-                    {videos.length > 0 ? (
-                      videos.map((item, index) => (
-                        <div>
-                        {item?.filename_uploaded && (
-                          <button
-                            key={item.id}
-                            type="button"
-                            className={`list-group-item list-group-item-action ${
-                              currentItem && currentItem.id === item.id ? 'active' : ''
-                            }`}
-                            onClick={() => handleContentSelect(item)}
-                          >
-                            <div className="d-flex w-100 justify-content-between">
-                              <h5 className="mb-1">
-                                {index + 1}.{" "}
-                                {item.type === "video" ? (
-                                  <i className="fa fa-video me-2"></i>
-                                ) : (
-                                  <i className="fa fa-file-pdf me-2"></i>
-                                )}
-                                {item.title ? `${item.title} - UPLOADED` : "Untitled"}
-                              </h5>
-                              <small>{item.duration || ""}</small>
-                            </div>
-                            <small>
-                              {item.description?.substring(0, 60) || 'No description'}
-                              {item.description?.length > 60 ? '...' : ''}
-                            </small>
-                            {item.type !== "video" && (
-                              <span className="badge bg-success ms-2">Document</span>
-                            )}
-                          </button>
-                        )}
 
-                        {item?.filename && (
-                            <button
-                            key={item.id}
-                            type="button"
-                            className={`list-group-item list-group-item-action ${currentItem && currentItem.id === item.id ? 'active' : ''}`}
-                            onClick={() => handleContentSelect(item)}
-                          >
-                            <div className="d-flex w-100 justify-content-between">
-                              <h5 className="mb-1">
-                                {index + 1}.{" "}
-                                {item.type === "video" ? (
-                                  <i className="fa fa-video me-2"></i>
-                                ) : (
-                                  <i className="fa fa-file-pdf me-2"></i>
-                                )}
-                                {item?.title || item?.filename ? `${item.title} - ONLINE` : "Untitled"}
-                              </h5>
-                              <small>{item.duration || ""}</small>
-                            </div>
-                            <small>{item.description?.substring(0, 60) || 'No description'}{item.description?.length > 60 ? '...' : ''}</small>
-                            {item.type !== "video" && (
-                              <span className="badge bg-success ms-2">Document</span>
-                            )}
-                          </button>
-                        )}
+                  {videos.length > 0 ? (
+                    <>
+                      {/* Videos Section */}
+                      {videos.filter(item => item.filename && item.filename !== "").length > 0 && (
+                        <>
+                          <h5 className="mb-2">
+                            <i className="fa fa-video me-2 text-primary"></i>Videos
+                          </h5>
+                          <div className="list-group mb-4">
+                            {videos
+                              .filter(item => item.filename && item.filename !== "")
+                              .map((item, index) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  className={`list-group-item list-group-item-action ${
+                                    currentItem && currentItem.id === item.id && currentItem.contentType === "video" ? 'active' : ''
+                                  }`}
+                                  onClick={() => handleVideoSelect(item)}
+                                >
+                                  <div className="d-flex w-100 justify-content-between">
+                                    <h5 className="mb-1">
+                                      <i className="fa fa-play-circle me-2"></i>
+                                      {item.title || "Untitled Video"}
+                                    </h5>
+                                  </div>
+                                  <small>
+                                    {item.description?.substring(0, 60) || 'No description'}
+                                    {item.description?.length > 60 ? '...' : ''}
+                                  </small>
+                                </button>
+                              ))
+                            }
+                          </div>
+                        </>
+                      )}
 
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-3">
-                        <p>No content available for this course.</p>
-                      </div>
-                    )}
-                  </div>
+                      {/* Documents Section */}
+                      {videos.filter(item => item.filename_uploaded && item.filename_uploaded !== "").length > 0 && (
+                        <>
+                          <h5 className="mb-2">
+                            <i className="fa fa-file-pdf me-2 text-danger"></i>Documents
+                          </h5>
+                          <div className="list-group">
+                            {videos
+                              .filter(item => item.filename_uploaded && item.filename_uploaded !== "")
+                              .map((item, index) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  className={`list-group-item list-group-item-action ${
+                                    currentItem && currentItem.id === item.id && currentItem.contentType === "document" ? 'active' : ''
+                                  }`}
+                                  onClick={() => handleDocumentSelect(item)}
+                                >
+                                  <div className="d-flex w-100 justify-content-between">
+                                    <h5 className="mb-1">
+                                      <i className="fa fa-file-pdf me-2"></i>
+                                      {item.title || "Untitled Document"}
+                                    </h5>
+                                  </div>
+                                  <small>
+                                    {item.description?.substring(0, 60) || 'No description'}
+                                    {item.description?.length > 60 ? '...' : ''}
+                                  </small>
+                                </button>
+                              ))
+                            }
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-3">
+                      <p>No content available for this course.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -834,6 +1043,77 @@ const ViewCourse = () => {
         </div>
       </div>
       {/* Course Content End */}
+
+      {/* Rating Modal */}
+      <Modal
+        show={showRatingModal}
+        onHide={() => setShowRatingModal(false)}
+        centered
+        size="md"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="fa fa-star text-warning me-2"></i>
+            Rate This Course
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="text-center mb-4">
+            <h5 className="mb-3">How would you rate "{course?.course_title}"?</h5>
+            <div className="d-flex justify-content-center mb-3">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <i
+                  key={star}
+                  className={`fa fa-star fa-2x mx-1 ${star <= userRating ? 'text-warning' : 'text-muted'}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setUserRating(star)}
+                ></i>
+              ))}
+            </div>
+            <div className="small text-muted mb-3">
+              {userRating === 1 && "Poor"}
+              {userRating === 2 && "Fair"}
+              {userRating === 3 && "Good"}
+              {userRating === 4 && "Very Good"}
+              {userRating === 5 && "Excellent"}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="comment" className="form-label">Your Comments (Optional)</label>
+            <textarea
+              id="comment"
+              className="form-control"
+              rows="4"
+              placeholder="Share your experience with this course..."
+              value={userComment}
+              onChange={(e) => setUserComment(e.target.value)}
+            ></textarea>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowRatingModal(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleRatingSubmit}
+            disabled={loadingRating || userRating === 0}
+          >
+            {loadingRating ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Submitting...
+              </>
+            ) : (
+              <>
+                <i className="fa fa-paper-plane me-2"></i>
+                {userHasRated ? 'Update Rating' : 'Submit Rating'}
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Footer Start */}
       <div className="container-fluid bg-dark text-light footer pt-5 mt-5 wow fadeIn" data-wow-delay="0.1s">
