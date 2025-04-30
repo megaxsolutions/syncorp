@@ -242,7 +242,7 @@ export default function Homepage() {
 
       // Fetch course details from API
       const response = await axios.get(
-        `${config.API_BASE_URL}/courses/get_user_course/${courseId}`,
+        `${config.API_BASE_URL}/courses/get_specific_course/${courseId}`,
         {
           headers: {
             "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
@@ -307,20 +307,7 @@ export default function Homepage() {
                 </div>
               </div>
             </div>
-          `,
-          width: '600px',
-          showCloseButton: true,
-          showConfirmButton: true,
-          confirmButtonText: 'Enroll Now',
-          confirmButtonColor: '#06BBCC',
-          showCancelButton: true,
-          cancelButtonText: 'Close',
-          cancelButtonColor: '#6c757d',
-        }).then((result) => {
-          if (result.isConfirmed) {
-            // Handle enrollment click
-            handleEnrollClick(course, new Event('click'));
-          }
+          `
         });
 
       } else {

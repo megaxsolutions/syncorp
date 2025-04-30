@@ -167,6 +167,130 @@ const Course = () => {
     });
   };
 
+  // Add this function to your Course component
+  const handleReadMore = async (courseId, e) => {
+    e.preventDefault();
+
+    try {
+      // Show loading state
+      Swal.fire({
+        title: 'Loading course details...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      // Fetch course details from API
+      const response = await axios.get(
+        `${config.API_BASE_URL}/courses/get_specific_course/${courseId}`,
+        {
+          headers: {
+            "X-JWT-TOKEN": localStorage.getItem("X-JWT-TOKEN"),
+            "X-EMP-ID": localStorage.getItem("X-EMP-ID"),
+          },
+        }
+      );
+
+      if (response.data?.data && response.data.data.length > 0) {
+        const course = response.data.data[0];
+
+        // Format the date
+        const dateAdded = new Date(course.date_added).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        // Create star rating HTML
+        const starRating = [];
+        const rating = Math.round(parseFloat(course.average_rating) || 0);
+        for (let i = 1; i <= 5; i++) {
+          if (i <= rating) {
+            starRating.push('<i class="fa fa-star text-warning"></i>');
+          } else {
+            starRating.push('<i class="fa fa-star text-muted"></i>');
+          }
+        }
+
+        // Show course details in a modal
+        Swal.fire({
+          title: course.course_title,
+          html: `
+            <div class="text-start">
+              <div class="mb-4 text-center">
+                <img src="${config.API_BASE_URL}/uploads/${course.filename}"
+                  alt="${course.course_title}"
+                  style="max-width: 100%; max-height: 300px; object-fit: cover; border-radius: 8px;">
+              </div>
+
+              <div class="mb-3">
+                <h6 class="fw-bold">Description</h6>
+                <p>${course.course_details || 'No description available.'}</p>
+              </div>
+
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <h6 class="fw-bold">Category</h6>
+                  <p>${course.category_title || 'Uncategorized'}</p>
+                </div>
+                <div class="col-md-6">
+                  <h6 class="fw-bold">Date Added</h6>
+                  <p>${dateAdded}</p>
+                </div>
+              </div>
+
+              <div class="mb-2">
+                <h6 class="fw-bold">Rating</h6>
+                <div class="d-flex align-items-center">
+                  <div class="me-2">${starRating.join('')}</div>
+                  <span>(${course.average_rating || '0'} / 5 - ${course.total_ratings || 0} ${course.total_ratings === 1 ? 'review' : 'reviews'})</span>
+                </div>
+              </div>
+
+              <div class="mb-2">
+                <h6 class="fw-bold">Enrollment Status</h6>
+                <p class="${enrolledCourses[course.id]?.enrolled ? 'text-success' : 'text-muted'}">
+                  ${enrolledCourses[course.id]?.enrolled ?
+                    `<i class="fa fa-check-circle"></i> Enrolled (since ${new Date(enrolledCourses[course.id].enrollDate).toLocaleDateString()})` :
+                    '<i class="fa fa-info-circle"></i> Not enrolled - Please contact an administrator to enroll'}
+                </p>
+              </div>
+            </div>
+          `,
+          width: '600px',
+          showCloseButton: true,
+          showConfirmButton: true,
+          confirmButtonText: enrolledCourses[course.id]?.enrolled ? 'Continue to Course' : 'Enroll Now',
+          confirmButtonColor: '#06BBCC',
+          showCancelButton: true,
+          cancelButtonText: 'Close',
+          cancelButtonColor: '#6c757d',
+        }).then((result) => {
+          if (result.isConfirmed) {
+            // Handle enrollment click
+            handleEnrollClick(course, new Event('click'));
+          }
+        });
+
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Course details not found.'
+        });
+      }
+
+    } catch (error) {
+      console.error("Error fetching course details:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load course details.'
+      });
+    }
+  };
+
   const categoryImages = [cat1, cat2, cat3, cat4];
 
   return (
@@ -252,35 +376,62 @@ const Course = () => {
 
               {courses.map((course, index) => (
                 <div key={course.id} className="col-lg-4 col-md-6 wow fadeInUp" data-wow-delay={`0.${index % 3 + 1}s`}>
-                  <div className="course-item bg-light h-100">
+                  <div className="course-item bg-light h-100 d-flex flex-column">
                     <div className="position-relative overflow-hidden">
-
-                      <img className="img-fluid" src={`${config.API_BASE_URL}/uploads/${course.filename}`} alt={course.course_title} />
-                      <div className="w-100 d-flex justify-content-center position-absolute bottom-0 start-0 mb-4">
-                        <Link to={`/lms/course/${course.id}`} className="flex-shrink-0 btn btn-sm btn-primary px-3 border-end" style={{ borderRadius: '30px 0 0 30px' }}>Read More</Link>
-
-                        {enrolledCourses[course.id]?.enrolled ? (
-                          <a href="#" onClick={(e) => handleEnrollClick(course, e)} className="flex-shrink-0 btn btn-sm btn-success px-3" style={{ borderRadius: '0 30px 30px 0' }}>
-                            <i className="fas fa-play me-1"></i> Continue
-                          </a>
-                        ) : (
-                          <a href="#" onClick={(e) => handleEnrollClick(course, e)} className="flex-shrink-0 btn btn-sm btn-primary px-3" style={{ borderRadius: '0 30px 30px 0' }}>
-                            <i className="fas fa-sign-in-alt me-1"></i> Enroll Now
-                          </a>
-                        )}
-                      </div>
+                      <img
+                        className="img-fluid"
+                        src={`${config.API_BASE_URL}/uploads/${course.filename}`}
+                        alt={course.course_title}
+                        style={{ height: "220px", width: "100%", objectFit: "cover" }}
+                      />
                     </div>
+
+                    {/* Course buttons moved here - below the image */}
+                    <div className="d-flex justify-content-center mt-3 px-3">
+                      <a
+                        href="#"
+                        onClick={(e) => handleReadMore(course.id, e)}
+                        className="btn btn-sm btn-primary px-3 flex-grow-1 me-1"
+                      >
+                        <i className="fa fa-info-circle me-1"></i> Read More
+                      </a>
+
+                      {enrolledCourses[course.id]?.enrolled ? (
+                        <a
+                          href="#"
+                          onClick={(e) => handleEnrollClick(course, e)}
+                          className="btn btn-sm btn-success px-3 flex-grow-1"
+                        >
+                          <i className="fas fa-play me-1"></i> Continue
+                        </a>
+                      ) : (
+                        <a
+                          href="#"
+                          onClick={(e) => handleEnrollClick(course, e)}
+                          className="btn btn-sm btn-primary px-3 flex-grow-1"
+                        >
+                          <i className="fas fa-sign-in-alt me-1"></i> Enroll Now
+                        </a>
+                      )}
+                    </div>
+
                     <div className="text-center p-4 pb-0">
+                      <h5 className="mb-3">{course.course_title}</h5>
                       <div className="mb-3">
-                        <small className="fa fa-star text-primary"></small>
-                        <small className="fa fa-star text-primary"></small>
-                        <small className="fa fa-star text-primary"></small>
-                        <small className="fa fa-star text-primary"></small>
-                        <small className="fa fa-star text-primary"></small>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <i
+                            key={star}
+                            className={`fa fa-star ${star <= Math.round(course.average_rating) ? 'text-primary' : 'text-muted'}`}>
+                          </i>
+                        ))}
+                        <small className="ms-1">({course.average_rating || "0"})</small>
                       </div>
-                      <h5 className="mb-4">{course.course_title}</h5>
-                      <p className="small text-muted mb-4">{course.course_details || 'Learn the fundamentals and advanced concepts in this comprehensive course.'}</p>
+                      <p className="small text-muted mb-4">
+                        {course.course_details?.substring(0, 80) || 'Learn the fundamentals and advanced concepts in this comprehensive course.'}
+                        {course.course_details?.length > 80 ? '...' : ''}
+                      </p>
                     </div>
+
                     <div className="d-flex border-top mt-auto">
                       <small className="flex-fill text-center border-end py-2">
                         <i className="fa fa-calendar text-primary me-2"></i>

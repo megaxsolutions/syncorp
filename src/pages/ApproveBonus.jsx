@@ -44,6 +44,107 @@ export default function ApproveBonus() {
     handleSearch();
   }, [sortField, sortDirection]);
 
+  // Add useEffect to handle pagination properly
+  useEffect(() => {
+    // This will update the displayed items whenever the page changes
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+
+    // Apply any filters first to get filtered data
+    let filtered = [...bonusRequests];
+
+    // Apply your existing filters here
+    if (selectedEmployee) {
+      filtered = filtered.filter(bonus => bonus.emp_ID === selectedEmployee);
+    }
+
+    // Filter by date range
+    if (dateRange.startDate && dateRange.endDate) {
+      filtered = filtered.filter(bonus => {
+        if (!bonus.datetime_approved) return false;
+        const bonusDate = moment(bonus.datetime_approved);
+        return bonusDate.isBetween(dateRange.startDate, dateRange.endDate, 'day', '[]');
+      });
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(bonus => {
+        const employeeName = (employees[bonus.emp_ID] || '').toLowerCase();
+        const empID = String(bonus.emp_ID || '').toLowerCase();
+        const bonusID = String(bonus.id || '').toLowerCase();
+
+        return employeeName.includes(term) ||
+               empID.includes(term) ||
+               bonusID.includes(term);
+      });
+    }
+
+    // Filter by status
+    if (filterStatus !== 'all') {
+      // Your existing status filter logic
+      switch (filterStatus) {
+        case 'pending_initial':
+          filtered = filtered.filter(bonus => bonus.initialStatus === 'Pending');
+          break;
+        case 'pending_final':
+          filtered = filtered.filter(bonus =>
+            bonus.initialStatus === 'Approved' && bonus.finalStatus !== 'Approved' && bonus.finalStatus !== 'Rejected'
+          );
+          break;
+        case 'approved':
+          filtered = filtered.filter(bonus => bonus.finalStatus === 'Approved');
+          break;
+        case 'rejected':
+          filtered = filtered.filter(bonus => bonus.finalStatus === 'Rejected');
+          break;
+        default:
+          break;
+      }
+    }
+
+    // Apply sorting
+    if (sortField) {
+      filtered.sort((a, b) => {
+        let aValue, bValue;
+
+        switch (sortField) {
+          case 'employee':
+            aValue = employees[a.emp_ID] || '';
+            bValue = employees[b.emp_ID] || '';
+            break;
+          case 'amount':
+            aValue = parseFloat(a.totalBonus.replace(/[^\d.-]/g, ''));
+            bValue = parseFloat(b.totalBonus.replace(/[^\d.-]/g, ''));
+            break;
+          case 'datetime_approved':
+            aValue = a.datetime_approved ? new Date(a.datetime_approved) : new Date(0);
+            bValue = b.datetime_approved ? new Date(b.datetime_approved) : new Date(0);
+            break;
+          default:
+            aValue = a[sortField];
+            bValue = b[sortField];
+        }
+
+        if (sortDirection === 'asc') {
+          return aValue > bValue ? 1 : -1;
+        } else {
+          return aValue < bValue ? 1 : -1;
+        }
+      });
+    }
+
+    // Store filtered data for pagination calculation
+    const filteredData = [...filtered];
+
+    // Update pagination
+    setTotalPages(Math.ceil(filteredData.length / itemsPerPage));
+
+    // Get current page items
+    setCurrentItems(filteredData.slice(indexOfFirstItem, indexOfLastItem));
+  }, [currentPage, bonusRequests, searchTerm, filterStatus, selectedEmployee, dateRange, sortField, sortDirection, employees, itemsPerPage]);
+
   // Function to fetch both bonus data and employee data
   const fetchData = async () => {
     setLoading(true);
