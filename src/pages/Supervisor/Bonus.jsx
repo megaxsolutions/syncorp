@@ -55,19 +55,26 @@ export default function Bonus() {
     initializeData();
   }, []);
 
-  // Filter bonuses when search term changes
+  // Filter bonuses when search term changes or status filter changes
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredBonuses(bonuses);
-    } else {
-      const filtered = bonuses.filter(bonus =>
+    let filtered = bonuses;
+
+    // First apply text search filter
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(bonus =>
         bonus.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         bonus.cutOffPeriod?.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredBonuses(filtered);
     }
+
+    // Then apply status filter if one is selected
+    if (filterStatus !== '') {
+      filtered = filtered.filter(bonus => bonus.finalStatus === filterStatus);
+    }
+
+    setFilteredBonuses(filtered);
     setCurrentPage(1);
-  }, [searchTerm, bonuses]);
+  }, [searchTerm, bonuses, filterStatus]);
 
   const fetchCutOffPeriods = async () => {
     try {
