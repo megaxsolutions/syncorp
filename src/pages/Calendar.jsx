@@ -890,7 +890,7 @@ const Calendar = () => {
                         <th>Date</th>
                         <th>Holiday</th>
                         <th>Type</th>
-                        <th>Sites</th> {/* New column for sites */}
+                        {/* New column for sites */}
                       </tr>
                     </thead>
                     <tbody>
@@ -903,27 +903,7 @@ const Calendar = () => {
                               {holiday.holiday_type === 'RH' ? 'Regular' : 'Special'} Holiday
                             </span>
                           </td>
-                          <td>
-                            {holiday.siteNames && holiday.siteNames.length > 0 ? (
-                              holiday.siteNames.length > 2 ? (
-                                <div className="d-flex align-items-center">
-                                  <span className="me-1">{holiday.siteNames.sort().slice(0, 2).join(", ")}</span>
-                                  <span
-                                    className="badge bg-secondary"
-                                    data-bs-toggle="tooltip"
-                                    title={holiday.siteNames.sort().join(", ")}
-                                    style={{ cursor: 'pointer' }}
-                                  >
-                                    +{holiday.siteNames.length - 2} more
-                                  </span>
-                                </div>
-                              ) : (
-                                holiday.siteNames.sort().join(", ")
-                              )
-                            ) : (
-                              <span className="text-muted">No sites specified</span>
-                            )}
-                          </td>
+
                         </tr>
                       ))}
                     </tbody>

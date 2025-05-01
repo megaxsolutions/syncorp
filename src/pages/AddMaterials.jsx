@@ -115,16 +115,16 @@ export default function AddMaterials() {
     const file = e.target.files[0]
 
     // Check if file is a PDF
-    if (file && file.type !== 'application/pdf') {
-      Swal.fire({
-        icon: "error",
-        title: "Invalid File Type",
-        text: "Please upload only PDF files.",
-      });
-      // Reset the file input
-      e.target.value = '';
-      return;
-    }
+    // if (file && file.type !== 'application/pdf') {
+    //   Swal.fire({
+    //     icon: "error",
+    //     title: "Invalid File Type",
+    //     text: "Please upload only PDF files.",
+    //   });
+    //   // Reset the file input
+    //   e.target.value = '';
+    //   return;
+    // }
 
     setMaterialData({
       ...materialData,
@@ -212,19 +212,15 @@ export default function AddMaterials() {
     // Create a FormData instance for easy file manipulation
     const formData = new FormData();
 
-    // Create a properly escaped title value
-    const escapedTitle = material.title ? material.title.replace(/"/g, '&quot;') : '';
-    const escapedFilename = material.filename ? material.filename.replace(/"/g, '&quot;') : '';
-
     Swal.fire({
       title: "Edit Material",
       html: `
-        <form>
+        <form id="editMaterialForm">
           <div class="mb-3">
             <label class="form-label">
               <i class="bi bi-tag me-2"></i>Category
             </label>
-            <select id="categoryId" class="form-select form-select-lg">
+            <select id="edit_categoryId" class="form-select form-select-lg">
               <option value="">Select Category</option>
               ${categories.map(category => `
                 <option value="${category.id}" ${material.categoryID == category.id ? 'selected' : ''}>
@@ -237,7 +233,7 @@ export default function AddMaterials() {
             <label class="form-label">
               <i class="bi bi-journal-richtext me-2"></i>Course
             </label>
-            <select id="courseId" class="form-select form-select-lg">
+            <select id="edit_courseId" class="form-select form-select-lg">
               <option value="">Select Course</option>
               ${courses.map(course => `
                 <option value="${course.id}" ${material.courseID == course.id ? 'selected' : ''}>
@@ -252,10 +248,9 @@ export default function AddMaterials() {
             </label>
             <input
               type="text"
-              id="title"
+              id="edit_title"
               class="form-control form-control-lg"
               placeholder="Enter material title"
-              value="${escapedTitle}"
             >
           </div>
           <div class="mb-3">
@@ -264,23 +259,23 @@ export default function AddMaterials() {
             </label>
             <input
               type="text"
-              id="imageUrl"
+              id="edit_filename"
               class="form-control form-control-lg"
-              value="${escapedFilename}"
             >
           </div>
           <div class="mb-3">
             <label class="form-label">
-              <i class="bi bi-file-earmark-arrow-up me-2"></i>Replace File (PDF only)
+              <i class="bi bi-file-earmark-arrow-up me-2"></i>Replace File (PDF or MP4)
             </label>
             <input
               type="file"
-              id="fileUpload"
+              id="edit_fileUpload"
               class="form-control form-control-lg"
-              accept="application/pdf"
+              accept="application/pdf,video/mp4"
             >
+
             <div class="form-text">
-              Leave empty to keep the existing file. Only PDF files are accepted.
+              Leave empty to keep the existing file. Only PDF documents and MP4 videos are accepted.
             </div>
           </div>
         </form>
@@ -291,28 +286,23 @@ export default function AddMaterials() {
       confirmButtonColor: "#198754",
       cancelButtonColor: "#dc3545",
       didOpen: () => {
-        // Set the title value directly after modal opens
-        document.getElementById('title').value = material.title || '';
-        document.getElementById('imageUrl').value = material.filename || '';
+        // Use the prefix "edit_" for all input IDs to avoid any conflicts
+        document.getElementById('edit_title').value = material.title || '';
+        document.getElementById('edit_filename').value = material.filename || '';
       },
       preConfirm: () => {
-        const categoryId = document.getElementById("categoryId").value;
-        const courseId = document.getElementById("courseId").value;
-        const title = document.getElementById("title").value;
-        const filename = document.getElementById("imageUrl").value;
-        const fileInput = document.getElementById("fileUpload");
+        // Using the updated IDs with "edit_" prefix
+        const categoryId = document.getElementById("edit_categoryId").value;
+        const courseId = document.getElementById("edit_courseId").value;
+        const title = document.getElementById("edit_title").value;
+        const filename = document.getElementById("edit_filename").value;
+        const fileInput = document.getElementById("edit_fileUpload");
         const fileUploaded = fileInput.files.length > 0 ? fileInput.files[0] : null;
 
         // Debug logging
-        console.log("Title value:", title);
-        console.log("Title length:", title.length);
-        console.log("Title trimmed length:", title.trim().length);
-
-        // Check if uploaded file is a PDF
-        if (fileUploaded && fileUploaded.type !== 'application/pdf') {
-          Swal.showValidationMessage('Please upload only PDF files');
-          return false;
-        }
+        console.log("Edit Title value:", title);
+        console.log("Edit Title length:", title.length);
+        console.log("Edit Title trimmed length:", title.trim().length);
 
         // Validation - title cannot be empty
         if (!title || !title.trim()) {
@@ -320,10 +310,19 @@ export default function AddMaterials() {
           return false;
         }
 
+        // Clear previous form data to avoid duplicates
+        formData.delete('category_id');
+        formData.delete('course_id');
+        formData.delete('title');
+        formData.delete('filename');
+        formData.delete('created_by');
+        formData.delete('file_uploaded');
+
+        // Append new form data
         formData.append('category_id', categoryId ? Number(categoryId) : Number(material.categoryID));
         formData.append('course_id', courseId ? Number(courseId) : Number(material.courseID));
-        formData.append('title', title);
-        formData.append('filename', filename || material.filename);
+        formData.append('title', title.trim());
+        formData.append('filename', filename || material.filename || '');
         formData.append('created_by', Number(material.created_by));
 
         if (fileUploaded) {
@@ -336,6 +335,7 @@ export default function AddMaterials() {
       if (result.isConfirmed) {
         try {
           // Log the formData entries for debugging
+          console.log("FormData contents:");
           for (let pair of formData.entries()) {
             console.log(pair[0] + ': ' + pair[1]);
           }
@@ -551,7 +551,7 @@ export default function AddMaterials() {
 
                   <div className="form-group mb-4">
                     <label htmlFor="file" className="form-label">
-                      <i className="bi bi-file-earmark-arrow-up me-2"></i>Upload File (PDF only)
+                      <i className="bi bi-file-earmark-arrow-up me-2"></i>Upload File (PDF or MP4)
                       {!materialData.filename && <span className="text-danger">*</span>}
                     </label>
                     <input
@@ -560,7 +560,7 @@ export default function AddMaterials() {
                       id="file"
                       onChange={handleFileChange}
                       required={!materialData.filename}
-                      accept="application/pdf" // Restrict to PDF files only
+                      accept="application/pdf,video/mp4"
                     />
                     <div className="form-text">
                       {materialData.file ? (
@@ -569,7 +569,7 @@ export default function AddMaterials() {
                           File selected: {materialData.file.name}
                         </span>
                       ) : (
-                        "Upload a PDF file or provide a URL above."
+                        "Upload a PDF document or MP4 video file, or provide a URL above."
                       )}
                     </div>
                   </div>
@@ -649,8 +649,8 @@ export default function AddMaterials() {
                                 {material.date_created}
                               </small>
                             </td>
-                            <td>
-                              <div className="btn-group">
+                            <td className="text-end">
+                              <div className="btn-group btn-group-sm">
                                 <button
                                   onClick={() => handleEditMaterial(material)}
                                   className="btn btn-warning btn-sm"

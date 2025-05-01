@@ -335,11 +335,18 @@ const handleVideoSelect = (item) => {
   updateContentProgress(item.id);
 };
 
+// Update the handleDocumentSelect function to detect file type
 const handleDocumentSelect = (item) => {
-  // Set content type explicitly for documents
+  // Determine content type based on file extension
+  const fileExtension = item.filename_uploaded ?
+    item.filename_uploaded.split('.').pop().toLowerCase() : '';
+
+  // Set content type explicitly based on file extension
   const updatedItem = {
     ...item,
-    contentType: "document"
+    contentType: fileExtension === 'mp4' ? "uploaded_video" :
+                 fileExtension === 'pdf' ? "document" :
+                 "unknown"
   };
 
   // Set the current item with explicit type
@@ -568,71 +575,86 @@ const updateContentProgress = (itemId) => {
                 {/* Content Player - Updated to handle YouTube links properly */}
                 <div className="mb-4 rounded overflow-hidden shadow">
                   {currentItem ? (
-                    <>
-                      {currentItem.contentType === "video" ? (
-                        <div className="ratio ratio-16x9">
-                          {currentItem.filename && (currentItem.filename.includes('youtube.com') || currentItem.filename.includes('youtu.be')) ? (
-                            // Handle YouTube links properly by converting them to embed URLs
-                            <iframe
-                              src={formatYouTubeUrl(currentItem.filename)}
-                              title={currentItem.title || "YouTube Video"}
-                              allowFullScreen
-                              className="border-0"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            ></iframe>
-                          ) : (
-                            // Handle other video types
-                            <iframe
-                              src={currentItem.video_url || currentItem.filename}
-                              title={currentItem.title || "Course Video"}
-                              allowFullScreen
-                              className="border-0"
-                            ></iframe>
-                          )}
-                        </div>
-                      ) : currentItem.contentType === "document" ? (
-                        <div className="ratio ratio-4x3">
-                          <iframe
-                            src={`https://docs.google.com/gview?url=${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}&embedded=true`}
-                            allowFullScreen
-                            className="border-0"
-                          ></iframe>
-                        </div>
-                      ) : (
-                        <div className="bg-light text-center p-5">
-                          <h5>Content not available</h5>
-                          <p>This item doesn't have viewable content.</p>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="bg-light text-center p-5">
-                      <h5>No content available for this course</h5>
-                      <p>Please check back later or contact the administrator.</p>
-                    </div>
-                  )}
+  <>
+    {currentItem.contentType === "video" ? (
+      <div className="ratio ratio-16x9">
+        {currentItem.filename && (currentItem.filename.includes('youtube.com') || currentItem.filename.includes('youtu.be')) ? (
+          // Handle YouTube links properly by converting them to embed URLs
+          <iframe
+            src={formatYouTubeUrl(currentItem.filename)}
+            title={currentItem.title || "YouTube Video"}
+            allowFullScreen
+            className="border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          ></iframe>
+        ) : (
+          // Handle other video types
+          <iframe
+            src={currentItem.filename}
+            title={currentItem.title || "Course Video"}
+            allowFullScreen
+            className="border-0"
+          ></iframe>
+        )}
+      </div>
+    ) : currentItem.contentType === "uploaded_video" ? (
+      <div className="ratio ratio-16x9">
+        <video
+          controls
+          className="w-100 h-100"
+          controlsList="nodownload"
+        >
+          <source src={`${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}`} type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    ) : currentItem.contentType === "document" ? (
+      <div className="ratio ratio-4x3">
+        <iframe
+          src={`https://docs.google.com/gview?url=${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}&embedded=true`}
+          allowFullScreen
+          className="border-0"
+        ></iframe>
+      </div>
+    ) : (
+      <div className="bg-light text-center p-5">
+        <h5>Content not available</h5>
+        <p>This item doesn't have viewable content.</p>
+      </div>
+    )}
+  </>
+) : (
+  <div className="bg-light text-center p-5">
+    <h5>No content available for this course</h5>
+    <p>Please check back later or contact the administrator.</p>
+  </div>
+)}
                 </div>
 
                 {/* Update Content Details section to show more information */}
                 <div className="bg-light p-4 mb-4 rounded shadow">
                   <div className="d-flex align-items-center mb-3">
                     {currentItem && (
-                      <>
-                        {currentItem.contentType === "video" ? (
-                          <span className="badge bg-primary me-2">
-                            <i className="fa fa-video me-1"></i> Video
-                          </span>
-                        ) : currentItem.contentType === "document" ? (
-                          <span className="badge bg-success me-2">
-                            <i className="fa fa-file-pdf me-1"></i> Document
-                          </span>
-                        ) : (
-                          <span className="badge bg-secondary me-2">
-                            <i className="fa fa-file me-1"></i> Content
-                          </span>
-                        )}
-                      </>
-                    )}
+  <>
+    {currentItem.contentType === "video" ? (
+      <span className="badge bg-primary me-2">
+        <i className="fa fa-video me-1"></i> External Video
+      </span>
+    ) : currentItem.contentType === "uploaded_video" ? (
+      <span className="badge bg-info me-2">
+        <i className="fa fa-film me-1"></i> Video
+      </span>
+    ) : currentItem.contentType === "document" ? (
+      <span className="badge bg-success me-2">
+        <i className="fa fa-file-pdf me-1"></i> Document
+      </span>
+    ) : (
+      <span className="badge bg-secondary me-2">
+        <i className="fa fa-file me-1"></i> Content
+      </span>
+    )}
+  </>
+)}
                     <h3 className="mb-0">{currentItem ? currentItem.title || 'Untitled Content' : 'Content Not Available'}</h3>
                   </div>
                   <p>{currentItem ? currentItem.description || 'No description available.' : ''}</p>
@@ -653,30 +675,32 @@ const updateContentProgress = (itemId) => {
                   )}
 
                   {/* Download options */}
-                  {currentItem && (
-                    <div className="mt-3 d-flex flex-wrap gap-2">
-                      {currentItem.filename_uploaded && (
-                        <a
-                          href={`${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-sm btn-outline-primary"
-                        >
-                          <i className="fa fa-download me-1"></i> Download PDF Material
-                        </a>
-                      )}
-                      {currentItem.filename && !currentItem.filename.includes('youtube') && !currentItem.filename.includes('vimeo') && (
-                        <a
-                          href={currentItem.filename}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-sm btn-outline-success"
-                        >
-                          <i className="fa fa-external-link-alt me-1"></i> Open Video in New Tab
-                        </a>
-                      )}
-                    </div>
-                  )}
+{currentItem && (
+  <div className="mt-3 d-flex flex-wrap gap-2">
+    {currentItem.filename_uploaded && (
+      <a
+        href={`${config.API_BASE_URL}/uploads/${currentItem.filename_uploaded}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn btn-sm btn-outline-primary"
+      >
+        <i className={`fa ${currentItem.contentType === 'uploaded_video' ? 'fa-download' : 'fa-file-pdf'} me-1`}></i>
+        Download {currentItem.contentType === 'uploaded_video' ? 'Video' : 'PDF'} Material
+      </a>
+    )}
+    {currentItem.filename && !currentItem.filename.includes('youtube') && !currentItem.filename.includes('vimeo') && (
+      <a
+        href={currentItem.filename}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn btn-sm btn-outline-success"
+      >
+        <i className="fa fa-external-link-alt me-1"></i> Open Video in New Tab
+      </a>
+    )}
+  </div>
+)}
+
                 </div>
 
                 {/* Course Details */}
@@ -952,87 +976,140 @@ const updateContentProgress = (itemId) => {
                 </div>
 
                 {/* Course Content List - Updated with separated content types */}
-                <div className="bg-light p-4 rounded shadow">
-                  <h4 className="mb-3">Course Content</h4>
+<div className="bg-light p-4 rounded shadow">
+  <h4 className="mb-3">Course Content</h4>
 
-                  {videos.length > 0 ? (
-                    <>
-                      {/* Videos Section */}
-                      {videos.filter(item => item.filename && item.filename !== "").length > 0 && (
-                        <>
-                          <h5 className="mb-2">
-                            <i className="fa fa-video me-2 text-primary"></i>Videos
-                          </h5>
-                          <div className="list-group mb-4">
-                            {videos
-                              .filter(item => item.filename && item.filename !== "")
-                              .map((item, index) => (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  className={`list-group-item list-group-item-action ${
-                                    currentItem && currentItem.id === item.id && currentItem.contentType === "video" ? 'active' : ''
-                                  }`}
-                                  onClick={() => handleVideoSelect(item)}
-                                >
-                                  <div className="d-flex w-100 justify-content-between">
-                                    <h5 className="mb-1">
-                                      <i className="fa fa-play-circle me-2"></i>
-                                      {item.title || "Untitled Video"}
-                                    </h5>
-                                  </div>
-                                  <small>
-                                    {item.description?.substring(0, 60) || 'No description'}
-                                    {item.description?.length > 60 ? '...' : ''}
-                                  </small>
-                                </button>
-                              ))
-                            }
-                          </div>
-                        </>
-                      )}
+  {videos.length > 0 ? (
+    <>
+      {/* External Videos Section */}
+      {videos.filter(item => item.filename && item.filename !== "").length > 0 && (
+        <>
+          <h5 className="mb-2">
+            <i className="fa fa-video me-2 text-primary"></i>External Videos
+          </h5>
+          <div className="list-group mb-4">
+            {videos
+              .filter(item => item.filename && item.filename !== "")
+              .map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`list-group-item list-group-item-action ${
+                    currentItem && currentItem.id === item.id && currentItem.contentType === "video" ? 'active' : ''
+                  }`}
+                  onClick={() => handleVideoSelect(item)}
+                >
+                  <div className="d-flex w-100 justify-content-between">
+                    <h5 className="mb-1">
+                      <i className="fa fa-play-circle me-2"></i>
+                      {item.title || "Untitled Video"}
+                    </h5>
+                  </div>
+                  <small>
+                    {item.description?.substring(0, 60) || 'No description'}
+                    {item.description?.length > 60 ? '...' : ''}
+                  </small>
+                </button>
+              ))
+            }
+          </div>
+        </>
+      )}
 
-                      {/* Documents Section */}
-                      {videos.filter(item => item.filename_uploaded && item.filename_uploaded !== "").length > 0 && (
-                        <>
-                          <h5 className="mb-2">
-                            <i className="fa fa-file-pdf me-2 text-danger"></i>Documents
-                          </h5>
-                          <div className="list-group">
-                            {videos
-                              .filter(item => item.filename_uploaded && item.filename_uploaded !== "")
-                              .map((item, index) => (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  className={`list-group-item list-group-item-action ${
-                                    currentItem && currentItem.id === item.id && currentItem.contentType === "document" ? 'active' : ''
-                                  }`}
-                                  onClick={() => handleDocumentSelect(item)}
-                                >
-                                  <div className="d-flex w-100 justify-content-between">
-                                    <h5 className="mb-1">
-                                      <i className="fa fa-file-pdf me-2"></i>
-                                      {item.title || "Untitled Document"}
-                                    </h5>
-                                  </div>
-                                  <small>
-                                    {item.description?.substring(0, 60) || 'No description'}
-                                    {item.description?.length > 60 ? '...' : ''}
-                                  </small>
-                                </button>
-                              ))
-                            }
-                          </div>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <div className="text-center py-3">
-                      <p>No content available for this course.</p>
-                    </div>
-                  )}
-                </div>
+      {/* Uploaded Files Section - Now checking file extensions */}
+      {videos.filter(item => item.filename_uploaded && item.filename_uploaded !== "").length > 0 && (
+        <>
+          {/* Uploaded Videos Section */}
+          {videos.filter(item =>
+            item.filename_uploaded &&
+            item.filename_uploaded.toLowerCase().endsWith('.mp4')
+          ).length > 0 && (
+            <>
+              <h5 className="mb-2">
+                <i className="fa fa-film me-2 text-info"></i>Uploaded Videos
+              </h5>
+              <div className="list-group mb-4">
+                {videos
+                  .filter(item =>
+                    item.filename_uploaded &&
+                    item.filename_uploaded.toLowerCase().endsWith('.mp4')
+                  )
+                  .map((item, index) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`list-group-item list-group-item-action ${
+                        currentItem && currentItem.id === item.id && currentItem.contentType === "uploaded_video" ? 'active' : ''
+                      }`}
+                      onClick={() => handleDocumentSelect(item)}
+                    >
+                      <div className="d-flex w-100 justify-content-between">
+                        <h5 className="mb-1">
+                          <i className="fa fa-film me-2"></i>
+                          {item.title || "Untitled Video"}
+                        </h5>
+                      </div>
+                      <small>
+                        {item.description?.substring(0, 60) || 'No description'}
+                        {item.description?.length > 60 ? '...' : ''}
+                      </small>
+                    </button>
+                  ))
+                }
+              </div>
+            </>
+          )}
+
+          {/* Documents Section - PDF only */}
+          {videos.filter(item =>
+            item.filename_uploaded &&
+            item.filename_uploaded.toLowerCase().endsWith('.pdf')
+          ).length > 0 && (
+            <>
+              <h5 className="mb-2">
+                <i className="fa fa-file-pdf me-2 text-danger"></i>Documents
+              </h5>
+              <div className="list-group">
+                {videos
+                  .filter(item =>
+                    item.filename_uploaded &&
+                    item.filename_uploaded.toLowerCase().endsWith('.pdf')
+                  )
+                  .map((item, index) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`list-group-item list-group-item-action ${
+                        currentItem && currentItem.id === item.id && currentItem.contentType === "document" ? 'active' : ''
+                      }`}
+                      onClick={() => handleDocumentSelect(item)}
+                    >
+                      <div className="d-flex w-100 justify-content-between">
+                        <h5 className="mb-1">
+                          <i className="fa fa-file-pdf me-2"></i>
+                          {item.title || "Untitled Document"}
+                        </h5>
+                      </div>
+                      <small>
+                        {item.description?.substring(0, 60) || 'No description'}
+                        {item.description?.length > 60 ? '...' : ''}
+                      </small>
+                    </button>
+                  ))
+                }
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </>
+  ) : (
+    <div className="text-center py-3">
+      <p>No content available for this course.</p>
+    </div>
+  )}
+</div>
+
               </div>
             </div>
           ) : (
